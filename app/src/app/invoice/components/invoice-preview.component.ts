@@ -13,13 +13,123 @@ import { BillingPreviewModel } from '../../shared/models/billing.models';
 export class InvoicePreviewComponent {
   @Input({ required: true }) preview!: BillingPreviewModel;
 
+  protected documentHeading(): string {
+    const normalized = this.preview.documentTypeLabel.toUpperCase();
+
+    if (normalized.includes('QUOTATION')) {
+      return 'QUOTATION';
+    }
+
+    if (normalized.includes('PROFORMA')) {
+      return 'PROFORMA INVOICE';
+    }
+
+    return 'INVOICE';
+  }
+
+  protected totalQuantity(): number {
+    return this.preview.lineItems.reduce((sum, item) => sum + item.quantity, 0);
+  }
+
+  protected totalTaxRate(): number {
+    return this.maxTaxPercent('cgstPercentage') + this.maxTaxPercent('sgstPercentage');
+  }
+
+  protected totalCgstAmount(): number {
+    return this.preview.lineItems.reduce((sum, item) => sum + item.cgstAmount, 0);
+  }
+
+  protected totalSgstAmount(): number {
+    return this.preview.lineItems.reduce((sum, item) => sum + item.sgstAmount, 0);
+  }
+
+  protected billToName(): string {
+    return this.preview.customerName || this.preview.customer?.customerName || 'Customer';
+  }
+
+  protected billToBranch(): string {
+    return this.preview.customer?.customerName || this.billToName();
+  }
+
+  protected billToAddress(): string {
+    return (
+      this.preview.customerAddress ||
+      this.preview.customer?.billingAddress ||
+      this.preview.customer?.address ||
+      'Customer address'
+    );
+  }
+
+  protected billToContact(): string {
+    return (
+      this.preview.customer?.phone ||
+      this.preview.customer?.email ||
+      this.billToName()
+    );
+  }
+
+  protected issuerName(): string {
+    return (
+      this.preview.company?.companyName ||
+      this.preview.supplier?.supplierName ||
+      'Company'
+    );
+  }
+
+  protected issuerAddressLines(): string[] {
+    if (this.preview.company) {
+      return [
+        this.preview.company.address,
+        `${this.preview.company.city}, ${this.preview.company.state} ${this.preview.company.pinCode}`,
+        this.preview.company.country,
+      ].filter(Boolean);
+    }
+
+    return [this.preview.supplier?.address || 'Company address'];
+  }
+
+  protected issuerPhone(): string {
+    return this.preview.company?.phone || this.preview.supplier?.phone || '-';
+  }
+
+  protected issuerEmail(): string {
+    return this.preview.company?.email || this.preview.supplier?.email || '-';
+  }
+
+  protected issuerBankLines(): string[] {
+    if (this.preview.company) {
+      return [
+        this.preview.company.bankName,
+        `A/C No: ${this.preview.company.accountNumber}`,
+        `IFSC: ${this.preview.company.ifscCode}`,
+        `GSTIN: ${this.preview.company.gstin}`,
+      ];
+    }
+
+    return [
+      this.preview.supplier?.bankName || '-',
+      this.preview.supplier?.accountNumber
+        ? `A/C No: ${this.preview.supplier.accountNumber}`
+        : '',
+      this.preview.supplier?.ifscCode ? `IFSC: ${this.preview.supplier.ifscCode}` : '',
+      this.preview.supplier?.gstin ? `GSTIN: ${this.preview.supplier.gstin}` : '',
+    ].filter(Boolean);
+  }
+
   protected amountInWords(): string {
     const rupees = Math.floor(this.preview.totalAmount || 0);
     const paise = Math.round(((this.preview.totalAmount || 0) - rupees) * 100);
     const rupeeWords = this.numberToWords(rupees);
     const paiseWords = paise > 0 ? ` and ${this.numberToWords(paise)} Paise` : '';
 
-    return `Indian Rupees ${rupeeWords}${paiseWords} Only`;
+    return `${rupeeWords}${paiseWords} Only`;
+  }
+
+  private maxTaxPercent(field: 'cgstPercentage' | 'sgstPercentage'): number {
+    return this.preview.lineItems.reduce(
+      (maxValue, item) => Math.max(maxValue, item[field]),
+      0,
+    );
   }
 
   private numberToWords(value: number): string {

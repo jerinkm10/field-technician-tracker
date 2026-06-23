@@ -1,148 +1,196 @@
 <article class="invoice-preview panel">
-  <header class="preview-header">
-    <div class="logo-block">
+  <header class="template-header">
+    <div class="header-brand">
       @if (preview.company?.logoAttachment) {
         <img
           class="company-logo"
           [src]="preview.company?.logoAttachment"
           alt="Company logo preview" />
+      } @else {
+        <div class="logo-fallback">
+          <span>{{ issuerName() }}</span>
+        </div>
       }
-      <div>
-        <h2>{{ preview.company?.companyName || 'Field Technician Tracker' }}</h2>
-        <p>{{ preview.company?.address || 'Service Operations and Billing Desk' }}</p>
-        @if (preview.company) {
-          <p>
-            {{ preview.company.city }}, {{ preview.company.state }} {{ preview.company.pinCode }},
-            {{ preview.company.country }}
-          </p>
-          <p>
-            {{ preview.company.phone }} | {{ preview.company.email }} | GSTIN:
-            {{ preview.company.gstin }}
-          </p>
-          <p>
-            Bank: {{ preview.company.bankName }} | A/C: {{ preview.company.accountNumber }} |
-            IFSC: {{ preview.company.ifscCode }}
-          </p>
-        }
-      </div>
     </div>
 
-    <div class="document-meta">
-      <h3>{{ preview.documentTypeLabel }}</h3>
-      <p><strong>No:</strong> {{ preview.documentNumber || 'Draft' }}</p>
-      <p><strong>Date:</strong> {{ preview.documentDate | date : 'dd MMM yyyy' }}</p>
+    <div class="header-meta">
+      <p class="recipient-copy">Original for Recipient</p>
+      <h1>{{ documentHeading() }} {{ preview.documentNumber || 'Draft' }}</h1>
+      <p class="document-date"><strong>Date</strong> {{ preview.documentDate | date : 'MMMM dd, yyyy' }}</p>
       @if (preview.validUntil) {
-        <p><strong>Valid Until:</strong> {{ preview.validUntil | date : 'dd MMM yyyy' }}</p>
+        <p class="valid-until">Valid Until {{ preview.validUntil | date : 'MMMM dd, yyyy' }}</p>
       }
     </div>
   </header>
 
-  <div class="blue-line"></div>
+  <div class="section-divider"></div>
 
-  <section class="party-grid">
-    <div class="party-card">
-      <h4>Supplier Details</h4>
-      <p class="party-name">{{ preview.supplier?.supplierName || 'Select supplier' }}</p>
-      <p>{{ preview.supplier?.address || 'Address will appear here' }}</p>
-      <p>{{ preview.supplier?.phone || '-' }}</p>
-      <p>{{ preview.supplier?.email || '-' }}</p>
-      <p>GSTIN: {{ preview.supplier?.gstin || '-' }}</p>
-      <p>Bank: {{ preview.supplier?.bankName || '-' }}</p>
-      <p>A/C: {{ preview.supplier?.accountNumber || '-' }}</p>
-      <p>IFSC: {{ preview.supplier?.ifscCode || '-' }}</p>
-    </div>
+  <section class="details-grid">
+    <section class="details-column">
+      <h2 class="section-heading">{{ issuerName() }}</h2>
 
-    <div class="party-card">
-      <h4>Bill To</h4>
-      <p class="party-name">{{ preview.customerName || preview.customer?.customerName || 'Select customer' }}</p>
-      <p>{{ preview.customerAddress || preview.customer?.billingAddress || 'Billing address will appear here' }}</p>
-      <p>{{ preview.customer?.phone || '-' }}</p>
-      <p>{{ preview.customer?.email || '-' }}</p>
-      <p>GSTIN: {{ preview.customerGstin || preview.customer?.gstin || '-' }}</p>
-      <p>Place Of Supply: {{ preview.placeOfSupply || preview.customer?.placeOfSupply || '-' }}</p>
-    </div>
+      <div class="detail-line">
+        <i class="pi pi-map-marker"></i>
+        <div>
+          @for (line of issuerAddressLines(); track $index) {
+            <p>{{ line }}</p>
+          }
+        </div>
+      </div>
+
+      <div class="detail-line">
+        <i class="pi pi-phone"></i>
+        <div>
+          <p>{{ issuerPhone() }}</p>
+        </div>
+      </div>
+
+      <div class="detail-line">
+        <i class="pi pi-envelope"></i>
+        <div>
+          <p>{{ issuerEmail() }}</p>
+        </div>
+      </div>
+
+      <div class="detail-line">
+        <i class="pi pi-info-circle"></i>
+        <div>
+          @for (line of issuerBankLines(); track $index) {
+            <p>{{ line }}</p>
+          }
+        </div>
+      </div>
+    </section>
+
+    <section class="details-column">
+      <h2 class="section-heading">Bill to:</h2>
+      <p class="bill-to-primary">{{ billToName() }}</p>
+
+      <div class="detail-line">
+        <i class="pi pi-map-marker"></i>
+        <div>
+          <p>{{ billToBranch() }}</p>
+          <p>{{ billToAddress() }}</p>
+        </div>
+      </div>
+
+      <div class="detail-line">
+        <i class="pi pi-user"></i>
+        <div>
+          <p>{{ billToContact() }}</p>
+        </div>
+      </div>
+
+      <div class="detail-line">
+        <i class="pi pi-info-circle"></i>
+        <div>
+          <p>Place of Supply: {{ preview.placeOfSupply || preview.customer?.placeOfSupply || '-' }}</p>
+          <p>GSTIN: {{ preview.customerGstin || preview.customer?.gstin || '-' }}</p>
+        </div>
+      </div>
+    </section>
   </section>
 
-  <div class="blue-line"></div>
+  <div class="section-divider"></div>
 
-  <section class="items-section">
-    <table class="preview-table">
+  <section class="table-section">
+    <table class="invoice-table">
       <thead>
         <tr>
-          <th>NO</th>
-          <th>PRODUCT / SERVICE NAME</th>
-          <th>HSN/SAC</th>
-          <th>QTY</th>
-          <th>UNIT PRICE</th>
-          <th>CGST</th>
-          <th>SGST</th>
-          <th>AMOUNT</th>
+          <th class="align-center">NO</th>
+          <th class="align-left">PRODUCT / SERVICE NAME</th>
+          <th class="align-center">HSN/SAC</th>
+          <th class="align-center">QTY</th>
+          <th class="align-right">UNIT PRICE</th>
+          <th class="align-right">CGST</th>
+          <th class="align-right">SGST</th>
+          <th class="align-right">AMOUNT</th>
         </tr>
       </thead>
+
       <tbody>
         @for (item of preview.lineItems; track $index) {
-          <tr>
-            <td>{{ $index + 1 }}</td>
-            <td>
-              <strong>{{ item.productServiceName || 'Untitled item' }}</strong>
-              <div class="item-description">{{ item.description || 'Description' }}</div>
+          <tr class="item-row">
+            <td class="align-center">{{ $index + 1 }}</td>
+            <td class="product-cell">
+              <strong>{{ (item.productServiceName || 'Untitled item').toUpperCase() }}</strong>
+              @if (item.description) {
+                <div class="item-description">{{ item.description }}</div>
+              }
             </td>
-            <td>{{ item.hsnSac || '-' }}</td>
-            <td>{{ item.quantity | number : '1.0-2' }}</td>
-            <td>{{ item.unitPrice | number : '1.2-2' }}</td>
-            <td>
-              <strong>{{ item.cgstPercentage | number : '1.0-2' }}%</strong>
-              <span>{{ item.cgstAmount | number : '1.2-2' }}</span>
+            <td class="align-center">{{ item.hsnSac || '-' }}</td>
+            <td class="align-center">{{ item.quantity | number : '1.0-2' }}</td>
+            <td class="align-right">{{ item.unitPrice | number : '1.2-2' }}</td>
+            <td class="align-right tax-cell">
+              <strong>{{ item.cgstAmount | number : '1.2-2' }}</strong>
+              <span>{{ item.cgstPercentage | number : '1.0-2' }}%</span>
             </td>
-            <td>
-              <strong>{{ item.sgstPercentage | number : '1.0-2' }}%</strong>
-              <span>{{ item.sgstAmount | number : '1.2-2' }}</span>
+            <td class="align-right tax-cell">
+              <strong>{{ item.sgstAmount | number : '1.2-2' }}</strong>
+              <span>{{ item.sgstPercentage | number : '1.0-2' }}%</span>
             </td>
-            <td>{{ item.lineAmount | number : '1.2-2' }}</td>
+            <td class="align-right amount-cell">{{ item.lineAmount | number : '1.2-2' }}</td>
           </tr>
         }
       </tbody>
+
+      <tfoot>
+        <tr class="tax-summary-row">
+          <td></td>
+          <td></td>
+          <td class="align-center">@{{ totalTaxRate() | number : '1.0-2' }}%</td>
+          <td class="align-center">{{ totalQuantity() | number : '1.0-2' }}</td>
+          <td class="align-right">{{ preview.totalBeforeTax | number : '1.2-2' }}</td>
+          <td class="align-right">{{ totalCgstAmount() | number : '1.2-2' }}</td>
+          <td class="align-right">{{ totalSgstAmount() | number : '1.2-2' }}</td>
+          <td class="align-right">{{ preview.totalAmount | number : '1.2-2' }}</td>
+        </tr>
+        <tr class="grand-total-row">
+          <td></td>
+          <td class="total-label">TOTAL</td>
+          <td></td>
+          <td class="align-center">{{ totalQuantity() | number : '1.0-2' }}</td>
+          <td class="align-right">{{ preview.totalBeforeTax | number : '1.2-2' }}</td>
+          <td class="align-right">{{ totalCgstAmount() | number : '1.2-2' }}</td>
+          <td class="align-right">{{ totalSgstAmount() | number : '1.2-2' }}</td>
+          <td class="align-right">{{ preview.totalAmount | number : '1.2-2' }}</td>
+        </tr>
+      </tfoot>
     </table>
   </section>
 
-  <section class="summary-grid">
-    <div class="summary-left">
-      <div class="summary-block signature-block">
-        <h4>Company Signature</h4>
+  <section class="footer-grid">
+    <div class="footer-left">
+      <p class="amount-words">Total: Rs. {{ amountInWords() }}</p>
+      <p class="signatory-label">AUTHORIZED SIGNATORY</p>
+
+      <div class="signature-assets">
         @if (preview.company?.signatureAttachment) {
           <img
             class="signature-image"
             [src]="preview.company?.signatureAttachment"
             alt="Authorized signature preview" />
-        } @else {
-          <p>AUTHORIZED SIGNATORY</p>
         }
-      </div>
-
-      <div class="summary-block">
-        <h4>Amount in Words</h4>
-        <p>{{ amountInWords() }}</p>
-      </div>
-
-      <div class="summary-block">
-        <h4>Notes</h4>
-        <p>{{ preview.notes || 'No notes added.' }}</p>
-      </div>
-
-      <div class="summary-block">
-        <h4>Terms & Conditions</h4>
-        <p>{{ preview.termsAndConditions || 'Standard commercial terms apply.' }}</p>
+        @if (preview.company?.sealAttachment) {
+          <img
+            class="seal-image"
+            [src]="preview.company?.sealAttachment"
+            alt="Company seal preview" />
+        }
+        @if (!preview.company?.signatureAttachment && !preview.company?.sealAttachment) {
+          <div class="signature-placeholder"></div>
+        }
       </div>
     </div>
 
-    <div class="summary-card">
+    <div class="footer-right">
       <div class="summary-row">
         <span>TOTAL BEFORE TAX</span>
-        <strong>{{ preview.totalBeforeTax | number : '1.2-2' }}</strong>
+        <strong>Rs. {{ preview.totalBeforeTax | number : '1.2-2' }}</strong>
       </div>
       <div class="summary-row">
         <span>TOTAL TAX AMOUNT</span>
-        <strong>{{ preview.totalTaxAmount | number : '1.2-2' }}</strong>
+        <strong>Rs. {{ preview.totalTaxAmount | number : '1.2-2' }}</strong>
       </div>
       <div class="summary-row">
         <span>ROUNDED OFF</span>
@@ -150,20 +198,14 @@
       </div>
       <div class="summary-row">
         <span>TOTAL AMOUNT</span>
-        <strong>{{ preview.totalAmount | number : '1.2-2' }}</strong>
+        <strong>Rs. {{ preview.totalAmount | number : '1.2-2' }}</strong>
       </div>
       <div class="summary-row">
         <span>AMOUNT DUE</span>
-        <strong>{{ preview.amountDue | number : '1.2-2' }}</strong>
-      </div>
-
-      <div class="signatory-box">
-        <span>{{ preview.company?.companyName || 'Authorized Signatory' }}</span>
+        <strong>Rs. {{ preview.amountDue | number : '1.2-2' }}</strong>
       </div>
     </div>
   </section>
 
-  <footer class="preview-footer">
-    Generated by Field Technician Tracker Billing Desk. This document is system generated.
-  </footer>
+  <footer class="template-footer">Issued using ERP System</footer>
 </article>

@@ -59,6 +59,10 @@ export class UpdateCompanySettingsDto {
   signatureAttachment?: string;
 
   @IsOptional()
+  @IsString()
+  sealAttachment?: string;
+
+  @IsOptional()
   @IsEnum(CompanyStatus)
   status?: CompanyStatus;
 }

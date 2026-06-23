@@ -44,6 +44,10 @@ export class CompanySettingsApiService {
     return this.uploadFile(`${this.endpoint}/signature`, file);
   }
 
+  uploadSeal(file: File): Observable<UploadAssetResponse> {
+    return this.uploadFile(`${this.endpoint}/seal`, file);
+  }
+
   private uploadFile(url: string, file: File): Observable<UploadAssetResponse> {
     const formData = new FormData();
     formData.append('file', file);

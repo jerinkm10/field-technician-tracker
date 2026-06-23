@@ -88,6 +88,21 @@ export class CompanySettingsController {
     );
   }
 
+  @Post('seal')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN)
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadCompanySeal(
+    @UploadedFile() file: any,
+    @Req() request: Request,
+  ) {
+    return this.companySettingsService.storeAsset(
+      file,
+      'seal',
+      `${request.protocol}://${request.get('host')}`,
+    );
+  }
+
   @Get('assets/:fileName')
   async getCompanyAsset(
     @Param('fileName') fileName: string,

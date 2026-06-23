@@ -29,6 +29,7 @@ const companySelect = Prisma.validator<Prisma.CompanySelect>()({
   ifscCode: true,
   logoAttachment: true,
   signatureAttachment: true,
+  sealAttachment: true,
   status: true,
   createdAt: true,
   updatedAt: true,
@@ -41,6 +42,7 @@ export type CompanySettingsRecord = Prisma.CompanyGetPayload<{
 export type CompanyBrandingRecord = CompanySettingsRecord & {
   logoFilePath: string | null;
   signatureFilePath: string | null;
+  sealFilePath: string | null;
 };
 
 @Injectable()
@@ -93,6 +95,7 @@ export class CompanySettingsService {
         ifscCode: createCompanySettingsDto.ifscCode,
         logoAttachment: createCompanySettingsDto.logoAttachment,
         signatureAttachment: createCompanySettingsDto.signatureAttachment,
+        sealAttachment: createCompanySettingsDto.sealAttachment,
         status: createCompanySettingsDto.status ?? CompanyStatus.ACTIVE,
       },
       select: companySelect,
@@ -124,6 +127,7 @@ export class CompanySettingsService {
         ifscCode: updateCompanySettingsDto.ifscCode,
         logoAttachment: updateCompanySettingsDto.logoAttachment,
         signatureAttachment: updateCompanySettingsDto.signatureAttachment,
+        sealAttachment: updateCompanySettingsDto.sealAttachment,
         status: updateCompanySettingsDto.status,
       },
       select: companySelect,
@@ -132,7 +136,7 @@ export class CompanySettingsService {
 
   async storeAsset(
     file: { buffer: Buffer; mimetype?: string; originalname?: string } | undefined,
-    assetType: 'logo' | 'signature',
+    assetType: 'logo' | 'signature' | 'seal',
     requestBaseUrl: string,
   ): Promise<{ fileUrl: string }> {
     if (!file?.buffer?.length) {
@@ -182,6 +186,7 @@ export class CompanySettingsService {
       ...company,
       logoFilePath: this.resolveAssetPath(company.logoAttachment),
       signatureFilePath: this.resolveAssetPath(company.signatureAttachment),
+      sealFilePath: this.resolveAssetPath(company.sealAttachment),
     };
   }
 

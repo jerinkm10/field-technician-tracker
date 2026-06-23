@@ -35,6 +35,7 @@ export class CompanySettingsPageComponent {
   protected readonly saving = signal(false);
   protected readonly uploadingLogo = signal(false);
   protected readonly uploadingSignature = signal(false);
+  protected readonly uploadingSeal = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly successMessage = signal<string | null>(null);
 
@@ -91,6 +92,7 @@ export class CompanySettingsPageComponent {
       ifscCode: this.draft.ifscCode.trim().toUpperCase(),
       logoAttachment: this.draft.logoAttachment ?? null,
       signatureAttachment: this.draft.signatureAttachment ?? null,
+      sealAttachment: this.draft.sealAttachment ?? null,
       status: this.draft.status,
     };
 
@@ -159,6 +161,28 @@ export class CompanySettingsPageComponent {
     });
   }
 
+  protected uploadSeal(event: Event): void {
+    const file = this.fileFromEvent(event);
+
+    if (!file) {
+      return;
+    }
+
+    this.uploadingSeal.set(true);
+    this.errorMessage.set(null);
+
+    this.companySettingsApiService.uploadSeal(file).subscribe({
+      next: (response) => {
+        this.uploadingSeal.set(false);
+        this.draft.sealAttachment = response.fileUrl;
+      },
+      error: () => {
+        this.uploadingSeal.set(false);
+        this.errorMessage.set('Seal upload failed. Upload a valid image file and try again.');
+      },
+    });
+  }
+
   protected canSave(): boolean {
     return Boolean(
       this.draft.companyName.trim() &&
@@ -199,6 +223,7 @@ export class CompanySettingsPageComponent {
       ifscCode: company.ifscCode,
       logoAttachment: company.logoAttachment,
       signatureAttachment: company.signatureAttachment,
+      sealAttachment: company.sealAttachment,
       status: company.status,
     };
   }
@@ -219,6 +244,7 @@ export class CompanySettingsPageComponent {
       ifscCode: '',
       logoAttachment: null,
       signatureAttachment: null,
+      sealAttachment: null,
       status: 'ACTIVE',
     };
   }

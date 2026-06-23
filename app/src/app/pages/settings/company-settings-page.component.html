@@ -16,7 +16,7 @@
         label="Save Company"
         icon="pi pi-check"
         [loading]="saving()"
-        [disabled]="!canSave() || uploadingLogo() || uploadingSignature()"
+        [disabled]="!canSave() || uploadingLogo() || uploadingSignature() || uploadingSeal()"
         (click)="saveCompanySettings()">
       </button>
     </div>
@@ -169,6 +169,34 @@
         } @else {
           <div class="asset-placeholder">
             <strong>AUTHORIZED SIGNATORY</strong>
+          </div>
+        }
+      </div>
+    </article>
+
+    <article class="panel section-shell asset-card">
+      <div class="section-header">
+        <div>
+          <h3>Seal / Stamp</h3>
+          <p>Optional company seal shown near the authorized signatory area.</p>
+        </div>
+      </div>
+
+      <label class="upload-control">
+        <span>Upload Seal</span>
+        <input type="file" accept="image/*" (change)="uploadSeal($event)" />
+      </label>
+
+      @if (uploadingSeal()) {
+        <p class="muted-copy">Uploading seal...</p>
+      }
+
+      <div class="asset-preview signature-preview">
+        @if (draft.sealAttachment) {
+          <img [src]="draft.sealAttachment" alt="Company seal preview" />
+        } @else {
+          <div class="asset-placeholder">
+            <strong>COMPANY SEAL / STAMP</strong>
           </div>
         }
       </div>

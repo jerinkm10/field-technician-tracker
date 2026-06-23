@@ -99,6 +99,7 @@ export type CompanyRecord = {
   ifscCode: string;
   logoAttachment: string | null;
   signatureAttachment: string | null;
+  sealAttachment: string | null;
   status: CompanyStatus;
   createdAt: string;
   updatedAt: string;
@@ -119,6 +120,7 @@ export type CompanyUpsertPayload = {
   ifscCode: string;
   logoAttachment?: string | null;
   signatureAttachment?: string | null;
+  sealAttachment?: string | null;
   status: CompanyStatus;
 };
 
