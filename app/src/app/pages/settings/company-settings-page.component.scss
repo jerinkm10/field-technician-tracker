@@ -1,0 +1,139 @@
+.header-actions,
+.section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.form-grid,
+.asset-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.asset-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.field-span-2 {
+  grid-column: span 2;
+}
+
+.field span,
+.upload-control span {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--ftt-muted);
+}
+
+.field input,
+.field textarea {
+  width: 100%;
+}
+
+.field textarea {
+  min-height: 120px;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--ftt-border);
+  border-radius: var(--ftt-radius-sm);
+  background: rgba(255, 255, 255, 0.92);
+  resize: vertical;
+}
+
+.asset-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.upload-control {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.asset-preview {
+  min-height: 180px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed rgba(31, 122, 109, 0.26);
+  border-radius: 20px;
+  background: rgba(248, 250, 252, 0.82);
+  overflow: hidden;
+}
+
+.asset-preview img {
+  max-width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+}
+
+.signature-preview img {
+  max-height: 160px;
+}
+
+.asset-placeholder {
+  padding: 1rem;
+  text-align: center;
+  color: var(--ftt-muted);
+}
+
+.state-panel {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+}
+
+.state-panel h3,
+.state-panel p,
+.section-header h3,
+.section-header p,
+.muted-copy {
+  margin: 0;
+}
+
+.error-panel i {
+  color: #dc2626;
+  font-size: 1.35rem;
+}
+
+.success-panel i {
+  color: #16a34a;
+  font-size: 1.35rem;
+}
+
+.muted-copy,
+.section-header p,
+.state-panel p {
+  color: var(--ftt-muted);
+  line-height: 1.5;
+}
+
+@media (max-width: 960px) {
+  .header-actions,
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .form-grid,
+  .asset-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .field-span-2 {
+    grid-column: span 1;
+  }
+}

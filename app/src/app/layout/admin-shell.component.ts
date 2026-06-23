@@ -65,11 +65,6 @@ export class AdminShellComponent {
           icon: 'pi pi-file-edit',
         },
         {
-          label: 'Suppliers',
-          route: '/invoice/suppliers',
-          icon: 'pi pi-building',
-        },
-        {
           label: 'Customers',
           route: '/invoice/customers',
           icon: 'pi pi-id-card',
@@ -78,6 +73,22 @@ export class AdminShellComponent {
           label: 'Invoice Input Fields',
           route: '/invoice/input-fields',
           icon: 'pi pi-sliders-h',
+        },
+      ],
+    },
+    {
+      label: 'Settings',
+      icon: 'pi pi-cog',
+      children: [
+        {
+          label: 'Company',
+          route: '/settings/company',
+          icon: 'pi pi-building-columns',
+        },
+        {
+          label: 'Suppliers',
+          route: '/settings/suppliers',
+          icon: 'pi pi-building',
         },
       ],
     },
@@ -91,8 +102,6 @@ export class AdminShellComponent {
   protected readonly groupedNavigation = this.navigation.filter(
     (item) => item.children?.length,
   );
-
-  protected readonly invoiceNavigation = this.groupedNavigation[0]?.children ?? [];
 
   protected readonly sidebarOpen = signal(false);
   protected readonly authService = inject(AuthService);

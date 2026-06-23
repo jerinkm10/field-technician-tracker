@@ -10,10 +10,10 @@
 
     <div class="header-actions">
       <button pButton type="button" label="Back" icon="pi pi-arrow-left" text (click)="goBack()"></button>
+      <button pButton type="button" label="Preview" icon="pi pi-eye" outlined (click)="openPreview()"></button>
       @if (isReadOnly()) {
         <button pButton type="button" label="Edit" icon="pi pi-pencil" (click)="goToEdit()"></button>
       } @else {
-        <button pButton type="button" label="Preview" icon="pi pi-eye" outlined (click)="openPreview()"></button>
         <button pButton type="button" label="Save" icon="pi pi-check" [loading]="saving()" (click)="saveDocument()"></button>
       }
     </div>

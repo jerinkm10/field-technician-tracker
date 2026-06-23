@@ -21,17 +21,14 @@
   gap: 1rem;
 }
 
-.logo-mark {
+.company-logo {
   width: 64px;
   height: 64px;
+  object-fit: contain;
   border-radius: 18px;
-  border: 2px solid #2563eb;
-  display: grid;
-  place-items: center;
-  font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
-  font-size: 1.35rem;
-  font-weight: 700;
-  color: #2563eb;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+  background: #ffffff;
+  padding: 0.35rem;
 }
 
 .logo-block h2,
@@ -142,6 +139,18 @@
   border-radius: 20px;
   padding: 1rem;
   background: rgba(248, 250, 252, 0.94);
+}
+
+.signature-block {
+  min-height: 144px;
+}
+
+.signature-image {
+  display: block;
+  max-width: 100%;
+  max-height: 82px;
+  object-fit: contain;
+  margin-top: 0.75rem;
 }
 
 .summary-row {

@@ -1,5 +1,6 @@
 export type SupplierStatus = 'ACTIVE' | 'INACTIVE';
 export type CustomerStatus = 'ACTIVE' | 'INACTIVE';
+export type CompanyStatus = 'ACTIVE' | 'INACTIVE';
 export type DocumentKind = 'proforma' | 'tax' | 'quotation';
 export type InvoiceStatus = 'DRAFT' | 'ISSUED' | 'PAID' | 'CANCELLED';
 export type QuotationStatus =
@@ -82,6 +83,45 @@ export type CustomerUpsertPayload = {
   status: CustomerStatus;
 };
 
+export type CompanyRecord = {
+  id: string;
+  companyName: string;
+  phone: string;
+  email: string;
+  gstin: string;
+  address: string;
+  city: string;
+  state: string;
+  pinCode: string;
+  country: string;
+  bankName: string;
+  accountNumber: string;
+  ifscCode: string;
+  logoAttachment: string | null;
+  signatureAttachment: string | null;
+  status: CompanyStatus;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CompanyUpsertPayload = {
+  companyName: string;
+  phone: string;
+  email: string;
+  gstin: string;
+  address: string;
+  city: string;
+  state: string;
+  pinCode: string;
+  country: string;
+  bankName: string;
+  accountNumber: string;
+  ifscCode: string;
+  logoAttachment?: string | null;
+  signatureAttachment?: string | null;
+  status: CompanyStatus;
+};
+
 export type BillingLineItemRecord = {
   id: string;
   documentId: string;
@@ -149,6 +189,7 @@ export type BillingDocumentUpsertPayload = {
 };
 
 export type BillingPreviewModel = {
+  company: CompanyRecord | null;
   documentTypeLabel: string;
   documentNumber: string;
   documentDate: string;

@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { InvoiceStatus, Prisma } from '@prisma/client';
 import { BillingDocumentPdfData, BillingDocumentsService } from '../billing-documents/billing-documents.service';
+import { CompanySettingsService } from '../company-settings/company-settings.service';
 import { createPaginationMeta, normalizePagination } from '../common/utils/pagination.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
@@ -94,6 +95,7 @@ export class InvoicesService {
   constructor(
     private readonly prismaService: PrismaService,
     private readonly billingDocumentsService: BillingDocumentsService,
+    private readonly companySettingsService: CompanySettingsService,
   ) {}
 
   async listInvoices(query: ListInvoicesQueryDto) {
@@ -289,9 +291,10 @@ export class InvoicesService {
 
   async getInvoicePdf(invoiceId: string): Promise<Buffer> {
     const invoice = await this.getInvoiceById(invoiceId);
+    const company = await this.companySettingsService.getCompanyBranding();
 
     return this.billingDocumentsService.buildPdfBuffer(
-      this.toPdfData(invoice),
+      this.toPdfData(invoice, company),
     );
   }
 
@@ -300,9 +303,10 @@ export class InvoicesService {
     invoiceType: 'PROFORMA' | 'TAX',
   ): Promise<Buffer> {
     const invoice = await this.getInvoiceByIdAndType(invoiceId, invoiceType);
+    const company = await this.companySettingsService.getCompanyBranding();
 
     return this.billingDocumentsService.buildPdfBuffer(
-      this.toPdfData(invoice),
+      this.toPdfData(invoice, company),
     );
   }
 
@@ -351,8 +355,12 @@ export class InvoicesService {
     }
   }
 
-  private toPdfData(invoice: InvoiceRecord): BillingDocumentPdfData {
+  private toPdfData(
+    invoice: InvoiceRecord,
+    company: Awaited<ReturnType<CompanySettingsService['getCompanyBranding']>>,
+  ): BillingDocumentPdfData {
     return {
+      company,
       documentTypeLabel:
         invoice.invoiceType === 'PROFORMA' ? 'Proforma Invoice' : 'Tax Invoice',
       documentNumber: invoice.invoiceNumber,

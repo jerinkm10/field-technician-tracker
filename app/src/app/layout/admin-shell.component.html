@@ -22,28 +22,30 @@
         </a>
       }
 
-      <div class="nav-group" [class.is-active]="isGroupActive(invoiceNavigation)">
-        <div class="nav-group-title">
-          <div class="nav-group-copy">
-            <i class="pi pi-receipt"></i>
-            <span>Invoice</span>
+      @for (group of groupedNavigation; track group.label) {
+        <div class="nav-group" [class.is-active]="isGroupActive(group.children ?? [])">
+          <div class="nav-group-title">
+            <div class="nav-group-copy">
+              <i [class]="group.icon"></i>
+              <span>{{ group.label }}</span>
+            </div>
+            <i class="pi pi-angle-right nav-group-caret"></i>
           </div>
-          <i class="pi pi-angle-right nav-group-caret"></i>
-        </div>
 
-        <div class="nav-children">
-          @for (item of invoiceNavigation; track item.route) {
-            <a
-              class="nav-link nav-child-link"
-              [routerLink]="item.route!"
-              routerLinkActive="is-active"
-              (click)="closeSidebar()">
-              <i [class]="item.icon"></i>
-              <span>{{ item.label }}</span>
-            </a>
-          }
+          <div class="nav-children">
+            @for (item of group.children ?? []; track item.route) {
+              <a
+                class="nav-link nav-child-link"
+                [routerLink]="item.route!"
+                routerLinkActive="is-active"
+                (click)="closeSidebar()">
+                <i [class]="item.icon"></i>
+                <span>{{ item.label }}</span>
+              </a>
+            }
+          </div>
         </div>
-      </div>
+      }
     </nav>
 
     <div class="sidebar-footer">

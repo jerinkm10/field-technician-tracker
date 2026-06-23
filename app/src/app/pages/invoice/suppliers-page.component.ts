@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
@@ -65,9 +66,21 @@ export class InvoiceSuppliersPageComponent {
   protected phoneFilter = '';
   protected editingSupplier: SupplierRecord | null = null;
   protected dialogMode: 'create' | 'edit' | 'view' = 'create';
+  protected readonly pageMode: 'list' | 'create' | 'edit' | 'view';
 
-  constructor(private readonly suppliersApiService: SuppliersApiService) {
+  constructor(
+    private readonly suppliersApiService: SuppliersApiService,
+    private readonly route: ActivatedRoute,
+    private readonly router: Router,
+  ) {
+    this.pageMode =
+      (this.route.snapshot.data['pageMode'] as
+        | 'list'
+        | 'create'
+        | 'edit'
+        | 'view') ?? 'list';
     this.loadSuppliers();
+    this.handleRouteState();
   }
 
   protected loadSuppliers(): void {
@@ -102,25 +115,22 @@ export class InvoiceSuppliersPageComponent {
   }
 
   protected openCreateDialog(): void {
-    this.dialogMode = 'create';
-    this.editingSupplier = null;
-    this.dialogVisible.set(true);
+    void this.router.navigate(['/settings/suppliers/create']);
   }
 
   protected openViewDialog(supplier: SupplierRecord): void {
-    this.dialogMode = 'view';
-    this.editingSupplier = supplier;
-    this.dialogVisible.set(true);
+    void this.router.navigate(['/settings/suppliers', supplier.id, 'view']);
   }
 
   protected openEditDialog(supplier: SupplierRecord): void {
-    this.dialogMode = 'edit';
-    this.editingSupplier = supplier;
-    this.dialogVisible.set(true);
+    void this.router.navigate(['/settings/suppliers', supplier.id, 'edit']);
   }
 
   protected closeDialog(): void {
     this.dialogVisible.set(false);
+    this.editingSupplier = null;
+    this.dialogMode = 'create';
+    void this.router.navigate(['/settings/suppliers']);
   }
 
   protected saveSupplier(payload: SupplierUpsertPayload): void {
@@ -133,8 +143,8 @@ export class InvoiceSuppliersPageComponent {
     request.subscribe({
       next: () => {
         this.saving.set(false);
-        this.dialogVisible.set(false);
         this.loadSuppliers();
+        this.closeDialog();
       },
       error: () => {
         this.saving.set(false);
@@ -196,5 +206,33 @@ export class InvoiceSuppliersPageComponent {
 
     this.page.update((value) => value + 1);
     this.loadSuppliers();
+  }
+
+  private handleRouteState(): void {
+    const supplierId = this.route.snapshot.paramMap.get('id');
+
+    if (this.pageMode === 'create') {
+      this.dialogMode = 'create';
+      this.editingSupplier = null;
+      this.dialogVisible.set(true);
+      return;
+    }
+
+    if (!supplierId) {
+      this.dialogVisible.set(false);
+      return;
+    }
+
+    this.suppliersApiService.getSupplier(supplierId).subscribe({
+      next: (supplier) => {
+        this.editingSupplier = supplier;
+        this.dialogMode = this.pageMode === 'view' ? 'view' : 'edit';
+        this.dialogVisible.set(true);
+      },
+      error: () => {
+        this.errorMessage.set('Unable to load the selected supplier.');
+        void this.router.navigate(['/settings/suppliers']);
+      },
+    });
   }
 }

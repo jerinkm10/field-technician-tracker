@@ -1,0 +1,177 @@
+<section class="page">
+  <header class="page-header">
+    <div class="page-heading">
+      <p class="page-eyebrow">Settings</p>
+      <h1 class="page-title">Company settings</h1>
+      <p class="page-subtitle">
+        Manage the issuing company profile, invoice branding assets, bank details, and signature used by previews and PDF downloads.
+      </p>
+    </div>
+
+    <div class="header-actions">
+      <p-tag [value]="companyId ? 'Configured' : 'Not Configured'" [severity]="companyId ? 'success' : 'warn'"></p-tag>
+      <button
+        pButton
+        type="button"
+        label="Save Company"
+        icon="pi pi-check"
+        [loading]="saving()"
+        [disabled]="!canSave() || uploadingLogo() || uploadingSignature()"
+        (click)="saveCompanySettings()">
+      </button>
+    </div>
+  </header>
+
+  @if (errorMessage()) {
+    <section class="panel state-panel error-panel">
+      <i class="pi pi-exclamation-circle"></i>
+      <div>
+        <h3>Company action needs attention</h3>
+        <p>{{ errorMessage() }}</p>
+      </div>
+    </section>
+  }
+
+  @if (successMessage()) {
+    <section class="panel state-panel success-panel">
+      <i class="pi pi-check-circle"></i>
+      <div>
+        <h3>Company settings updated</h3>
+        <p>{{ successMessage() }}</p>
+      </div>
+    </section>
+  }
+
+  <section class="panel section-shell">
+    <div class="form-grid">
+      <label class="field field-span-2">
+        <span>Company Name</span>
+        <input pInputText [(ngModel)]="draft.companyName" />
+      </label>
+
+      <label class="field">
+        <span>Phone</span>
+        <input pInputText [(ngModel)]="draft.phone" />
+      </label>
+
+      <label class="field">
+        <span>Email</span>
+        <input pInputText type="email" [(ngModel)]="draft.email" />
+      </label>
+
+      <label class="field">
+        <span>GSTIN</span>
+        <input pInputText [(ngModel)]="draft.gstin" />
+      </label>
+
+      <label class="field">
+        <span>Status</span>
+        <p-select
+          [options]="statusOptions"
+          optionLabel="label"
+          optionValue="value"
+          appendTo="body"
+          [(ngModel)]="draft.status">
+        </p-select>
+      </label>
+
+      <label class="field field-span-2">
+        <span>Address</span>
+        <textarea [(ngModel)]="draft.address" rows="4"></textarea>
+      </label>
+
+      <label class="field">
+        <span>City</span>
+        <input pInputText [(ngModel)]="draft.city" />
+      </label>
+
+      <label class="field">
+        <span>State</span>
+        <input pInputText [(ngModel)]="draft.state" />
+      </label>
+
+      <label class="field">
+        <span>Pin Code</span>
+        <input pInputText [(ngModel)]="draft.pinCode" />
+      </label>
+
+      <label class="field">
+        <span>Country</span>
+        <input pInputText [(ngModel)]="draft.country" />
+      </label>
+
+      <label class="field">
+        <span>Bank Name</span>
+        <input pInputText [(ngModel)]="draft.bankName" />
+      </label>
+
+      <label class="field">
+        <span>Account Number</span>
+        <input pInputText [(ngModel)]="draft.accountNumber" />
+      </label>
+
+      <label class="field">
+        <span>IFSC Code</span>
+        <input pInputText [(ngModel)]="draft.ifscCode" />
+      </label>
+    </div>
+  </section>
+
+  <section class="asset-grid">
+    <article class="panel section-shell asset-card">
+      <div class="section-header">
+        <div>
+          <h3>Company Logo</h3>
+          <p>Used at the top-left of invoice preview and PDF output.</p>
+        </div>
+      </div>
+
+      <label class="upload-control">
+        <span>Upload Logo</span>
+        <input type="file" accept="image/*" (change)="uploadLogo($event)" />
+      </label>
+
+      @if (uploadingLogo()) {
+        <p class="muted-copy">Uploading logo...</p>
+      }
+
+      <div class="asset-preview">
+        @if (draft.logoAttachment) {
+          <img [src]="draft.logoAttachment" alt="Company logo preview" />
+        } @else {
+          <div class="asset-placeholder">
+            <strong>{{ draft.companyName || 'Company Logo' }}</strong>
+          </div>
+        }
+      </div>
+    </article>
+
+    <article class="panel section-shell asset-card">
+      <div class="section-header">
+        <div>
+          <h3>Authorized Signature</h3>
+          <p>Used in the invoice signature area and downloadable PDFs.</p>
+        </div>
+      </div>
+
+      <label class="upload-control">
+        <span>Upload Signature</span>
+        <input type="file" accept="image/*" (change)="uploadSignature($event)" />
+      </label>
+
+      @if (uploadingSignature()) {
+        <p class="muted-copy">Uploading signature...</p>
+      }
+
+      <div class="asset-preview signature-preview">
+        @if (draft.signatureAttachment) {
+          <img [src]="draft.signatureAttachment" alt="Authorized signature preview" />
+        } @else {
+          <div class="asset-placeholder">
+            <strong>AUTHORIZED SIGNATORY</strong>
+          </div>
+        }
+      </div>
+    </article>
+  </section>
+</section>

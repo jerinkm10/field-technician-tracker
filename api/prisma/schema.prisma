@@ -41,6 +41,11 @@ enum CustomerStatus {
   INACTIVE
 }
 
+enum CompanyStatus {
+  ACTIVE
+  INACTIVE
+}
+
 enum InvoiceType {
   PROFORMA
   TAX
@@ -206,6 +211,30 @@ model Supplier {
   @@index([supplierName])
   @@index([phone])
   @@index([gstin])
+  @@index([status])
+}
+
+model Company {
+  id                  String        @id @default(cuid())
+  companyName         String
+  phone               String
+  email               String
+  gstin               String
+  address             String
+  city                String
+  state               String
+  pinCode             String
+  country             String
+  bankName            String
+  accountNumber       String
+  ifscCode            String
+  logoAttachment      String?
+  signatureAttachment String?
+  sealAttachment      String?
+  status              CompanyStatus @default(ACTIVE)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
   @@index([status])
 }
 

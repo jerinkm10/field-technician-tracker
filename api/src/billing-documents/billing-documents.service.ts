@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { existsSync } from 'fs';
 import PDFDocument = require('pdfkit');
 
 type BillingParty = {
@@ -25,7 +26,27 @@ type BillingLineItem = {
   lineAmount: number;
 };
 
+type CompanyBranding = {
+  companyName: string;
+  phone: string;
+  email: string;
+  gstin: string;
+  address: string;
+  city: string;
+  state: string;
+  pinCode: string;
+  country: string;
+  bankName: string;
+  accountNumber: string;
+  ifscCode: string;
+  logoAttachment?: string | null;
+  signatureAttachment?: string | null;
+  logoFilePath?: string | null;
+  signatureFilePath?: string | null;
+};
+
 export type BillingDocumentPdfData = {
+  company: CompanyBranding | null;
   documentTypeLabel: string;
   documentNumber: string;
   documentDate: Date;
@@ -84,23 +105,42 @@ export class BillingDocumentsService {
     const muted = '#475569';
     const lightBorder = '#cbd5e1';
     const rightColumnX = margin + contentWidth - 190;
+    const company = data.company;
+    const companyLogoX = margin;
+    const companyLogoY = 38;
+    const companyLogoSize = 54;
+    const hasLogo = Boolean(
+      company?.logoFilePath && existsSync(company.logoFilePath),
+    );
+    const companyTextX = hasLogo ? margin + 72 : margin;
+    const companyLines = company
+      ? [
+          company.address,
+          `${company.city}, ${company.state} ${company.pinCode}`,
+          company.country,
+          `Phone: ${company.phone} | Email: ${company.email}`,
+          `GSTIN: ${company.gstin}`,
+          `Bank: ${company.bankName}`,
+          `A/C: ${company.accountNumber} | IFSC: ${company.ifscCode}`,
+        ]
+      : ['Service Operations and Billing Desk'];
+
+    if (hasLogo && company?.logoFilePath) {
+      document.image(company.logoFilePath, companyLogoX, companyLogoY, {
+        fit: [companyLogoSize, companyLogoSize],
+        valign: 'center',
+      });
+    }
 
     document.font('Helvetica-Bold').fontSize(16).fillColor(blue);
-    document.text('FIELD TECHNICIAN TRACKER', margin, 42, {
-      width: 260,
+    document.text(company?.companyName || 'Field Technician Tracker', companyTextX, 42, {
+      width: 270,
     });
     document.font('Helvetica').fontSize(9).fillColor(muted);
-    document.text('Service Operations and Billing Desk', margin, 62, {
-      width: 260,
+    document.text(companyLines.join('\n'), companyTextX, 62, {
+      width: 270,
+      lineGap: 2,
     });
-
-    document
-      .roundedRect(margin, 36, 54, 54, 8)
-      .lineWidth(1.5)
-      .strokeColor(blue)
-      .stroke();
-    document.font('Helvetica-Bold').fontSize(20).fillColor(blue);
-    document.text('FT', margin + 13, 51, { width: 28, align: 'center' });
 
     document.font('Helvetica-Bold').fontSize(18).fillColor(slate);
     document.text(data.documentTypeLabel.toUpperCase(), rightColumnX, 40, {
@@ -135,20 +175,39 @@ export class BillingDocumentsService {
       );
     }
 
-    this.drawSeparator(document, 108, blue, margin, contentWidth);
+    const companyBlockHeight = document.heightOfString(companyLines.join('\n'), {
+      width: 270,
+      lineGap: 2,
+    });
+    const separatorY = Math.max(
+      data.validUntil ? 116 : 102,
+      62 + companyBlockHeight + 10,
+    );
 
+    this.drawSeparator(document, separatorY, blue, margin, contentWidth);
+
+    const partyBlockY = separatorY + 14;
     this.drawPartyBlock(document, {
       title: 'Supplier Details',
       x: margin,
-      y: 122,
+      y: partyBlockY,
       width: 245,
       party: data.supplier,
     });
 
+    const companyBankLines = company
+      ? [
+          `Company GSTIN: ${company.gstin}`,
+          `Bank: ${company.bankName}`,
+          `A/C: ${company.accountNumber}`,
+          `IFSC: ${company.ifscCode}`,
+        ]
+      : [];
+
     this.drawPartyBlock(document, {
       title: 'Bill To',
       x: margin + 270,
-      y: 122,
+      y: partyBlockY,
       width: 245,
       party: {
         ...data.customer,
@@ -158,20 +217,57 @@ export class BillingDocumentsService {
         data.customer.placeOfSupply
           ? `Place Of Supply: ${data.customer.placeOfSupply}`
           : null,
+        ...companyBankLines,
       ],
     });
 
-    this.drawSeparator(document, 232, blue, margin, contentWidth);
+    const leftBlockHeight = this.measurePartyBlockHeight(document, {
+      party: data.supplier,
+      width: 245,
+    });
+    const rightBlockHeight = this.measurePartyBlockHeight(document, {
+      party: {
+        ...data.customer,
+        address: data.customer.address,
+      },
+      width: 245,
+      extraLines: [
+        data.customer.placeOfSupply
+          ? `Place Of Supply: ${data.customer.placeOfSupply}`
+          : null,
+        ...companyBankLines,
+      ],
+    });
+    const secondSeparatorY =
+      partyBlockY + Math.max(leftBlockHeight, rightBlockHeight) + 16;
 
-    let cursorY = 246;
+    this.drawSeparator(document, secondSeparatorY, blue, margin, contentWidth);
+
+    let cursorY = secondSeparatorY + 14;
     cursorY = this.drawItemsTable(document, data, cursorY, margin, contentWidth);
     cursorY += 18;
 
     const amountWordsWidth = 290;
+    const signatureBlockHeight = company?.signatureFilePath ? 78 : 50;
     document.font('Helvetica-Bold').fontSize(10).fillColor(slate);
-    document.text('Amount in Words', margin, cursorY);
+    document.text('Authorized Signatory', margin, cursorY, {
+      width: 180,
+    });
+    if (company?.signatureFilePath && existsSync(company.signatureFilePath)) {
+      document.image(company.signatureFilePath, margin, cursorY + 14, {
+        fit: [140, 56],
+      });
+    } else {
+      document.font('Helvetica-Bold').fontSize(11).fillColor(muted);
+      document.text('AUTHORIZED SIGNATORY', margin, cursorY + 24, {
+        width: 180,
+      });
+    }
+
+    document.font('Helvetica-Bold').fontSize(10).fillColor(slate);
+    document.text('Amount in Words', margin, cursorY + signatureBlockHeight);
     document.font('Helvetica').fontSize(10).fillColor(muted);
-    document.text(this.amountToWords(data.totalAmount), margin, cursorY + 16, {
+    document.text(this.amountToWords(data.totalAmount), margin, cursorY + signatureBlockHeight + 16, {
       width: amountWordsWidth,
     });
 
@@ -211,7 +307,7 @@ export class BillingDocumentsService {
       rowY += 20;
     });
 
-    const notesY = cursorY + totalsBoxHeight + 16;
+    const notesY = cursorY + Math.max(signatureBlockHeight + 82, totalsBoxHeight + 16);
     document.font('Helvetica-Bold').fontSize(10).fillColor(slate);
     document.text('Notes', margin, notesY);
     document.font('Helvetica').fontSize(9).fillColor(muted);
@@ -230,18 +326,6 @@ export class BillingDocumentsService {
         width: 300,
       },
     );
-
-    document.font('Helvetica-Bold').fontSize(10).fillColor(slate);
-    document.text('Authorized Signatory', totalsX, notesY + 52, {
-      width: totalsWidth,
-      align: 'center',
-    });
-    document
-      .moveTo(totalsX + 24, notesY + 108)
-      .lineTo(totalsX + totalsWidth - 24, notesY + 108)
-      .lineWidth(1)
-      .strokeColor(lightBorder)
-      .stroke();
 
     const footerY = document.page.height - 56;
     this.drawSeparator(document, footerY - 8, blue, margin, contentWidth);
@@ -439,6 +523,37 @@ export class BillingDocumentsService {
       width: options.width,
       lineGap: 2,
     });
+  }
+
+  private measurePartyBlockHeight(
+    document: PDFKit.PDFDocument,
+    options: {
+      width: number;
+      party: BillingParty;
+      extraLines?: Array<string | null | undefined>;
+    },
+  ): number {
+    const lines = [
+      options.party.name,
+      options.party.address,
+      options.party.phone ? `Phone: ${options.party.phone}` : null,
+      options.party.email ? `Email: ${options.party.email}` : null,
+      options.party.gstin ? `GSTIN: ${options.party.gstin}` : null,
+      options.party.bankName ? `Bank: ${options.party.bankName}` : null,
+      options.party.accountNumber
+        ? `A/C: ${options.party.accountNumber}`
+        : null,
+      options.party.ifscCode ? `IFSC: ${options.party.ifscCode}` : null,
+      ...(options.extraLines ?? []),
+    ].filter(Boolean) as string[];
+
+    return (
+      16 +
+      document.heightOfString(lines.join('\n'), {
+        width: options.width,
+        lineGap: 2,
+      })
+    );
   }
 
   private drawSeparator(

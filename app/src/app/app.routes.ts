@@ -197,10 +197,8 @@ export const routes: Routes = [
           },
           {
             path: 'suppliers',
-            loadComponent: () =>
-              import('./pages/invoice/suppliers-page.component').then(
-                (module) => module.InvoiceSuppliersPageComponent
-              )
+            redirectTo: '/settings/suppliers',
+            pathMatch: 'full'
           },
           {
             path: 'customers',
@@ -215,6 +213,63 @@ export const routes: Routes = [
               import('./pages/invoice/invoice-input-fields-page.component').then(
                 (module) => module.InvoiceInputFieldsPageComponent
               )
+          },
+        ]
+      },
+      {
+        path: 'settings',
+        children: [
+          {
+            path: '',
+            pathMatch: 'full',
+            redirectTo: 'company'
+          },
+          {
+            path: 'company',
+            loadComponent: () =>
+              import('./pages/settings/company-settings-page.component').then(
+                (module) => module.CompanySettingsPageComponent
+              )
+          },
+          {
+            path: 'suppliers',
+            loadComponent: () =>
+              import('./pages/invoice/suppliers-page.component').then(
+                (module) => module.InvoiceSuppliersPageComponent
+              ),
+            data: {
+              pageMode: 'list'
+            }
+          },
+          {
+            path: 'suppliers/create',
+            loadComponent: () =>
+              import('./pages/invoice/suppliers-page.component').then(
+                (module) => module.InvoiceSuppliersPageComponent
+              ),
+            data: {
+              pageMode: 'create'
+            }
+          },
+          {
+            path: 'suppliers/:id/view',
+            loadComponent: () =>
+              import('./pages/invoice/suppliers-page.component').then(
+                (module) => module.InvoiceSuppliersPageComponent
+              ),
+            data: {
+              pageMode: 'view'
+            }
+          },
+          {
+            path: 'suppliers/:id/edit',
+            loadComponent: () =>
+              import('./pages/invoice/suppliers-page.component').then(
+                (module) => module.InvoiceSuppliersPageComponent
+              ),
+            data: {
+              pageMode: 'edit'
+            }
           },
         ]
       }

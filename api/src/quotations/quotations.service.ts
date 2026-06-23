@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { Prisma, QuotationStatus } from '@prisma/client';
 import { BillingDocumentPdfData, BillingDocumentsService } from '../billing-documents/billing-documents.service';
+import { CompanySettingsService } from '../company-settings/company-settings.service';
 import {
   createPaginationMeta,
   normalizePagination,
@@ -96,6 +97,7 @@ export class QuotationsService {
   constructor(
     private readonly prismaService: PrismaService,
     private readonly billingDocumentsService: BillingDocumentsService,
+    private readonly companySettingsService: CompanySettingsService,
   ) {}
 
   async listQuotations(query: ListQuotationsQueryDto) {
@@ -263,9 +265,10 @@ export class QuotationsService {
 
   async getQuotationPdf(quotationId: string): Promise<Buffer> {
     const quotation = await this.getQuotationOrThrow(quotationId);
+    const company = await this.companySettingsService.getCompanyBranding();
 
     return this.billingDocumentsService.buildPdfBuffer(
-      this.toPdfData(quotation),
+      this.toPdfData(quotation, company),
     );
   }
 
@@ -334,8 +337,12 @@ export class QuotationsService {
     throw error;
   }
 
-  private toPdfData(quotation: QuotationRecord): BillingDocumentPdfData {
+  private toPdfData(
+    quotation: QuotationRecord,
+    company: Awaited<ReturnType<CompanySettingsService['getCompanyBranding']>>,
+  ): BillingDocumentPdfData {
     return {
+      company,
       documentTypeLabel: 'Quotation',
       documentNumber: quotation.quotationNumber,
       documentDate: quotation.quotationDate,

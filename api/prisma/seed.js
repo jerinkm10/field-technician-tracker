@@ -6,6 +6,7 @@ const {
   JobStatus,
   AttachmentType,
   SupplierStatus,
+  CompanyStatus,
   InvoiceType,
   InvoiceStatus,
   CustomerStatus,
@@ -22,6 +23,7 @@ async function main() {
   await prisma.quotation.deleteMany();
   await prisma.invoiceInputField.deleteMany();
   await prisma.invoice.deleteMany();
+  await prisma.company.deleteMany();
   await prisma.supplier.deleteMany();
   await prisma.jobAttachment.deleteMany();
   await prisma.locationLog.deleteMany();
@@ -245,6 +247,25 @@ async function main() {
       },
     }),
   ]);
+
+  await prisma.company.create({
+    data: {
+      companyName: 'Field Technician Tracker Services',
+      phone: '+91-8044556677',
+      email: 'billing@fieldtechniciantracker.example.com',
+      gstin: '29AABCF4321K1Z8',
+      address: '25 Service Hub Road',
+      city: 'Bengaluru',
+      state: 'Karnataka',
+      pinCode: '560095',
+      country: 'India',
+      bankName: 'Axis Bank',
+      accountNumber: '9182736455001',
+      ifscCode: 'UTIB0001020',
+      sealAttachment: null,
+      status: CompanyStatus.ACTIVE,
+    },
+  });
 
   await prisma.invoice.create({
     data: {

@@ -8,6 +8,7 @@ import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
 
 import { BillingDocumentsApiService } from '../../core/services/billing-documents-api.service';
+import { CompanySettingsApiService } from '../../core/services/company-settings-api.service';
 import { CustomersApiService } from '../../core/services/customers-api.service';
 import { SuppliersApiService } from '../../core/services/suppliers-api.service';
 import { CustomerAutocompleteComponent } from '../../invoice/components/customer-autocomplete.component';
@@ -22,6 +23,7 @@ import {
   BillingDocumentUpsertPayload,
   BillingLineItemPayload,
   BillingPreviewModel,
+  CompanyRecord,
   CustomerRecord,
   CustomerUpsertPayload,
   DocumentKind,
@@ -64,6 +66,7 @@ export class BillingDocumentEditorPageComponent {
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly selectedSupplier = signal<SupplierRecord | null>(null);
   protected readonly selectedCustomer = signal<CustomerRecord | null>(null);
+  protected readonly company = signal<CompanyRecord | null>(null);
 
   protected readonly kind: DocumentKind;
   protected readonly mode: 'create' | 'edit' | 'view';
@@ -75,6 +78,7 @@ export class BillingDocumentEditorPageComponent {
     private readonly route: ActivatedRoute,
     private readonly router: Router,
     private readonly billingDocumentsApiService: BillingDocumentsApiService,
+    private readonly companySettingsApiService: CompanySettingsApiService,
     private readonly suppliersApiService: SuppliersApiService,
     private readonly customersApiService: CustomersApiService,
   ) {
@@ -83,6 +87,7 @@ export class BillingDocumentEditorPageComponent {
     this.documentId = this.route.snapshot.paramMap.get('id');
     this.pageTitle = this.resolvePageTitle();
     this.draft = this.createEmptyDraft();
+    this.loadCompanySettings();
 
     if (this.documentId) {
       this.loadDocument(this.documentId);
@@ -159,6 +164,7 @@ export class BillingDocumentEditorPageComponent {
     this.suppliersApiService.createSupplier(payload).subscribe({
       next: (supplier) => {
         this.selectedSupplier.set(supplier);
+        this.draft.supplierId = supplier.id;
         this.supplierDialogVisible.set(false);
       },
       error: () => {
@@ -229,7 +235,7 @@ export class BillingDocumentEditorPageComponent {
       next: (document) => {
         this.saving.set(false);
         this.applyDocument(document);
-        this.router.navigate(['/invoice', this.kind, document.id, this.isReadOnly() ? 'view' : 'edit']);
+        this.router.navigate(['/invoice', this.kind, document.id, 'edit']);
       },
       error: () => {
         this.saving.set(false);
@@ -272,6 +278,7 @@ export class BillingDocumentEditorPageComponent {
 
   protected previewModel(): BillingPreviewModel {
     return {
+      company: this.company(),
       documentTypeLabel: this.kind === 'quotation'
         ? 'Quotation'
         : this.kind === 'tax'
@@ -320,6 +327,17 @@ export class BillingDocumentEditorPageComponent {
       error: () => {
         this.loading.set(false);
         this.errorMessage.set('Unable to load this document.');
+      },
+    });
+  }
+
+  private loadCompanySettings(): void {
+    this.companySettingsApiService.getCompanySettings().subscribe({
+      next: (company) => {
+        this.company.set(company);
+      },
+      error: () => {
+        this.company.set(null);
       },
     });
   }

@@ -17,6 +17,7 @@ import { ProformaInvoicesModule } from './proforma-invoices/proforma-invoices.mo
 import { TaxInvoicesModule } from './tax-invoices/tax-invoices.module';
 import { QuotationsModule } from './quotations/quotations.module';
 import { InvoiceInputFieldsModule } from './invoice-input-fields/invoice-input-fields.module';
+import { CompanySettingsModule } from './company-settings/company-settings.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { InvoiceInputFieldsModule } from './invoice-input-fields/invoice-input-f
     TaxInvoicesModule,
     QuotationsModule,
     InvoiceInputFieldsModule,
+    CompanySettingsModule,
   ],
   controllers: [HealthController],
 })
