@@ -66,6 +66,44 @@ enum QuotationStatus {
   EXPIRED
 }
 
+enum ProductServiceType {
+  PRODUCT
+  SERVICE
+}
+
+enum ProductServiceStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum OutstandingStatus {
+  PENDING
+  PARTIAL
+  PAID
+  OVERDUE
+}
+
+enum AmcBillingPeriod {
+  QUARTERLY
+  HALF_YEARLY
+  YEARLY
+}
+
+enum AmcStatus {
+  ACTIVE
+  EXPIRED
+  CANCELLED
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  FOLLOW_UP
+  DEMO_SCHEDULED
+  CONVERTED
+  LOST
+}
+
 model User {
   id         String      @id @default(cuid())
   name       String
@@ -75,6 +113,8 @@ model User {
   createdAt  DateTime    @default(now())
   updatedAt  DateTime    @updatedAt
   technician Technician?
+  leadNotes  LeadNote[]
+  leadStatusHistory LeadStatusHistory[]
 
   @@index([role])
 }
@@ -113,6 +153,8 @@ model Customer {
   jobs            Job[]
   invoices        Invoice[]
   quotations      Quotation[]
+  outstandings    Outstanding[]
+  amcs            Amc[]
 
   @@index([name])
   @@index([phone])
@@ -192,6 +234,8 @@ model JobAttachment {
   @@index([type])
 }
 
+/// Backend master for branches. The frontend shows this entity as "Branch"
+/// to preserve business terminology without breaking existing APIs.
 model Supplier {
   id            String         @id @default(cuid())
   supplierName  String
@@ -207,11 +251,33 @@ model Supplier {
   updatedAt     DateTime       @updatedAt
   invoices      Invoice[]
   quotations    Quotation[]
+  amcs          Amc[]
+  leads         Lead[]
 
   @@index([supplierName])
   @@index([phone])
   @@index([gstin])
   @@index([status])
+}
+
+model ProductService {
+  id            String               @id @default(cuid())
+  name          String
+  type          ProductServiceType
+  description   String
+  hsnSacCode    String
+  unit          String
+  defaultRate   Float
+  taxPercentage Float
+  status        ProductServiceStatus @default(ACTIVE)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  leads         Lead[]
+
+  @@index([name])
+  @@index([type])
+  @@index([status])
+  @@index([hsnSacCode])
 }
 
 model Company {
@@ -262,12 +328,94 @@ model Invoice {
   supplier           Supplier        @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   customer           Customer        @relation(fields: [customerId], references: [id], onDelete: Restrict)
   lineItems          InvoiceLineItem[]
+  outstanding        Outstanding?
+  amcInvoices        AmcInvoice[]
 
   @@index([invoiceType])
   @@index([invoiceDate])
   @@index([supplierId])
   @@index([customerId])
   @@index([status])
+}
+
+model Outstanding {
+  id                String            @id @default(cuid())
+  invoiceId         String            @unique
+  invoiceType       InvoiceType
+  invoiceNumber     String
+  customerId        String
+  customerName      String
+  invoiceDate       DateTime
+  dueDate           DateTime
+  totalAmount       Float
+  paidAmount        Float             @default(0)
+  creditAmount      Float             @default(0)
+  outstandingAmount Float
+  status            OutstandingStatus @default(PENDING)
+  note              String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  invoice           Invoice           @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  customer          Customer          @relation(fields: [customerId], references: [id], onDelete: Restrict)
+
+  @@index([invoiceType])
+  @@index([invoiceNumber])
+  @@index([customerId])
+  @@index([invoiceDate])
+  @@index([dueDate])
+  @@index([status])
+}
+
+/// AMC contract model. Kept as `Amc` in Prisma/client code to avoid breaking
+/// existing backend services that already use this generated type.
+model Amc {
+  id                  String           @id @default(cuid())
+  amcNumber           String           @unique
+  customerId          String
+  customerName        String
+  branchId            String
+  startDate           DateTime
+  endDate             DateTime
+  durationMonths      Int
+  billingPeriod       AmcBillingPeriod
+  billingPeriodMonths Int
+  contractAmount      Float
+  taxPercentage       Float
+  status              AmcStatus        @default(ACTIVE)
+  lastPaidDate        DateTime?
+  nextBillingDate     DateTime?
+  note                String?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  customer            Customer         @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  branch              Supplier         @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  invoices            AmcInvoice[]
+
+  @@index([amcNumber])
+  @@index([customerId])
+  @@index([branchId])
+  @@index([startDate])
+  @@index([endDate])
+  @@index([billingPeriod])
+  @@index([status])
+  @@index([nextBillingDate])
+}
+
+/// AMC invoice history model. Kept as `AmcInvoice` in Prisma/client code to
+/// avoid breaking existing backend services that already use this generated type.
+model AmcInvoice {
+  id                 String   @id @default(cuid())
+  amcId              String
+  invoiceId          String   @unique
+  billingPeriodStart DateTime
+  billingPeriodEnd   DateTime
+  createdAt          DateTime @default(now())
+  amc                Amc      @relation(fields: [amcId], references: [id], onDelete: Cascade)
+  invoice            Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([amcId])
+  @@index([billingPeriodStart])
+  @@index([billingPeriodEnd])
 }
 
 model InvoiceLineItem {
@@ -350,4 +498,66 @@ model InvoiceInputField {
 
   @@index([section])
   @@index([isActive])
+}
+
+model Lead {
+  id                         String            @id @default(cuid())
+  leadName                   String
+  customerName               String
+  phone                      String
+  email                      String?
+  location                   String
+  branchId                   String
+  branchName                 String
+  source                     String
+  interestedProductServiceId String
+  status                     LeadStatus        @default(NEW)
+  note                       String?
+  nextFollowUpDate           DateTime?
+  createdAt                  DateTime          @default(now())
+  updatedAt                  DateTime          @updatedAt
+  branch                     Supplier          @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  interestedProductService   ProductService    @relation(fields: [interestedProductServiceId], references: [id], onDelete: Restrict)
+  notes                      LeadNote[]
+  statusHistory              LeadStatusHistory[]
+
+  @@index([leadName])
+  @@index([customerName])
+  @@index([phone])
+  @@index([email])
+  @@index([branchId])
+  @@index([status])
+  @@index([createdAt])
+  @@index([nextFollowUpDate])
+}
+
+model LeadNote {
+  id            String   @id @default(cuid())
+  leadId         String
+  note           String
+  createdById    String?
+  createdByName  String
+  createdAt      DateTime @default(now())
+  lead           Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  createdBy      User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([leadId])
+  @@index([createdAt])
+}
+
+model LeadStatusHistory {
+  id               String     @id @default(cuid())
+  leadId           String
+  status           LeadStatus
+  note             String?
+  nextFollowUpDate DateTime?
+  changedById      String?
+  changedByName    String
+  createdAt        DateTime   @default(now())
+  lead             Lead       @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  changedBy        User?      @relation(fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@index([leadId])
+  @@index([status])
+  @@index([createdAt])
 }

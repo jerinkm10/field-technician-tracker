@@ -159,15 +159,38 @@ export class SuppliersService {
   async deleteSupplier(supplierId: string): Promise<SupplierRecord> {
     await this.getSupplierOrThrow(supplierId);
 
-    const linkedInvoiceCount = await this.prismaService.invoice.count({
-      where: {
-        supplierId,
-      },
-    });
+    const [linkedInvoiceCount, linkedQuotationCount, linkedAmcCount, linkedLeadCount] =
+      await Promise.all([
+        this.prismaService.invoice.count({
+          where: {
+            supplierId,
+          },
+        }),
+        this.prismaService.quotation.count({
+          where: {
+            supplierId,
+          },
+        }),
+        this.prismaService.amc.count({
+          where: {
+            branchId: supplierId,
+          },
+        }),
+        this.prismaService.lead.count({
+          where: {
+            branchId: supplierId,
+          },
+        }),
+      ]);
 
-    if (linkedInvoiceCount > 0) {
+    if (
+      linkedInvoiceCount > 0 ||
+      linkedQuotationCount > 0 ||
+      linkedAmcCount > 0 ||
+      linkedLeadCount > 0
+    ) {
       throw new BadRequestException(
-        'Suppliers linked to invoices cannot be deleted',
+        'Branches linked to invoices, quotations, AMC contracts, or leads cannot be deleted',
       );
     }
 

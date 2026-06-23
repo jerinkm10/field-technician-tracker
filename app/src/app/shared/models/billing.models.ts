@@ -1,6 +1,25 @@
 export type SupplierStatus = 'ACTIVE' | 'INACTIVE';
 export type CustomerStatus = 'ACTIVE' | 'INACTIVE';
 export type CompanyStatus = 'ACTIVE' | 'INACTIVE';
+export type ProductServiceType = 'PRODUCT' | 'SERVICE';
+export type ProductServiceStatus = 'ACTIVE' | 'INACTIVE';
+export type OutstandingInvoiceType = 'PROFORMA' | 'TAX';
+export type OutstandingStatus = 'PENDING' | 'PARTIAL' | 'PAID' | 'OVERDUE';
+export type AmcBillingPeriod = 'QUARTERLY' | 'HALF_YEARLY' | 'YEARLY';
+export type AmcStatus = 'ACTIVE' | 'EXPIRED' | 'CANCELLED';
+export type LeadStatus =
+  | 'NEW'
+  | 'CONTACTED'
+  | 'FOLLOW_UP'
+  | 'DEMO_SCHEDULED'
+  | 'CONVERTED'
+  | 'LOST';
+export type LedgerDocumentType =
+  | 'PROFORMA_INVOICE'
+  | 'TAX_INVOICE'
+  | 'AMC_INVOICE'
+  | 'QUOTATION'
+  | 'OUTSTANDING';
 export type DocumentKind = 'proforma' | 'tax' | 'quotation';
 export type InvoiceStatus = 'DRAFT' | 'ISSUED' | 'PAID' | 'CANCELLED';
 export type QuotationStatus =
@@ -122,6 +141,270 @@ export type CompanyUpsertPayload = {
   signatureAttachment?: string | null;
   sealAttachment?: string | null;
   status: CompanyStatus;
+};
+
+export type ProductServiceRecord = {
+  id: string;
+  name: string;
+  type: ProductServiceType;
+  description: string;
+  hsnSacCode: string;
+  unit: string;
+  defaultRate: number;
+  taxPercentage: number;
+  status: ProductServiceStatus;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ProductServiceUpsertPayload = {
+  name: string;
+  type: ProductServiceType;
+  description: string;
+  hsnSacCode: string;
+  unit: string;
+  defaultRate: number;
+  taxPercentage: number;
+  status: ProductServiceStatus;
+};
+
+export type OutstandingRecord = {
+  id: string;
+  invoiceId: string;
+  invoiceType: OutstandingInvoiceType;
+  invoiceNumber: string;
+  customerId: string;
+  customerName: string;
+  invoiceDate: string;
+  dueDate: string;
+  totalAmount: number;
+  paidAmount: number;
+  creditAmount: number;
+  outstandingAmount: number;
+  status: OutstandingStatus;
+  note: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type OutstandingUpdatePayload = {
+  paidAmount: number;
+  creditAmount: number;
+  dueDate: string;
+  status: OutstandingStatus;
+  note?: string;
+};
+
+export type AmcInvoiceSummary = {
+  id: string;
+  invoiceId: string;
+  billingPeriodStart: string;
+  billingPeriodEnd: string;
+  createdAt: string;
+  invoice: {
+    id: string;
+    invoiceType: OutstandingInvoiceType;
+    invoiceNumber: string;
+    invoiceDate: string;
+    totalAmount: number;
+    amountDue: number;
+    status: InvoiceStatus;
+  };
+};
+
+export type AmcRecord = {
+  id: string;
+  amcNumber: string;
+  customerId: string;
+  customerName: string;
+  branchId: string;
+  startDate: string;
+  endDate: string;
+  durationMonths: number;
+  billingPeriod: AmcBillingPeriod;
+  billingPeriodMonths: number;
+  contractAmount: number;
+  taxPercentage: number;
+  status: AmcStatus;
+  lastPaidDate: string | null;
+  nextBillingDate: string | null;
+  note: string | null;
+  createdAt: string;
+  updatedAt: string;
+  customer: CustomerRecord;
+  branch: SupplierRecord;
+  invoices: AmcInvoiceSummary[];
+};
+
+export type AmcUpsertPayload = {
+  amcNumber: string;
+  customerId: string;
+  customerName?: string;
+  branchId: string;
+  startDate: string;
+  endDate: string;
+  billingPeriod: AmcBillingPeriod;
+  contractAmount: number;
+  taxPercentage: number;
+  status: AmcStatus;
+  lastPaidDate?: string;
+  nextBillingDate?: string;
+  note?: string;
+};
+
+export type AmcCreateInvoiceResponse = {
+  amc: AmcRecord;
+  invoice: {
+    id: string;
+    invoiceType: OutstandingInvoiceType;
+    invoiceNumber: string;
+    invoiceDate: string;
+    totalAmount: number;
+    amountDue: number;
+    status: InvoiceStatus;
+  };
+};
+
+export type AmcDashboardSummary = {
+  activeCount: number;
+  expiringSoonCount: number;
+  expiredCount: number;
+  paymentDueCount: number;
+  overduePaymentCount: number;
+};
+
+export type LedgerLineItemRecord = {
+  productServiceName: string;
+  description: string | null;
+  hsnSac: string;
+  quantity: number;
+  unitPrice: number;
+  lineAmount: number;
+};
+
+export type LedgerRecord = {
+  id: string;
+  sourceId: string;
+  sourceCategory: 'INVOICE' | 'QUOTATION' | 'OUTSTANDING';
+  date: string;
+  type: LedgerDocumentType;
+  documentNumber: string;
+  customerId: string;
+  customerName: string;
+  productService: string;
+  hsnSacCode: string;
+  debit: number;
+  credit: number;
+  balance: number;
+  status: string;
+  note: string | null;
+  branchName: string | null;
+  referenceNumber: string | null;
+  totalAmount: number;
+  amountDue: number | null;
+  outstandingAmount: number | null;
+  dueDate: string | null;
+  validUntil: string | null;
+  createdAt: string;
+  updatedAt: string;
+  lineItems: LedgerLineItemRecord[];
+};
+
+export type LeadNoteRecord = {
+  id: string;
+  leadId: string;
+  note: string;
+  createdById: string | null;
+  createdByName: string;
+  createdAt: string;
+};
+
+export type LeadStatusHistoryRecord = {
+  id: string;
+  leadId: string;
+  status: LeadStatus;
+  note: string | null;
+  nextFollowUpDate: string | null;
+  changedById: string | null;
+  changedByName: string;
+  createdAt: string;
+};
+
+export type LeadRecord = {
+  id: string;
+  leadName: string;
+  customerName: string;
+  phone: string;
+  email: string | null;
+  location: string;
+  branchId: string;
+  branchName: string;
+  source: string;
+  interestedProductServiceId: string;
+  status: LeadStatus;
+  note: string | null;
+  nextFollowUpDate: string | null;
+  createdAt: string;
+  updatedAt: string;
+  branch: Pick<SupplierRecord, 'id' | 'supplierName' | 'phone' | 'gstin' | 'status'>;
+  interestedProductService: Pick<
+    ProductServiceRecord,
+    'id' | 'name' | 'type' | 'hsnSacCode' | 'status'
+  >;
+  notes?: LeadNoteRecord[];
+  statusHistory?: LeadStatusHistoryRecord[];
+};
+
+export type LeadUpsertPayload = {
+  leadName: string;
+  customerName: string;
+  phone: string;
+  email?: string;
+  location: string;
+  branchId: string;
+  source: string;
+  interestedProductServiceId: string;
+  status: LeadStatus;
+  note?: string;
+  nextFollowUpDate?: string;
+};
+
+export type LeadStatusUpdatePayload = {
+  status: LeadStatus;
+  note?: string;
+  nextFollowUpDate?: string;
+};
+
+export type LeadImportPreviewRow = {
+  rowNumber: number;
+  leadName: string;
+  customerName: string;
+  phone: string;
+  email: string | null;
+  location: string;
+  branch: string;
+  source: string;
+  interestedProductService: string;
+  status: LeadStatus;
+  note: string | null;
+  nextFollowUpDate: string | null;
+  branchId: string | null;
+  branchName: string | null;
+  interestedProductServiceId: string | null;
+  interestedProductServiceName: string | null;
+  isValid: boolean;
+  errors: string[];
+};
+
+export type LeadImportPreviewResponse = {
+  mode: 'preview' | 'imported';
+  summary: {
+    totalRows: number;
+    validRows: number;
+    invalidRows: number;
+    importedRows: number;
+  };
+  rows: LeadImportPreviewRow[];
 };
 
 export type BillingLineItemRecord = {
@@ -268,4 +551,125 @@ export type InvoiceInputFieldListFilters = {
   isActive?: boolean;
   page?: number;
   limit?: number;
+};
+
+export type ProductServiceListFilters = {
+  search?: string;
+  type?: ProductServiceType;
+  status?: ProductServiceStatus;
+  hsnSacCode?: string;
+  page?: number;
+  limit?: number;
+};
+
+export type OutstandingListFilters = {
+  search?: string;
+  fromDate?: string;
+  toDate?: string;
+  status?: OutstandingStatus;
+  customerId?: string;
+  invoiceType?: OutstandingInvoiceType;
+  page?: number;
+  limit?: number;
+};
+
+export type AmcListFilters = {
+  search?: string;
+  fromDate?: string;
+  toDate?: string;
+  status?: AmcStatus;
+  customerId?: string;
+  billingPeriod?: AmcBillingPeriod;
+  page?: number;
+  limit?: number;
+};
+
+export type LedgerListFilters = {
+  search?: string;
+  fromDate?: string;
+  toDate?: string;
+  customerId?: string;
+  documentType?: LedgerDocumentType;
+  status?: string;
+  productServiceId?: string;
+  hsnSacCode?: string;
+  page?: number;
+  limit?: number;
+};
+
+export type LeadListFilters = {
+  search?: string;
+  status?: LeadStatus;
+  branchId?: string;
+  fromDate?: string;
+  toDate?: string;
+  page?: number;
+  limit?: number;
+};
+
+export type DashboardOutstandingAlert = {
+  id: string;
+  invoiceNumber: string;
+  customerName: string;
+  dueDate: string;
+  outstandingAmount: number;
+  status: OutstandingStatus;
+  daysOverdue: number;
+};
+
+export type DashboardAmcExpiringAlert = {
+  id: string;
+  amcNumber: string;
+  customerName: string;
+  branchName: string;
+  endDate: string;
+  daysUntilExpiry: number;
+  status: AmcStatus;
+};
+
+export type DashboardAmcPaymentDueAlert = {
+  id: string;
+  amcNumber: string;
+  customerName: string;
+  branchName: string;
+  nextBillingDate: string | null;
+  contractAmount: number;
+  daysUntilBilling: number | null;
+  isOverdue: boolean;
+  status: AmcStatus;
+};
+
+export type DashboardLeadFollowUpAlert = {
+  id: string;
+  leadName: string;
+  customerName: string;
+  branchName: string;
+  phone: string;
+  source: string;
+  status: LeadStatus;
+  nextFollowUpDate: string | null;
+  daysUntilFollowUp: number | null;
+};
+
+export type DashboardBusinessSummaryResponse = {
+  summary: {
+    totalOutstandingAmount: number;
+    totalOutstandingCount: number;
+    overdueOutstandingAmount: number;
+    overdueOutstandingCount: number;
+    activeAmcCount: number;
+    amcExpiringWithin30DaysCount: number;
+    expiredAmcCount: number;
+    amcPaymentDueCount: number;
+    overdueAmcPaymentCount: number;
+    leadsThisMonthCount: number;
+    followUpsDueTodayCount: number;
+    overdueFollowUpsCount: number;
+  };
+  alerts: {
+    overdueOutstanding: DashboardOutstandingAlert[];
+    amcExpiringWithin30Days: DashboardAmcExpiringAlert[];
+    amcPaymentDue: DashboardAmcPaymentDueAlert[];
+    leadsNeedingFollowUp: DashboardLeadFollowUpAlert[];
+  };
 };

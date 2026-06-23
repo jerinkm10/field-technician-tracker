@@ -44,7 +44,7 @@ type SupplierSuggestion = SupplierRecord & {
       <button
         pButton
         type="button"
-        label="+ Create Supplier"
+        label="+ Create Branch"
         text
         [disabled]="disabled"
         (click)="createRequested.emit()">
@@ -70,7 +70,7 @@ type SupplierSuggestion = SupplierRecord & {
 })
 export class SupplierAutocompleteComponent implements OnChanges {
   @Input() selectedSupplier: SupplierRecord | null = null;
-  @Input() placeholder = 'Search supplier by name, phone, or GSTIN';
+  @Input() placeholder = 'Search branch by name, phone, or GSTIN';
   @Input() disabled = false;
 
   @Output() readonly selectedSupplierChange = new EventEmitter<SupplierRecord | null>();

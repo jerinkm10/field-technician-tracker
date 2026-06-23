@@ -7,6 +7,7 @@ import { InvoiceStatus, Prisma } from '@prisma/client';
 import { BillingDocumentPdfData, BillingDocumentsService } from '../billing-documents/billing-documents.service';
 import { CompanySettingsService } from '../company-settings/company-settings.service';
 import { createPaginationMeta, normalizePagination } from '../common/utils/pagination.util';
+import { OutstandingsService } from '../outstandings/outstandings.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
 import { InvoiceLineItemDto } from './dto/invoice-line-item.dto';
@@ -96,6 +97,7 @@ export class InvoicesService {
     private readonly prismaService: PrismaService,
     private readonly billingDocumentsService: BillingDocumentsService,
     private readonly companySettingsService: CompanySettingsService,
+    private readonly outstandingsService: OutstandingsService,
   ) {}
 
   async listInvoices(query: ListInvoicesQueryDto) {
@@ -183,32 +185,50 @@ export class InvoicesService {
     await this.ensureCustomerExists(createInvoiceDto.customerId);
 
     try {
-      return await this.prismaService.invoice.create({
-        data: {
-          invoiceType: createInvoiceDto.invoiceType,
-          invoiceNumber: createInvoiceDto.invoiceNumber,
-          invoiceDate: new Date(createInvoiceDto.invoiceDate),
-          supplierId: createInvoiceDto.supplierId,
-          customerId: createInvoiceDto.customerId,
-          customerName: createInvoiceDto.customerName,
-          customerAddress: createInvoiceDto.customerAddress,
-          customerGstin: createInvoiceDto.customerGstin,
-          placeOfSupply: createInvoiceDto.placeOfSupply,
-          notes: createInvoiceDto.notes,
-          termsAndConditions: createInvoiceDto.termsAndConditions,
-          totalBeforeTax: createInvoiceDto.totalBeforeTax,
-          totalTaxAmount: createInvoiceDto.totalTaxAmount,
-          roundedOff: createInvoiceDto.roundedOff,
-          totalAmount: createInvoiceDto.totalAmount,
-          amountDue: createInvoiceDto.amountDue,
-          status: createInvoiceDto.status ?? InvoiceStatus.DRAFT,
-          lineItems: {
-            create: createInvoiceDto.lineItems.map((item) =>
-              this.toLineItemCreateInput(item),
-            ),
+      return await this.prismaService.$transaction(async (transaction) => {
+        const invoice = await transaction.invoice.create({
+          data: {
+            invoiceType: createInvoiceDto.invoiceType,
+            invoiceNumber: createInvoiceDto.invoiceNumber,
+            invoiceDate: new Date(createInvoiceDto.invoiceDate),
+            supplierId: createInvoiceDto.supplierId,
+            customerId: createInvoiceDto.customerId,
+            customerName: createInvoiceDto.customerName,
+            customerAddress: createInvoiceDto.customerAddress,
+            customerGstin: createInvoiceDto.customerGstin,
+            placeOfSupply: createInvoiceDto.placeOfSupply,
+            notes: createInvoiceDto.notes,
+            termsAndConditions: createInvoiceDto.termsAndConditions,
+            totalBeforeTax: createInvoiceDto.totalBeforeTax,
+            totalTaxAmount: createInvoiceDto.totalTaxAmount,
+            roundedOff: createInvoiceDto.roundedOff,
+            totalAmount: createInvoiceDto.totalAmount,
+            amountDue: createInvoiceDto.amountDue,
+            status: createInvoiceDto.status ?? InvoiceStatus.DRAFT,
+            lineItems: {
+              create: createInvoiceDto.lineItems.map((item) =>
+                this.toLineItemCreateInput(item),
+              ),
+            },
           },
-        },
-        select: invoiceSelect,
+          select: invoiceSelect,
+        });
+
+        await this.outstandingsService.syncOutstandingForInvoice(
+          {
+            amountDue: invoice.amountDue,
+            customerId: invoice.customerId,
+            customerName: invoice.customerName,
+            id: invoice.id,
+            invoiceDate: invoice.invoiceDate,
+            invoiceNumber: invoice.invoiceNumber,
+            invoiceType: invoice.invoiceType,
+            totalAmount: invoice.totalAmount,
+          },
+          transaction,
+        );
+
+        return invoice;
       });
     } catch (error) {
       this.rethrowUniqueConstraint(error, 'Invoice number must be unique');
@@ -230,40 +250,58 @@ export class InvoicesService {
     }
 
     try {
-      return await this.prismaService.invoice.update({
-        where: {
-          id: invoiceId,
-        },
-        data: {
-          invoiceType: updateInvoiceDto.invoiceType,
-          invoiceNumber: updateInvoiceDto.invoiceNumber,
-          invoiceDate: updateInvoiceDto.invoiceDate
-            ? new Date(updateInvoiceDto.invoiceDate)
-            : undefined,
-          supplierId: updateInvoiceDto.supplierId,
-          customerId: updateInvoiceDto.customerId,
-          customerName: updateInvoiceDto.customerName,
-          customerAddress: updateInvoiceDto.customerAddress,
-          customerGstin: updateInvoiceDto.customerGstin,
-          placeOfSupply: updateInvoiceDto.placeOfSupply,
-          notes: updateInvoiceDto.notes,
-          termsAndConditions: updateInvoiceDto.termsAndConditions,
-          totalBeforeTax: updateInvoiceDto.totalBeforeTax,
-          totalTaxAmount: updateInvoiceDto.totalTaxAmount,
-          roundedOff: updateInvoiceDto.roundedOff,
-          totalAmount: updateInvoiceDto.totalAmount,
-          amountDue: updateInvoiceDto.amountDue,
-          status: updateInvoiceDto.status,
-          lineItems: updateInvoiceDto.lineItems
-            ? {
-                deleteMany: {},
-                create: updateInvoiceDto.lineItems.map((item) =>
-                  this.toLineItemCreateInput(item),
-                ),
-              }
-            : undefined,
-        },
-        select: invoiceSelect,
+      return await this.prismaService.$transaction(async (transaction) => {
+        const invoice = await transaction.invoice.update({
+          where: {
+            id: invoiceId,
+          },
+          data: {
+            invoiceType: updateInvoiceDto.invoiceType,
+            invoiceNumber: updateInvoiceDto.invoiceNumber,
+            invoiceDate: updateInvoiceDto.invoiceDate
+              ? new Date(updateInvoiceDto.invoiceDate)
+              : undefined,
+            supplierId: updateInvoiceDto.supplierId,
+            customerId: updateInvoiceDto.customerId,
+            customerName: updateInvoiceDto.customerName,
+            customerAddress: updateInvoiceDto.customerAddress,
+            customerGstin: updateInvoiceDto.customerGstin,
+            placeOfSupply: updateInvoiceDto.placeOfSupply,
+            notes: updateInvoiceDto.notes,
+            termsAndConditions: updateInvoiceDto.termsAndConditions,
+            totalBeforeTax: updateInvoiceDto.totalBeforeTax,
+            totalTaxAmount: updateInvoiceDto.totalTaxAmount,
+            roundedOff: updateInvoiceDto.roundedOff,
+            totalAmount: updateInvoiceDto.totalAmount,
+            amountDue: updateInvoiceDto.amountDue,
+            status: updateInvoiceDto.status,
+            lineItems: updateInvoiceDto.lineItems
+              ? {
+                  deleteMany: {},
+                  create: updateInvoiceDto.lineItems.map((item) =>
+                    this.toLineItemCreateInput(item),
+                  ),
+                }
+              : undefined,
+          },
+          select: invoiceSelect,
+        });
+
+        await this.outstandingsService.syncOutstandingForInvoice(
+          {
+            amountDue: invoice.amountDue,
+            customerId: invoice.customerId,
+            customerName: invoice.customerName,
+            id: invoice.id,
+            invoiceDate: invoice.invoiceDate,
+            invoiceNumber: invoice.invoiceNumber,
+            invoiceType: invoice.invoiceType,
+            totalAmount: invoice.totalAmount,
+          },
+          transaction,
+        );
+
+        return invoice;
       });
     } catch (error) {
       this.rethrowUniqueConstraint(error, 'Invoice number must be unique');

@@ -42,11 +42,12 @@ export class QuotationsController {
     @Param('id') quotationId: string,
     @Res({ passthrough: true }) response: Response,
   ) {
+    const quotation = await this.quotationsService.getQuotationById(quotationId);
     const pdfBuffer = await this.quotationsService.getQuotationPdf(quotationId);
     response.setHeader('Content-Type', 'application/pdf');
     response.setHeader(
       'Content-Disposition',
-      `inline; filename="quotation-${quotationId}.pdf"`,
+      `inline; filename="${quotation.quotationNumber}.pdf"`,
     );
 
     return new StreamableFile(pdfBuffer);

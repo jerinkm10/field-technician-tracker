@@ -1,0 +1,192 @@
+<p-dialog
+  [visible]="visible"
+  [modal]="true"
+  [closable]="!saving"
+  [dismissableMask]="false"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: 'min(94vw, 70rem)' }"
+  [header]="dialogTitle()"
+  (onHide)="handleHide()">
+  <div class="amc-form">
+    <div class="field-grid">
+      <label class="field">
+        <span>AMC Number</span>
+        <input pInputText [(ngModel)]="draft.amcNumber" [disabled]="isReadOnly()" />
+      </label>
+
+      <label class="field">
+        <span>Customer</span>
+        <p-select
+          [options]="customers"
+          optionLabel="customerName"
+          optionValue="id"
+          appendTo="body"
+          [(ngModel)]="draft.customerId"
+          [disabled]="isReadOnly()"
+          placeholder="Select customer"
+          (ngModelChange)="handleCustomerChange($event)">
+        </p-select>
+      </label>
+
+      <label class="field">
+        <span>Branch</span>
+        <p-select
+          [options]="branches"
+          optionLabel="supplierName"
+          optionValue="id"
+          appendTo="body"
+          [(ngModel)]="draft.branchId"
+          [disabled]="isReadOnly()"
+          placeholder="Select branch">
+        </p-select>
+      </label>
+
+      <label class="field">
+        <span>Status</span>
+        <p-select
+          [options]="statusOptions"
+          optionLabel="label"
+          optionValue="value"
+          appendTo="body"
+          [(ngModel)]="draft.status"
+          [disabled]="isReadOnly()">
+        </p-select>
+      </label>
+
+      <label class="field">
+        <span>Start Date</span>
+        <input
+          type="date"
+          [(ngModel)]="draft.startDate"
+          [disabled]="isReadOnly()"
+          (ngModelChange)="syncDerivedFields()" />
+      </label>
+
+      <label class="field">
+        <span>End Date</span>
+        <input
+          type="date"
+          [(ngModel)]="draft.endDate"
+          [disabled]="isReadOnly()"
+          (ngModelChange)="syncDerivedFields()" />
+      </label>
+
+      <label class="field">
+        <span>Duration Months</span>
+        <input [value]="draft.durationMonths" disabled />
+      </label>
+
+      <label class="field">
+        <span>Billing Period</span>
+        <p-select
+          [options]="billingPeriodOptions"
+          optionLabel="label"
+          optionValue="value"
+          appendTo="body"
+          [(ngModel)]="draft.billingPeriod"
+          [disabled]="isReadOnly()"
+          (ngModelChange)="syncDerivedFields()">
+        </p-select>
+      </label>
+
+      <label class="field">
+        <span>Billing Period Months</span>
+        <input [value]="draft.billingPeriodMonths" disabled />
+      </label>
+
+      <label class="field">
+        <span>Contract Amount</span>
+        <p-inputNumber
+          [(ngModel)]="draft.contractAmount"
+          mode="decimal"
+          [min]="0"
+          [maxFractionDigits]="2"
+          [disabled]="isReadOnly()">
+        </p-inputNumber>
+      </label>
+
+      <label class="field">
+        <span>Tax Percentage</span>
+        <p-inputNumber
+          [(ngModel)]="draft.taxPercentage"
+          mode="decimal"
+          [min]="0"
+          [maxFractionDigits]="2"
+          [disabled]="isReadOnly()">
+        </p-inputNumber>
+      </label>
+
+      <label class="field">
+        <span>Last Paid Date</span>
+        <input type="date" [(ngModel)]="draft.lastPaidDate" [disabled]="isReadOnly()" />
+      </label>
+
+      <label class="field">
+        <span>Next Billing Date</span>
+        <input type="date" [(ngModel)]="draft.nextBillingDate" [disabled]="isReadOnly()" />
+      </label>
+    </div>
+
+    <label class="field">
+      <span>Note</span>
+      <textarea [(ngModel)]="draft.note" rows="4" [disabled]="isReadOnly()"></textarea>
+    </label>
+
+    @if (isReadOnly() && amc?.invoices?.length) {
+      <section class="linked-invoices">
+        <h4>Generated Invoices</h4>
+
+        <div class="invoice-list">
+          @for (invoiceLink of amc?.invoices ?? []; track invoiceLink.id) {
+            <article class="invoice-card">
+              <strong>{{ invoiceLink.invoice.invoiceNumber }}</strong>
+              <span>{{ invoiceLink.invoice.invoiceDate | date : 'mediumDate' }}</span>
+              <span>
+                {{ invoiceLink.billingPeriodStart | date : 'mediumDate' }}
+                -
+                {{ invoiceLink.billingPeriodEnd | date : 'mediumDate' }}
+              </span>
+            </article>
+          }
+        </div>
+      </section>
+    }
+  </div>
+
+  <ng-template #footer>
+    <div class="dialog-actions">
+      <button
+        pButton
+        type="button"
+        [label]="isReadOnly() ? 'Close' : 'Cancel'"
+        text
+        [disabled]="saving"
+        (click)="cancel.emit()">
+      </button>
+
+      @if (isReadOnly()) {
+        <button pButton type="button" label="Preview" text icon="pi pi-eye" (click)="preview.emit()">
+        </button>
+        <button pButton type="button" label="Download PDF" text icon="pi pi-download" (click)="downloadPdf.emit()">
+        </button>
+        <button
+          pButton
+          type="button"
+          label="Create Invoice"
+          icon="pi pi-file-plus"
+          (click)="createInvoice.emit()">
+        </button>
+      } @else {
+        <button
+          pButton
+          type="button"
+          [label]="saving ? 'Saving...' : primaryActionLabel()"
+          icon="pi pi-check"
+          [disabled]="saving || !canSubmit()"
+          (click)="submit()">
+        </button>
+      }
+    </div>
+  </ng-template>
+</p-dialog>

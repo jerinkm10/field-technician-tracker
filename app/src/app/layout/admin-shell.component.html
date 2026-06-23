@@ -23,27 +23,36 @@
       }
 
       @for (group of groupedNavigation; track group.label) {
-        <div class="nav-group" [class.is-active]="isGroupActive(group.children ?? [])">
-          <div class="nav-group-title">
+        <div
+          class="nav-group"
+          [class.is-active]="isGroupActive(group.children ?? [])"
+          [class.is-open]="isGroupExpanded(group.label)">
+          <button
+            type="button"
+            class="nav-group-title nav-group-toggle"
+            [attr.aria-expanded]="isGroupExpanded(group.label)"
+            (click)="toggleGroup(group.label)">
             <div class="nav-group-copy">
               <i [class]="group.icon"></i>
               <span>{{ group.label }}</span>
             </div>
             <i class="pi pi-angle-right nav-group-caret"></i>
-          </div>
+          </button>
 
-          <div class="nav-children">
-            @for (item of group.children ?? []; track item.route) {
-              <a
-                class="nav-link nav-child-link"
-                [routerLink]="item.route!"
-                routerLinkActive="is-active"
-                (click)="closeSidebar()">
-                <i [class]="item.icon"></i>
-                <span>{{ item.label }}</span>
-              </a>
-            }
-          </div>
+          @if (isGroupExpanded(group.label)) {
+            <div class="nav-children">
+              @for (item of group.children ?? []; track item.route) {
+                <a
+                  class="nav-link nav-child-link"
+                  [routerLink]="item.route!"
+                  routerLinkActive="is-active"
+                  (click)="closeSidebar()">
+                  <i [class]="item.icon"></i>
+                  <span>{{ item.label }}</span>
+                </a>
+              }
+            </div>
+          }
         </div>
       }
     </nav>

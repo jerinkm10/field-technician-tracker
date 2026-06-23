@@ -197,7 +197,7 @@ export const routes: Routes = [
           },
           {
             path: 'suppliers',
-            redirectTo: '/settings/suppliers',
+            redirectTo: '/settings/branch',
             pathMatch: 'full'
           },
           {
@@ -217,12 +217,77 @@ export const routes: Routes = [
         ]
       },
       {
+        path: 'business',
+        children: [
+          {
+            path: '',
+            pathMatch: 'full',
+            redirectTo: 'outstanding'
+          },
+          {
+            path: 'outstanding',
+            loadComponent: () =>
+              import('./pages/business/outstandings-page.component').then(
+                (module) => module.OutstandingsPageComponent
+              ),
+          },
+          {
+            path: 'amc',
+            loadComponent: () =>
+              import('./pages/business/amc-page.component').then(
+                (module) => module.AmcPageComponent
+              ),
+          },
+          {
+            path: 'ledger',
+            loadComponent: () =>
+              import('./pages/business/ledger-page.component').then(
+                (module) => module.LedgerPageComponent
+              ),
+          },
+          {
+            path: 'lead',
+            loadComponent: () =>
+              import('./pages/business/leads-page.component').then(
+                (module) => module.LeadsPageComponent
+              ),
+          },
+          {
+            path: 'product-service',
+            loadComponent: () =>
+              import('./pages/business/product-services-page.component').then(
+                (module) => module.ProductServicesPageComponent
+              ),
+          },
+        ]
+      },
+      {
         path: 'settings',
         children: [
           {
             path: '',
             pathMatch: 'full',
             redirectTo: 'company'
+          },
+          {
+            path: 'suppliers',
+            redirectTo: 'branch',
+            pathMatch: 'full'
+          },
+          {
+            path: 'suppliers/create',
+            redirectTo: 'branch/create',
+            pathMatch: 'full'
+          },
+          {
+            path: 'suppliers/:id/view',
+            redirectTo: 'branch/:id/view',
+            pathMatch: 'full'
+          },
+          {
+            path: 'suppliers/:id/edit',
+            redirectTo: 'branch/:id/edit',
+            pathMatch: 'full'
           },
           {
             path: 'company',
@@ -232,7 +297,7 @@ export const routes: Routes = [
               )
           },
           {
-            path: 'suppliers',
+            path: 'branch',
             loadComponent: () =>
               import('./pages/invoice/suppliers-page.component').then(
                 (module) => module.InvoiceSuppliersPageComponent
@@ -242,7 +307,7 @@ export const routes: Routes = [
             }
           },
           {
-            path: 'suppliers/create',
+            path: 'branch/create',
             loadComponent: () =>
               import('./pages/invoice/suppliers-page.component').then(
                 (module) => module.InvoiceSuppliersPageComponent
@@ -252,7 +317,7 @@ export const routes: Routes = [
             }
           },
           {
-            path: 'suppliers/:id/view',
+            path: 'branch/:id/view',
             loadComponent: () =>
               import('./pages/invoice/suppliers-page.component').then(
                 (module) => module.InvoiceSuppliersPageComponent
@@ -262,7 +327,7 @@ export const routes: Routes = [
             }
           },
           {
-            path: 'suppliers/:id/edit',
+            path: 'branch/:id/edit',
             loadComponent: () =>
               import('./pages/invoice/suppliers-page.component').then(
                 (module) => module.InvoiceSuppliersPageComponent

@@ -1,0 +1,337 @@
+<section class="page">
+  <header class="page-header">
+    <div class="page-heading">
+      <p class="page-eyebrow">Business</p>
+      <h1 class="page-title">Lead Management</h1>
+      <p class="page-subtitle">
+        Capture, follow up, and import leads while keeping branch and product/service
+        references aligned with the existing masters.
+      </p>
+    </div>
+
+    <div class="page-actions">
+      <input
+        #importFileInput
+        type="file"
+        accept=".xlsx,.xls"
+        hidden
+        (change)="handleImportFileSelected($event)" />
+
+      <button
+        pButton
+        type="button"
+        label="Download Demo Excel"
+        icon="pi pi-download"
+        outlined
+        (click)="downloadDemoExcel()">
+      </button>
+
+      <button
+        pButton
+        type="button"
+        label="Import Excel"
+        icon="pi pi-upload"
+        (click)="importFileInput.click()">
+      </button>
+    </div>
+  </header>
+
+  @if (errorMessage()) {
+    <div class="panel section-shell error-banner">
+      {{ errorMessage() }}
+    </div>
+  }
+
+  <section class="panel section-shell filters-shell">
+    <label class="search-field">
+      <span>Search</span>
+      <input
+        pInputText
+        [(ngModel)]="searchTerm"
+        placeholder="Lead, customer, phone, branch, source, or product/service" />
+    </label>
+
+    <div class="filter-actions">
+      <app-filter-dropdown label="Filter Leads">
+        <label class="popover-field">
+          <span>Status</span>
+          <p-select
+            [options]="statusOptions"
+            optionLabel="label"
+            optionValue="value"
+            appendTo="body"
+            [(ngModel)]="statusFilter">
+          </p-select>
+        </label>
+
+        <label class="popover-field">
+          <span>Branch</span>
+          <p-select
+            [options]="branchFilterOptions()"
+            optionLabel="label"
+            optionValue="value"
+            appendTo="body"
+            [(ngModel)]="branchIdFilter">
+          </p-select>
+        </label>
+
+        <label class="popover-field">
+          <span>From Date</span>
+          <input pInputText type="date" [(ngModel)]="fromDate" />
+        </label>
+
+        <label class="popover-field">
+          <span>To Date</span>
+          <input pInputText type="date" [(ngModel)]="toDate" />
+        </label>
+
+        <div class="popover-actions">
+          <button pButton type="button" label="Apply" icon="pi pi-filter" (click)="applyFilters()">
+          </button>
+          <button pButton type="button" label="Reset" text (click)="resetFilters()"></button>
+        </div>
+      </app-filter-dropdown>
+
+      <button
+        pButton
+        type="button"
+        label="Search"
+        icon="pi pi-search"
+        (click)="applyFilters()">
+      </button>
+
+      <button
+        pButton
+        type="button"
+        label="Reset"
+        icon="pi pi-refresh"
+        text
+        (click)="resetFilters()">
+      </button>
+    </div>
+  </section>
+
+  <app-data-table-with-actions
+    title="Lead Pipeline"
+    subtitle="Manage lead records, quick status updates, and import validation from one place."
+    createLabel="Create Lead"
+    [showCreateButton]="true"
+    [records]="leads()"
+    [loading]="loading()"
+    [footerLabel]="footerLabel()"
+    [emptyColspan]="8"
+    [page]="page()"
+    [totalPages]="totalPages()"
+    [hasPreviousPage]="hasPreviousPage()"
+    [hasNextPage]="hasNextPage()"
+    (create)="openCreateDialog()"
+    (previousPage)="previousPage()"
+    (nextPage)="nextPage()">
+    <ng-template #header>
+      <tr>
+        <th>Lead</th>
+        <th>Customer</th>
+        <th>Branch</th>
+        <th>Interested Product / Service</th>
+        <th>Source</th>
+        <th>Status</th>
+        <th>Next Follow Up</th>
+        <th>Actions</th>
+      </tr>
+    </ng-template>
+
+    <ng-template #body let-lead>
+      <tr>
+        <td>
+          <div class="table-title-cell">
+            <strong>{{ lead.leadName }}</strong>
+            <span>{{ lead.phone }}</span>
+            @if (lead.email) {
+              <span>{{ lead.email }}</span>
+            }
+          </div>
+        </td>
+        <td>
+          <div class="table-title-cell">
+            <strong>{{ lead.customerName }}</strong>
+            <span>{{ lead.location }}</span>
+          </div>
+        </td>
+        <td>{{ lead.branchName }}</td>
+        <td>
+          <div class="table-title-cell">
+            <strong>{{ lead.interestedProductService.name }}</strong>
+            <span>{{ lead.interestedProductService.type }}</span>
+          </div>
+        </td>
+        <td>{{ lead.source }}</td>
+        <td>
+          <p-tag
+            [value]="lead.status.replaceAll('_', ' ')"
+            [severity]="statusSeverity(lead.status)">
+          </p-tag>
+        </td>
+        <td>
+          {{ lead.nextFollowUpDate ? (lead.nextFollowUpDate | date: 'dd MMM yyyy') : 'Not set' }}
+        </td>
+        <td>
+          <div class="table-actions">
+            <button pButton type="button" label="View" text size="small" (click)="openViewDialog(lead)">
+            </button>
+            <button pButton type="button" label="Edit" text size="small" (click)="openEditDialog(lead)">
+            </button>
+            <button pButton type="button" label="Status" text size="small" (click)="openStatusDialog(lead)">
+            </button>
+            <button
+              pButton
+              type="button"
+              label="Delete"
+              text
+              severity="danger"
+              size="small"
+              (click)="deleteLead(lead)">
+            </button>
+          </div>
+        </td>
+      </tr>
+    </ng-template>
+  </app-data-table-with-actions>
+</section>
+
+<app-lead-form-dialog
+  [visible]="dialogVisible()"
+  [saving]="saving()"
+  [mode]="dialogMode"
+  [lead]="selectedLead"
+  [branches]="branches()"
+  [productServices]="productServices()"
+  (cancel)="closeDialog()"
+  (save)="saveLead($event)">
+</app-lead-form-dialog>
+
+<app-lead-status-dialog
+  [visible]="statusDialogVisible()"
+  [saving]="saving()"
+  [lead]="statusLead"
+  (cancel)="closeStatusDialog()"
+  (save)="saveLeadStatus($event)">
+</app-lead-status-dialog>
+
+<p-dialog
+  [visible]="importPreviewVisible()"
+  [modal]="true"
+  [closable]="!importLoading()"
+  [dismissableMask]="false"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: 'min(96vw, 74rem)' }"
+  [header]="importPreview()?.mode === 'imported' ? 'Lead Import Complete' : 'Lead Import Preview'"
+  (onHide)="closeImportPreview()">
+  @if (importPreview(); as preview) {
+    <div class="import-preview">
+      <div class="import-summary">
+        <div class="summary-card">
+          <strong>{{ preview.summary.totalRows }}</strong>
+          <span>Total Rows</span>
+        </div>
+        <div class="summary-card">
+          <strong>{{ preview.summary.validRows }}</strong>
+          <span>Valid Rows</span>
+        </div>
+        <div class="summary-card">
+          <strong>{{ preview.summary.invalidRows }}</strong>
+          <span>Invalid Rows</span>
+        </div>
+        <div class="summary-card">
+          <strong>{{ preview.summary.importedRows }}</strong>
+          <span>Imported Rows</span>
+        </div>
+      </div>
+
+      @if (preview.summary.invalidRows > 0 && preview.mode === 'preview') {
+        <div class="validation-banner">
+          Resolve invalid rows in the Excel file before confirming the import.
+        </div>
+      }
+
+      @if (preview.mode === 'imported') {
+        <div class="success-banner">
+          Lead import completed successfully.
+        </div>
+      }
+
+      <p-table [value]="preview.rows" responsiveLayout="scroll">
+        <ng-template #header>
+          <tr>
+            <th>Row</th>
+            <th>Lead</th>
+            <th>Branch</th>
+            <th>Interested Product / Service</th>
+            <th>Status</th>
+            <th>Validation</th>
+          </tr>
+        </ng-template>
+
+        <ng-template #body let-row>
+          <tr>
+            <td>{{ row.rowNumber }}</td>
+            <td>
+              <div class="table-title-cell">
+                <strong>{{ row.leadName || '-' }}</strong>
+                <span>{{ row.customerName || '-' }}</span>
+              </div>
+            </td>
+            <td>{{ row.branch || '-' }}</td>
+            <td>{{ row.interestedProductService || '-' }}</td>
+            <td>
+              <p-tag
+                [value]="row.status.replaceAll('_', ' ')"
+                [severity]="statusSeverity(row.status)">
+              </p-tag>
+            </td>
+            <td>
+              <div class="validation-cell">
+                <p-tag
+                  [value]="row.isValid ? 'Valid' : 'Invalid'"
+                  [severity]="row.isValid ? 'success' : 'danger'">
+                </p-tag>
+
+                @if (!row.isValid) {
+                  <ul>
+                    @for (error of row.errors; track error) {
+                      <li>{{ error }}</li>
+                    }
+                  </ul>
+                }
+              </div>
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+  }
+
+  <ng-template #footer>
+    <div class="dialog-actions">
+      <button
+        pButton
+        type="button"
+        [label]="importPreview()?.mode === 'imported' ? 'Close' : 'Cancel'"
+        text
+        [disabled]="importLoading()"
+        (click)="closeImportPreview()">
+      </button>
+
+      @if (importPreview()?.mode === 'preview') {
+        <button
+          pButton
+          type="button"
+          [label]="importLoading() ? 'Importing...' : 'Confirm Import'"
+          icon="pi pi-check"
+          [disabled]="importLoading() || (importPreview()?.summary?.invalidRows ?? 0) > 0"
+          (click)="confirmImport()">
+        </button>
+      }
+    </div>
+  </ng-template>
+</p-dialog>

@@ -4,7 +4,7 @@
       <p class="page-eyebrow">Invoice</p>
       <h1 class="page-title">{{ pageTitle }}</h1>
       <p class="page-subtitle">
-        Use supplier and customer autocomplete, live tax totals, preview, and PDF download from the same document workspace.
+        Use branch and customer autocomplete, live tax totals, preview, and PDF download from the same document workspace.
       </p>
     </div>
 
@@ -65,8 +65,8 @@
   <section class="panel section-shell">
     <div class="section-header">
       <div>
-        <h3>Supplier</h3>
-        <p>Pick a supplier from master data or create one inline.</p>
+        <h3>Branch</h3>
+        <p>Pick a branch from master data or create one inline.</p>
       </div>
     </div>
 
@@ -78,8 +78,8 @@
     </app-supplier-autocomplete>
 
     <div class="detail-card">
-      <h4>{{ selectedSupplier()?.supplierName || 'Supplier details' }}</h4>
-      <p>{{ selectedSupplier()?.address || 'Select a supplier to auto-fill company and bank details.' }}</p>
+      <h4>{{ selectedSupplier()?.supplierName || 'Branch details' }}</h4>
+      <p>{{ selectedSupplier()?.address || 'Select a branch to auto-fill company and bank details.' }}</p>
       <p>{{ selectedSupplier()?.phone || '-' }} | {{ selectedSupplier()?.email || '-' }}</p>
       <p>GSTIN: {{ selectedSupplier()?.gstin || '-' }}</p>
     </div>
@@ -169,6 +169,7 @@
   <p-dialog
     [visible]="previewVisible()"
     [modal]="true"
+    [dismissableMask]="false"
     [draggable]="false"
     [resizable]="false"
     [style]="{ width: 'min(94vw, 1100px)' }"

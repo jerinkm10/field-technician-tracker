@@ -4,8 +4,8 @@
       <p class="page-eyebrow">Dashboard</p>
       <h1 class="page-title">Daily field operations at a glance</h1>
       <p class="page-subtitle">
-        Use this overview to monitor technician readiness, live socket health, and the highest
-        priority workstreams before deeper data flows are connected.
+        Monitor overdue payments, AMC renewal pressure, upcoming AMC billing, and lead follow-ups
+        from one shared business dashboard.
       </p>
     </div>
 
@@ -14,8 +14,14 @@
     </div>
   </header>
 
+  @if (errorMessage()) {
+    <div class="panel section-shell error-banner">
+      {{ errorMessage() }}
+    </div>
+  }
+
   <div class="card-grid">
-    @for (metric of metrics; track metric.label) {
+    @for (metric of metrics(); track metric.label) {
       <article class="panel metric-card">
         <p-tag [value]="metric.label" [severity]="metric.severity"></p-tag>
         <h2 class="metric-value">{{ metric.value }}</h2>
@@ -30,8 +36,8 @@
         <p class="hero-label">Realtime Status</p>
         <h2>Socket.IO channel is {{ realtime.connected() ? 'connected' : 'waiting for connection' }}</h2>
         <p>
-          The dashboard shell already includes a shared realtime service so job updates and live
-          technician movement can be wired into one place next.
+          Live tracking health is shown here while the business summary cards and watchlists surface
+          overdue payments, expiring AMC contracts, and lead follow-up pressure.
         </p>
       </div>
 
@@ -47,6 +53,14 @@
       </div>
 
       <div class="action-list">
+        <button
+          pButton
+          type="button"
+          label="Outstanding Workspace"
+          icon="pi pi-wallet"
+          text
+          routerLink="/business/outstanding">
+        </button>
         <button pButton type="button" label="Jobs Queue" icon="pi pi-briefcase" text routerLink="/jobs"></button>
         <button
           pButton
@@ -59,28 +73,169 @@
         <button
           pButton
           type="button"
+          label="AMC Workspace"
+          icon="pi pi-calendar"
+          text
+          routerLink="/business/amc">
+        </button>
+        <button
+          pButton
+          type="button"
           label="Reports Workspace"
           icon="pi pi-chart-line"
           text
           routerLink="/reports">
         </button>
+        <button
+          pButton
+          type="button"
+          label="Lead Workspace"
+          icon="pi pi-megaphone"
+          text
+          routerLink="/business/lead">
+        </button>
       </div>
     </section>
   </div>
 
-  <section class="panel section-shell">
-    <div class="section-header">
-      <h3>Operations Timeline</h3>
-      <p>Placeholder activity feed for the base dashboard scaffold.</p>
-    </div>
+  <section class="alerts-grid">
+    <article class="panel section-shell alert-panel">
+      <div class="section-header">
+        <div>
+          <h3>Overdue Invoice Payments</h3>
+          <p>Customers with overdue outstanding balances that need collection follow-up.</p>
+        </div>
+        <button pButton type="button" label="Open Outstanding" text routerLink="/business/outstanding"></button>
+      </div>
 
-    <div class="timeline-list">
-      @for (entry of timeline; track entry) {
-        <div class="timeline-row">
-          <span class="timeline-dot"></span>
-          <p>{{ entry }}</p>
+      @if (overdueOutstandingAlerts().length === 0) {
+        <p class="empty-state">No overdue invoice payments right now.</p>
+      } @else {
+        <div class="alert-list">
+          @for (item of overdueOutstandingAlerts(); track item.id) {
+            <div class="alert-row">
+              <div>
+                <strong>{{ item.invoiceNumber }}</strong>
+                <p>{{ item.customerName }}</p>
+              </div>
+              <div class="alert-meta">
+                <p>{{ item.outstandingAmount | currency: 'INR' : 'symbol' : '1.0-2' }}</p>
+                <p-tag
+                  [severity]="overdueBadgeSeverity(item.daysOverdue)"
+                  [value]="item.daysOverdue + ' day(s) overdue'">
+                </p-tag>
+                <span>Due {{ item.dueDate | date: 'dd MMM yyyy' }}</span>
+              </div>
+            </div>
+          }
         </div>
       }
-    </div>
+    </article>
+
+    <article class="panel section-shell alert-panel">
+      <div class="section-header">
+        <div>
+          <h3>AMC Expiring Within One Month</h3>
+          <p>Contracts approaching expiry that need renewal planning and customer contact.</p>
+        </div>
+        <button pButton type="button" label="Open AMC" text routerLink="/business/amc"></button>
+      </div>
+
+      @if (amcExpiringAlerts().length === 0) {
+        <p class="empty-state">No AMC contracts are expiring within the next 30 days.</p>
+      } @else {
+        <div class="alert-list">
+          @for (item of amcExpiringAlerts(); track item.id) {
+            <div class="alert-row">
+              <div>
+                <strong>{{ item.amcNumber }}</strong>
+                <p>{{ item.customerName }} | {{ item.branchName }}</p>
+              </div>
+              <div class="alert-meta">
+                <p-tag
+                  [severity]="amcStatusSeverity(item.status)"
+                  [value]="amcExpiryBadgeLabel(item)">
+                </p-tag>
+                <span>Ends {{ item.endDate | date: 'dd MMM yyyy' }}</span>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </article>
+
+    <article class="panel section-shell alert-panel">
+      <div class="section-header">
+        <div>
+          <h3>AMC Payment Due</h3>
+          <p>Billing cycles due soon or already overdue for active AMC contracts.</p>
+        </div>
+        <button pButton type="button" label="Open AMC" text routerLink="/business/amc"></button>
+      </div>
+
+      @if (amcPaymentDueAlerts().length === 0) {
+        <p class="empty-state">No AMC billing deadlines are due in the next 30 days.</p>
+      } @else {
+        <div class="alert-list">
+          @for (item of amcPaymentDueAlerts(); track item.id) {
+            <div class="alert-row">
+              <div>
+                <strong>{{ item.amcNumber }}</strong>
+                <p>{{ item.customerName }} | {{ item.branchName }}</p>
+              </div>
+              <div class="alert-meta">
+                <p>{{ item.contractAmount | currency: 'INR' : 'symbol' : '1.0-2' }}</p>
+                <p-tag
+                  [severity]="item.isOverdue ? 'danger' : 'warn'"
+                  [value]="amcBillingBadgeLabel(item)">
+                </p-tag>
+                <span>
+                  {{ item.nextBillingDate ? ('Billing ' + (item.nextBillingDate | date: 'dd MMM yyyy')) : 'Billing date not set' }}
+                </span>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </article>
+
+    <article class="panel section-shell alert-panel">
+      <div class="section-header">
+        <div>
+          <h3>Leads Needing Follow-up</h3>
+          <p>Due-today and overdue lead callbacks that need attention from the sales workflow.</p>
+        </div>
+        <button pButton type="button" label="Open Leads" text routerLink="/business/lead"></button>
+      </div>
+
+      @if (leadFollowUpAlerts().length === 0) {
+        <p class="empty-state">No lead follow-ups are due today or overdue.</p>
+      } @else {
+        <div class="alert-list">
+          @for (item of leadFollowUpAlerts(); track item.id) {
+            <div class="alert-row">
+              <div>
+                <strong>{{ item.leadName }}</strong>
+                <p>{{ item.customerName }} | {{ item.branchName }}</p>
+                <span class="alert-detail">{{ item.phone }} | {{ item.source }}</span>
+              </div>
+              <div class="alert-meta">
+                <p-tag
+                  [severity]="leadStatusSeverity(item.status)"
+                  [value]="item.status.replaceAll('_', ' ')">
+                </p-tag>
+                <p-tag
+                  [severity]="(item.daysUntilFollowUp ?? 0) < 0 ? 'danger' : 'warn'"
+                  [value]="followUpBadgeLabel(item)">
+                </p-tag>
+                <span>
+                  {{ item.nextFollowUpDate ? ('Follow-up ' + (item.nextFollowUpDate | date: 'dd MMM yyyy')) : 'Follow-up date not set' }}
+                </span>
+              </div>
+            </div>
+          }
+        </div>
+      }
+    </article>
   </section>
 </section>

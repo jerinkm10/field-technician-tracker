@@ -61,11 +61,16 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  width: 100%;
   padding: 0.35rem 0.95rem 0.1rem;
+  border: 0;
+  background: transparent;
   color: rgba(245, 250, 255, 0.68);
+  cursor: pointer;
   font-size: 0.85rem;
   font-weight: 700;
   letter-spacing: 0.08em;
+  text-align: left;
   text-transform: uppercase;
 }
 
@@ -79,8 +84,22 @@
   color: #ffffff;
 }
 
+.nav-group-title:hover {
+  color: #ffffff;
+}
+
+.nav-group-title:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.6);
+  outline-offset: 3px;
+}
+
 .nav-group-caret {
   opacity: 0.7;
+  transition: transform 180ms ease;
+}
+
+.nav-group.is-open .nav-group-caret {
+  transform: rotate(90deg);
 }
 
 .nav-children {

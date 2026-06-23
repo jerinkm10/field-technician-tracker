@@ -2,7 +2,7 @@
   [visible]="visible"
   [modal]="true"
   [closable]="!saving"
-  [dismissableMask]="!saving"
+  [dismissableMask]="false"
   [draggable]="false"
   [resizable]="false"
   [style]="{ width: 'min(92vw, 48rem)' }"
@@ -11,7 +11,7 @@
   <div class="supplier-form">
     <div class="field-grid">
       <label class="field">
-        <span>Supplier Name</span>
+        <span>Branch Name</span>
         <input pInputText [(ngModel)]="draft.supplierName" [disabled]="isReadOnly()" />
       </label>
 

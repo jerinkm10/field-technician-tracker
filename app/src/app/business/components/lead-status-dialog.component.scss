@@ -1,0 +1,41 @@
+.status-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.lead-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.9rem 1rem;
+  border-radius: var(--ftt-radius-md);
+  background: rgba(238, 243, 239, 0.8);
+}
+
+.lead-summary span,
+.current-note,
+.field span {
+  color: var(--ftt-muted);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.field span {
+  font-weight: 700;
+}
+
+.field textarea {
+  min-height: 6.5rem;
+  resize: vertical;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}

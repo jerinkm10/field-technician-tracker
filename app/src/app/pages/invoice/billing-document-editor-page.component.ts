@@ -168,7 +168,7 @@ export class BillingDocumentEditorPageComponent {
         this.supplierDialogVisible.set(false);
       },
       error: () => {
-        this.errorMessage.set('Supplier creation failed. Check the details and try again.');
+        this.errorMessage.set('Branch creation failed. Check the details and try again.');
       },
     });
   }
@@ -200,7 +200,7 @@ export class BillingDocumentEditorPageComponent {
     }
 
     if (!this.selectedSupplier() || !this.draft.supplierId) {
-      this.errorMessage.set('Select a supplier before saving.');
+      this.errorMessage.set('Select a branch before saving.');
       return;
     }
 
@@ -240,7 +240,7 @@ export class BillingDocumentEditorPageComponent {
       error: () => {
         this.saving.set(false);
         this.errorMessage.set(
-          'Document save failed. Verify the unique number, supplier, customer, and line item data.',
+          'Document save failed. Verify the unique number, branch, customer, and line item data.',
         );
       },
     });
@@ -260,13 +260,22 @@ export class BillingDocumentEditorPageComponent {
       return;
     }
 
+    const filename = this.buildPdfFilename();
+    if (!filename) {
+      this.errorMessage.set('Document number is required before downloading the PDF.');
+      return;
+    }
+
     this.downloading.set(true);
 
     this.billingDocumentsApiService.downloadPdf(this.kind, this.documentId).subscribe({
       next: (blob) => {
         this.downloading.set(false);
         const url = window.URL.createObjectURL(blob);
-        window.open(url, '_blank', 'noopener');
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.click();
         window.setTimeout(() => window.URL.revokeObjectURL(url), 2000);
       },
       error: () => {
@@ -456,5 +465,15 @@ export class BillingDocumentEditorPageComponent {
 
   private roundCurrency(value: number): number {
     return Math.round(value * 100) / 100;
+  }
+
+  private buildPdfFilename(): string | null {
+    const documentNumber = this.draft.documentNumber.trim();
+    if (!documentNumber) {
+      return null;
+    }
+
+    const safeDocumentNumber = documentNumber.replace(/[\\/:*?"<>|]+/g, '-');
+    return `${safeDocumentNumber}.pdf`;
   }
 }

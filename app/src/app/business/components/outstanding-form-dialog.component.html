@@ -1,0 +1,131 @@
+<p-dialog
+  [visible]="visible"
+  [modal]="true"
+  [closable]="!saving"
+  [dismissableMask]="false"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: 'min(92vw, 60rem)' }"
+  [header]="dialogTitle()"
+  (onHide)="handleHide()">
+  @if (draft) {
+    <div class="outstanding-form">
+      <div class="field-grid">
+        <label class="field">
+          <span>Invoice Number</span>
+          <input [value]="draft.invoiceNumber" disabled />
+        </label>
+
+        <label class="field">
+          <span>Invoice Type</span>
+          <input [value]="draft.invoiceType" disabled />
+        </label>
+
+        <label class="field">
+          <span>Customer Name</span>
+          <input [value]="draft.customerName" disabled />
+        </label>
+
+        <label class="field">
+          <span>Invoice Date</span>
+          <input [value]="draft.invoiceDate.slice(0, 10)" disabled />
+        </label>
+
+        <label class="field">
+          <span>Total Amount</span>
+          <p-inputNumber
+            [(ngModel)]="draft.totalAmount"
+            mode="decimal"
+            [maxFractionDigits]="2"
+            [disabled]="true">
+          </p-inputNumber>
+        </label>
+
+        <label class="field">
+          <span>Outstanding Amount</span>
+          <p-inputNumber
+            [(ngModel)]="draft.outstandingAmount"
+            mode="decimal"
+            [maxFractionDigits]="2"
+            [disabled]="true">
+          </p-inputNumber>
+        </label>
+
+        <label class="field">
+          <span>Paid Amount</span>
+          <p-inputNumber
+            [(ngModel)]="draft.paidAmount"
+            mode="decimal"
+            [min]="0"
+            [maxFractionDigits]="2"
+            [disabled]="isReadOnly()"
+            (ngModelChange)="applyAmountsChange()">
+          </p-inputNumber>
+        </label>
+
+        <label class="field">
+          <span>Credit Amount</span>
+          <p-inputNumber
+            [(ngModel)]="draft.creditAmount"
+            mode="decimal"
+            [min]="0"
+            [maxFractionDigits]="2"
+            [disabled]="isReadOnly()"
+            (ngModelChange)="applyAmountsChange()">
+          </p-inputNumber>
+        </label>
+
+        <label class="field">
+          <span>Due Date</span>
+          <input
+            type="date"
+            [(ngModel)]="draft.dueDate"
+            [disabled]="isReadOnly()"
+            (ngModelChange)="applyDueDateChange()" />
+        </label>
+
+        <label class="field">
+          <span>Status</span>
+          <p-select
+            [options]="statusOptions"
+            optionLabel="label"
+            optionValue="value"
+            appendTo="body"
+            [(ngModel)]="draft.status"
+            [disabled]="isReadOnly()"
+            (ngModelChange)="applyStatusChange($event)">
+          </p-select>
+        </label>
+      </div>
+
+      <label class="field">
+        <span>Note</span>
+        <textarea [(ngModel)]="draft.note" rows="4" [disabled]="isReadOnly()"></textarea>
+      </label>
+    </div>
+  }
+
+  <ng-template #footer>
+    <div class="dialog-actions">
+      <button
+        pButton
+        type="button"
+        [label]="isReadOnly() ? 'Close' : 'Cancel'"
+        text
+        [disabled]="saving"
+        (click)="cancel.emit()">
+      </button>
+
+      @if (!isReadOnly()) {
+        <button
+          pButton
+          type="button"
+          [label]="saving ? 'Saving...' : 'Update Outstanding'"
+          icon="pi pi-check"
+          [disabled]="saving || !canSubmit()"
+          (click)="submit()">
+        </button>
+      }
+    </div>
+  </ng-template>
+</p-dialog>

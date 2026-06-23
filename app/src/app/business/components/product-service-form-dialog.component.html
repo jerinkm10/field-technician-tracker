@@ -1,0 +1,104 @@
+<p-dialog
+  [visible]="visible"
+  [modal]="true"
+  [closable]="!saving"
+  [dismissableMask]="false"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: 'min(92vw, 54rem)' }"
+  [header]="dialogTitle()"
+  (onHide)="handleHide()">
+  <div class="product-service-form">
+    <div class="field-grid">
+      <label class="field">
+        <span>Name</span>
+        <input pInputText [(ngModel)]="draft.name" [disabled]="isReadOnly()" />
+      </label>
+
+      <label class="field">
+        <span>Type</span>
+        <p-select
+          [options]="typeOptions"
+          optionLabel="label"
+          optionValue="value"
+          appendTo="body"
+          [(ngModel)]="draft.type"
+          [disabled]="isReadOnly()">
+        </p-select>
+      </label>
+
+      <label class="field">
+        <span>HSN / SAC Code</span>
+        <input pInputText [(ngModel)]="draft.hsnSacCode" [disabled]="isReadOnly()" />
+      </label>
+
+      <label class="field">
+        <span>Unit</span>
+        <input pInputText [(ngModel)]="draft.unit" [disabled]="isReadOnly()" />
+      </label>
+
+      <label class="field">
+        <span>Default Rate</span>
+        <p-inputNumber
+          [(ngModel)]="draft.defaultRate"
+          mode="decimal"
+          [min]="0"
+          [maxFractionDigits]="2"
+          [disabled]="isReadOnly()">
+        </p-inputNumber>
+      </label>
+
+      <label class="field">
+        <span>Tax Percentage</span>
+        <p-inputNumber
+          [(ngModel)]="draft.taxPercentage"
+          mode="decimal"
+          [min]="0"
+          [maxFractionDigits]="2"
+          [disabled]="isReadOnly()">
+        </p-inputNumber>
+      </label>
+
+      <label class="field">
+        <span>Status</span>
+        <p-select
+          [options]="statusOptions"
+          optionLabel="label"
+          optionValue="value"
+          appendTo="body"
+          [(ngModel)]="draft.status"
+          [disabled]="isReadOnly()">
+        </p-select>
+      </label>
+    </div>
+
+    <label class="field">
+      <span>Description</span>
+      <textarea [(ngModel)]="draft.description" rows="4" [disabled]="isReadOnly()"></textarea>
+    </label>
+  </div>
+
+  <ng-template #footer>
+    <div class="dialog-actions">
+      <button
+        pButton
+        type="button"
+        [label]="isReadOnly() ? 'Close' : 'Cancel'"
+        text
+        [disabled]="saving"
+        (click)="cancel.emit()">
+      </button>
+
+      @if (!isReadOnly()) {
+        <button
+          pButton
+          type="button"
+          [label]="saving ? 'Saving...' : primaryActionLabel()"
+          icon="pi pi-check"
+          [disabled]="saving || !canSubmit()"
+          (click)="submit()">
+        </button>
+      }
+    </div>
+  </ng-template>
+</p-dialog>

@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import {
+  NavigationEnd,
   Router,
   RouterLink,
   RouterLinkActive,
@@ -22,6 +23,9 @@ type NavigationItem = {
 };
 
 type TagSeverity = 'success' | 'warn';
+type NavigationGroupState = Record<string, boolean>;
+
+const NAVIGATION_STATE_KEY = 'field-technician-tracker.admin-shell.groups';
 
 @Component({
   selector: 'app-admin-shell',
@@ -41,10 +45,6 @@ type TagSeverity = 'success' | 'warn';
 export class AdminShellComponent {
   protected readonly navigation: readonly NavigationItem[] = [
     { label: 'Dashboard', route: '/dashboard', icon: 'pi pi-home' },
-    { label: 'Live Map', route: '/live-map', icon: 'pi pi-map' },
-    { label: 'Jobs', route: '/jobs', icon: 'pi pi-briefcase' },
-    { label: 'Technicians', route: '/technicians', icon: 'pi pi-users' },
-    { label: 'Reports', route: '/reports', icon: 'pi pi-chart-line' },
     {
       label: 'Invoice',
       icon: 'pi pi-receipt',
@@ -77,6 +77,37 @@ export class AdminShellComponent {
       ],
     },
     {
+      label: 'Business',
+      icon: 'pi pi-briefcase',
+      children: [
+        {
+          label: 'Outstanding',
+          route: '/business/outstanding',
+          icon: 'pi pi-wallet',
+        },
+        {
+          label: 'AMC',
+          route: '/business/amc',
+          icon: 'pi pi-calendar',
+        },
+        {
+          label: 'Ledger',
+          route: '/business/ledger',
+          icon: 'pi pi-book',
+        },
+        {
+          label: 'Lead',
+          route: '/business/lead',
+          icon: 'pi pi-megaphone',
+        },
+        {
+          label: 'Product and Service',
+          route: '/business/product-service',
+          icon: 'pi pi-box',
+        },
+      ],
+    },
+    {
       label: 'Settings',
       icon: 'pi pi-cog',
       children: [
@@ -86,8 +117,8 @@ export class AdminShellComponent {
           icon: 'pi pi-building-columns',
         },
         {
-          label: 'Suppliers',
-          route: '/settings/suppliers',
+          label: 'Branch',
+          route: '/settings/branch',
           icon: 'pi pi-building',
         },
       ],
@@ -104,12 +135,20 @@ export class AdminShellComponent {
   );
 
   protected readonly sidebarOpen = signal(false);
+  protected readonly expandedGroups = signal<NavigationGroupState>({});
   protected readonly authService = inject(AuthService);
   protected readonly realtime = inject(RealtimeService);
   protected readonly appName = appSettings.appName;
 
   constructor() {
+    this.expandedGroups.set(this.restoreExpandedGroups());
+    this.syncActiveGroups();
     this.realtime.connect();
+    this.router.events.subscribe((event) => {
+      if (event instanceof NavigationEnd) {
+        this.syncActiveGroups();
+      }
+    });
   }
 
   protected toggleSidebar(): void {
@@ -133,7 +172,66 @@ export class AdminShellComponent {
     return items.some((item) => (item.route ? this.isRouteActive(item.route) : false));
   }
 
+  protected toggleGroup(groupLabel: string): void {
+    const nextState = {
+      ...this.expandedGroups(),
+      [groupLabel]: !this.isGroupExpanded(groupLabel),
+    };
+
+    this.expandedGroups.set(nextState);
+    this.persistExpandedGroups(nextState);
+  }
+
+  protected isGroupExpanded(groupLabel: string): boolean {
+    return this.expandedGroups()[groupLabel] ?? false;
+  }
+
   private isRouteActive(route: string): boolean {
     return this.router.url === route || this.router.url.startsWith(`${route}/`);
+  }
+
+  private syncActiveGroups(): void {
+    const nextState = { ...this.expandedGroups() };
+    let updated = false;
+
+    for (const group of this.groupedNavigation) {
+      if (this.isGroupActive(group.children ?? []) && !nextState[group.label]) {
+        nextState[group.label] = true;
+        updated = true;
+      }
+    }
+
+    if (updated) {
+      this.expandedGroups.set(nextState);
+      this.persistExpandedGroups(nextState);
+    }
+  }
+
+  private restoreExpandedGroups(): NavigationGroupState {
+    if (typeof window === 'undefined') {
+      return {};
+    }
+
+    const rawState = window.localStorage.getItem(NAVIGATION_STATE_KEY);
+    if (!rawState) {
+      return {};
+    }
+
+    try {
+      const parsed = JSON.parse(rawState) as Record<string, unknown>;
+      return Object.fromEntries(
+        Object.entries(parsed).filter((entry): entry is [string, boolean] => typeof entry[1] === 'boolean'),
+      );
+    } catch {
+      return {};
+    }
+  }
+
+  private persistExpandedGroups(state: NavigationGroupState): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    window.localStorage.setItem(NAVIGATION_STATE_KEY, JSON.stringify(state));
   }
 }

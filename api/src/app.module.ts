@@ -18,6 +18,12 @@ import { TaxInvoicesModule } from './tax-invoices/tax-invoices.module';
 import { QuotationsModule } from './quotations/quotations.module';
 import { InvoiceInputFieldsModule } from './invoice-input-fields/invoice-input-fields.module';
 import { CompanySettingsModule } from './company-settings/company-settings.module';
+import { ProductServicesModule } from './product-services/product-services.module';
+import { OutstandingsModule } from './outstandings/outstandings.module';
+import { AmcModule } from './amc/amc.module';
+import { LedgerModule } from './ledger/ledger.module';
+import { LeadsModule } from './leads/leads.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 
 @Module({
   imports: [
@@ -43,6 +49,12 @@ import { CompanySettingsModule } from './company-settings/company-settings.modul
     QuotationsModule,
     InvoiceInputFieldsModule,
     CompanySettingsModule,
+    ProductServicesModule,
+    OutstandingsModule,
+    AmcModule,
+    LedgerModule,
+    LeadsModule,
+    DashboardModule,
   ],
   controllers: [HealthController],
 })

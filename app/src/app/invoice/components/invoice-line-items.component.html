@@ -2,7 +2,7 @@
   <div class="section-header">
     <div>
       <h3>Line Items</h3>
-      <p>Use the editable grid to calculate taxable value, GST, and final line amount.</p>
+      <p>Use the editable grid and product/service autocomplete to calculate taxable value, GST, and final line amount.</p>
     </div>
 
     @if (!readonly) {
@@ -30,25 +30,26 @@
     <ng-template #body let-item let-rowIndex="rowIndex">
       <tr>
         <td>
-          <input
-            pInputText
-            [(ngModel)]="workingLineItems[rowIndex].productServiceName"
+          <app-product-service-autocomplete
+            [value]="workingLineItems[rowIndex].productServiceName"
             [disabled]="readonly"
-            (ngModelChange)="recalculateLine(rowIndex)" />
+            (valueChange)="updateProductServiceName(rowIndex, $event)"
+            (selected)="applyProductServiceSelection(rowIndex, $event)">
+          </app-product-service-autocomplete>
         </td>
         <td>
           <input
             pInputText
             [(ngModel)]="workingLineItems[rowIndex].description"
             [disabled]="readonly"
-            (ngModelChange)="recalculateLine(rowIndex)" />
+            (ngModelChange)="updateTextField(rowIndex, 'description', $event)" />
         </td>
         <td>
           <input
             pInputText
             [(ngModel)]="workingLineItems[rowIndex].hsnSac"
             [disabled]="readonly"
-            (ngModelChange)="recalculateLine(rowIndex)" />
+            (ngModelChange)="updateTextField(rowIndex, 'hsnSac', $event)" />
         </td>
         <td>
           <p-inputNumber

@@ -1,0 +1,178 @@
+<section class="page">
+  <header class="page-header">
+    <div class="page-heading">
+      <p class="page-eyebrow">Business</p>
+      <h1 class="page-title">Outstanding</h1>
+      <p class="page-subtitle">
+        Track pending invoice balances with current-month filters, editable payment details, and auto-calculated status.
+      </p>
+    </div>
+  </header>
+
+  @if (errorMessage()) {
+    <section class="panel state-panel error-panel">
+      <i class="pi pi-exclamation-circle"></i>
+      <div>
+        <h3>Outstanding action needs attention</h3>
+        <p>{{ errorMessage() }}</p>
+      </div>
+    </section>
+  }
+
+  <section class="panel section-shell">
+    <div class="section-header">
+      <div>
+        <h3>Search and filters</h3>
+        <p>Use invoice date, status, customer, and invoice type filters to focus the current receivables window.</p>
+      </div>
+
+      <div class="toolbar-actions">
+        <app-filter-dropdown>
+          <label class="field">
+            <span>From Date</span>
+            <input type="date" [(ngModel)]="fromDate" />
+          </label>
+
+          <label class="field">
+            <span>To Date</span>
+            <input type="date" [(ngModel)]="toDate" />
+          </label>
+
+          <label class="field">
+            <span>Status</span>
+            <p-select
+              [options]="statusOptions"
+              optionLabel="label"
+              optionValue="value"
+              appendTo="body"
+              [(ngModel)]="statusFilter">
+            </p-select>
+          </label>
+
+          <label class="field">
+            <span>Customer</span>
+            <p-select
+              [options]="customers()"
+              optionLabel="customerName"
+              optionValue="id"
+              appendTo="body"
+              [(ngModel)]="customerIdFilter"
+              placeholder="Filter by customer">
+            </p-select>
+          </label>
+
+          <label class="field">
+            <span>Invoice Type</span>
+            <p-select
+              [options]="invoiceTypeOptions"
+              optionLabel="label"
+              optionValue="value"
+              appendTo="body"
+              [(ngModel)]="invoiceTypeFilter">
+            </p-select>
+          </label>
+
+          <div class="filter-actions">
+            <button pButton type="button" label="Apply" icon="pi pi-filter" (click)="applyFilters()"></button>
+            <button pButton type="button" label="Reset" text (click)="resetFilters()"></button>
+          </div>
+        </app-filter-dropdown>
+
+        <button pButton type="button" label="Refresh" icon="pi pi-refresh" text [loading]="loading()" (click)="loadOutstandings()">
+        </button>
+      </div>
+    </div>
+
+    <div class="filters-grid compact-grid">
+      <label class="field">
+        <span>Search</span>
+        <input
+          pInputText
+          [(ngModel)]="searchTerm"
+          placeholder="Search invoice number, customer, or note"
+          (keydown.enter)="applyFilters()" />
+      </label>
+
+      <div class="filter-actions">
+        <button pButton type="button" label="Search" icon="pi pi-search" (click)="applyFilters()"></button>
+        <button pButton type="button" label="Reset" text (click)="resetFilters()"></button>
+      </div>
+    </div>
+  </section>
+
+  <app-data-table-with-actions
+    title="Outstanding List"
+    subtitle="Monitor open receivables generated from tax and proforma invoices."
+    [showCreateButton]="false"
+    [records]="outstandings()"
+    [loading]="loading()"
+    [footerLabel]="totalRecords() + ' record(s) available.'"
+    [emptyColspan]="10"
+    [page]="page()"
+    [totalPages]="totalPages()"
+    [hasPreviousPage]="hasPreviousPage()"
+    [hasNextPage]="hasNextPage()"
+    (previousPage)="previousPage()"
+    (nextPage)="nextPage()">
+    <ng-template #header>
+      <tr>
+        <th>Invoice</th>
+        <th>Customer</th>
+        <th>Invoice Date</th>
+        <th>Due Date</th>
+        <th>Total</th>
+        <th>Paid</th>
+        <th>Credit</th>
+        <th>Outstanding</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
+    </ng-template>
+
+    <ng-template #body let-outstanding>
+      <tr>
+        <td>
+          <strong>{{ outstanding.invoiceNumber }}</strong>
+          <div class="muted-row">{{ invoiceTypeLabel(outstanding.invoiceType) }}</div>
+        </td>
+        <td>
+          <strong>{{ outstanding.customerName }}</strong>
+          <div class="muted-row">{{ outstanding.note || 'No note' }}</div>
+        </td>
+        <td>{{ outstanding.invoiceDate | date : 'mediumDate' }}</td>
+        <td>{{ outstanding.dueDate | date : 'mediumDate' }}</td>
+        <td>{{ outstanding.totalAmount | number : '1.2-2' }}</td>
+        <td>{{ outstanding.paidAmount | number : '1.2-2' }}</td>
+        <td>{{ outstanding.creditAmount | number : '1.2-2' }}</td>
+        <td>{{ outstanding.outstandingAmount | number : '1.2-2' }}</td>
+        <td>
+          <p-tag [value]="outstanding.status" [severity]="statusSeverity(outstanding.status)"></p-tag>
+        </td>
+        <td class="action-cell">
+          <button pButton type="button" label="View" text icon="pi pi-eye" (click)="openViewDialog(outstanding)">
+          </button>
+          <button pButton type="button" label="Edit" text icon="pi pi-pencil" (click)="openEditDialog(outstanding)">
+          </button>
+          <button
+            pButton
+            type="button"
+            label="Delete"
+            text
+            severity="danger"
+            icon="pi pi-trash"
+            (click)="deleteOutstanding(outstanding)">
+          </button>
+        </td>
+      </tr>
+    </ng-template>
+  </app-data-table-with-actions>
+
+  <app-outstanding-form-dialog
+    [visible]="dialogVisible()"
+    [saving]="saving()"
+    [mode]="dialogMode"
+    [outstanding]="selectedOutstanding"
+    (cancel)="closeDialog()"
+    (save)="saveOutstanding($event)">
+  </app-outstanding-form-dialog>
+</section>

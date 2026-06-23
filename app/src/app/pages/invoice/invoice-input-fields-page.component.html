@@ -4,7 +4,7 @@
       <p class="page-eyebrow">Invoice</p>
       <h1 class="page-title">Invoice input fields</h1>
       <p class="page-subtitle">
-        Keep configurable invoice field metadata organized for supplier, customer, header, line-item, and totals sections.
+        Keep configurable invoice field metadata organized for branch, customer, header, line-item, and totals sections.
       </p>
     </div>
   </header>
@@ -108,7 +108,7 @@
 
     <ng-template #body let-field>
       <tr>
-        <td>{{ field.section }}</td>
+        <td>{{ displaySection(field.section) }}</td>
         <td>{{ field.fieldKey }}</td>
         <td>
           <strong>{{ field.label }}</strong>

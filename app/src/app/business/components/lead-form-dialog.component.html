@@ -1,0 +1,183 @@
+<p-dialog
+  [visible]="visible"
+  [modal]="true"
+  [closable]="!saving"
+  [dismissableMask]="false"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: 'min(96vw, 72rem)' }"
+  [header]="dialogTitle()"
+  (onHide)="handleHide()">
+  <div class="lead-form">
+    <div class="field-grid">
+      <label class="field">
+        <span>Lead Name</span>
+        <input pInputText [(ngModel)]="draft.leadName" [disabled]="isReadOnly()" />
+      </label>
+
+      <label class="field">
+        <span>Customer Name</span>
+        <input pInputText [(ngModel)]="draft.customerName" [disabled]="isReadOnly()" />
+      </label>
+
+      <label class="field">
+        <span>Phone</span>
+        <input pInputText [(ngModel)]="draft.phone" [disabled]="isReadOnly()" />
+      </label>
+
+      <label class="field">
+        <span>Email</span>
+        <input pInputText [(ngModel)]="draft.email" [disabled]="isReadOnly()" />
+      </label>
+
+      <label class="field">
+        <span>Location</span>
+        <input pInputText [(ngModel)]="draft.location" [disabled]="isReadOnly()" />
+      </label>
+
+      <label class="field">
+        <span>Source</span>
+        <input pInputText [(ngModel)]="draft.source" [disabled]="isReadOnly()" />
+      </label>
+
+      <label class="field">
+        <span>Branch</span>
+        <p-select
+          [options]="branches"
+          optionLabel="supplierName"
+          optionValue="id"
+          appendTo="body"
+          placeholder="Select branch"
+          [(ngModel)]="draft.branchId"
+          [disabled]="isReadOnly()">
+        </p-select>
+      </label>
+
+      <label class="field">
+        <span>Interested Product / Service</span>
+        <p-select
+          [options]="productServices"
+          optionLabel="name"
+          optionValue="id"
+          appendTo="body"
+          placeholder="Select product or service"
+          [(ngModel)]="draft.interestedProductServiceId"
+          [disabled]="isReadOnly()">
+        </p-select>
+      </label>
+
+      <label class="field">
+        <span>Status</span>
+        <p-select
+          [options]="statusOptions"
+          optionLabel="label"
+          optionValue="value"
+          appendTo="body"
+          [(ngModel)]="draft.status"
+          [disabled]="isReadOnly()">
+        </p-select>
+      </label>
+
+      <label class="field">
+        <span>Next Follow Up Date</span>
+        <input
+          pInputText
+          type="date"
+          [(ngModel)]="draft.nextFollowUpDate"
+          [disabled]="isReadOnly()" />
+      </label>
+    </div>
+
+    <label class="field">
+      <span>Note</span>
+      <textarea [(ngModel)]="draft.note" rows="4" [disabled]="isReadOnly()"></textarea>
+    </label>
+
+    @if (lead && ((lead.notes?.length ?? 0) > 0 || (lead.statusHistory?.length ?? 0) > 0)) {
+      <section class="history-grid">
+        <article class="history-card">
+          <div class="history-card__header">
+            <h4>Note History</h4>
+            <p>Notes added by users over time.</p>
+          </div>
+
+          @if ((lead.notes?.length ?? 0) === 0) {
+            <p class="history-empty">No notes available for this lead yet.</p>
+          } @else {
+            <div class="history-list">
+              @for (note of lead.notes ?? []; track note.id) {
+                <div class="history-item">
+                  <div class="history-item__meta">
+                    <strong>{{ note.createdByName }}</strong>
+                    <span>{{ note.createdAt | date: 'dd MMM yyyy, hh:mm a' }}</span>
+                  </div>
+                  <p>{{ note.note }}</p>
+                </div>
+              }
+            </div>
+          }
+        </article>
+
+        <article class="history-card">
+          <div class="history-card__header">
+            <h4>Status History</h4>
+            <p>Track follow-up and lifecycle updates.</p>
+          </div>
+
+          @if ((lead.statusHistory?.length ?? 0) === 0) {
+            <p class="history-empty">No status history available yet.</p>
+          } @else {
+            <div class="history-list">
+              @for (entry of lead.statusHistory ?? []; track entry.id) {
+                <div class="history-item">
+                  <div class="history-item__meta">
+                    <div class="history-item__title">
+                      <strong>{{ entry.changedByName }}</strong>
+                      <p-tag
+                        [value]="entry.status.replaceAll('_', ' ')"
+                        [severity]="statusSeverity(entry.status)">
+                      </p-tag>
+                    </div>
+                    <span>{{ entry.createdAt | date: 'dd MMM yyyy, hh:mm a' }}</span>
+                  </div>
+                  @if (entry.nextFollowUpDate) {
+                    <p class="history-detail">
+                      Next follow up: {{ entry.nextFollowUpDate | date: 'dd MMM yyyy' }}
+                    </p>
+                  }
+                  @if (entry.note) {
+                    <p>{{ entry.note }}</p>
+                  }
+                </div>
+              }
+            </div>
+          }
+        </article>
+      </section>
+    }
+  </div>
+
+  <ng-template #footer>
+    <div class="dialog-actions">
+      <button
+        pButton
+        type="button"
+        [label]="isReadOnly() ? 'Close' : 'Cancel'"
+        text
+        [disabled]="saving"
+        (click)="cancel.emit()">
+      </button>
+
+      @if (!isReadOnly()) {
+        <button
+          pButton
+          type="button"
+          [label]="saving ? 'Saving...' : primaryActionLabel()"
+          icon="pi pi-check"
+          [disabled]="saving || !canSubmit()"
+          (click)="submit()">
+        </button>
+      }
+    </div>
+  </ng-template>
+</p-dialog>

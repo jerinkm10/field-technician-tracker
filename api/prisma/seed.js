@@ -6,11 +6,16 @@ const {
   JobStatus,
   AttachmentType,
   SupplierStatus,
+  ProductServiceType,
+  ProductServiceStatus,
+  OutstandingStatus,
   CompanyStatus,
   InvoiceType,
   InvoiceStatus,
   CustomerStatus,
   QuotationStatus,
+  AmcBillingPeriod,
+  AmcStatus,
 } = require('@prisma/client');
 
 const prisma = new PrismaClient();
@@ -20,10 +25,17 @@ async function main() {
 
   await prisma.invoiceLineItem.deleteMany();
   await prisma.quotationLineItem.deleteMany();
+  await prisma.amcInvoice.deleteMany();
+  await prisma.amc.deleteMany();
+  await prisma.leadStatusHistory.deleteMany();
+  await prisma.leadNote.deleteMany();
+  await prisma.lead.deleteMany();
   await prisma.quotation.deleteMany();
   await prisma.invoiceInputField.deleteMany();
+  await prisma.outstanding.deleteMany();
   await prisma.invoice.deleteMany();
   await prisma.company.deleteMany();
+  await prisma.productService.deleteMany();
   await prisma.supplier.deleteMany();
   await prisma.jobAttachment.deleteMany();
   await prisma.locationLog.deleteMany();
@@ -248,6 +260,117 @@ async function main() {
     }),
   ]);
 
+  const amcs = await Promise.all([
+    prisma.amc.create({
+      data: {
+        amcNumber: 'AMC-2026-001',
+        customerId: customers[1].id,
+        customerName: customers[1].name,
+        branchId: suppliers[1].id,
+        startDate: new Date('2026-04-01T00:00:00.000Z'),
+        endDate: new Date('2027-03-31T00:00:00.000Z'),
+        durationMonths: 12,
+        billingPeriod: AmcBillingPeriod.QUARTERLY,
+        billingPeriodMonths: 3,
+        contractAmount: 48000,
+        taxPercentage: 18,
+        status: AmcStatus.ACTIVE,
+        lastPaidDate: new Date('2026-06-22T00:00:00.000Z'),
+        nextBillingDate: new Date('2026-09-22T00:00:00.000Z'),
+        note: 'Quarterly chiller maintenance for diagnostics and storage wing.',
+      },
+    }),
+    prisma.amc.create({
+      data: {
+        amcNumber: 'AMC-2026-002',
+        customerId: customers[0].id,
+        customerName: customers[0].name,
+        branchId: suppliers[0].id,
+        startDate: new Date('2025-07-01T00:00:00.000Z'),
+        endDate: new Date('2026-07-10T00:00:00.000Z'),
+        durationMonths: 13,
+        billingPeriod: AmcBillingPeriod.HALF_YEARLY,
+        billingPeriodMonths: 6,
+        contractAmount: 78000,
+        taxPercentage: 18,
+        status: AmcStatus.ACTIVE,
+        lastPaidDate: new Date('2026-01-10T00:00:00.000Z'),
+        nextBillingDate: new Date('2026-07-01T00:00:00.000Z'),
+        note: 'Contract is close to renewal and should be reviewed this month.',
+      },
+    }),
+    prisma.amc.create({
+      data: {
+        amcNumber: 'AMC-2025-003',
+        customerId: customers[2].id,
+        customerName: customers[2].name,
+        branchId: suppliers[0].id,
+        startDate: new Date('2025-01-01T00:00:00.000Z'),
+        endDate: new Date('2025-12-31T00:00:00.000Z'),
+        durationMonths: 12,
+        billingPeriod: AmcBillingPeriod.YEARLY,
+        billingPeriodMonths: 12,
+        contractAmount: 120000,
+        taxPercentage: 18,
+        status: AmcStatus.EXPIRED,
+        lastPaidDate: new Date('2025-01-01T00:00:00.000Z'),
+        nextBillingDate: null,
+        note: 'Expired contract retained for historical billing reference.',
+      },
+    }),
+  ]);
+
+  await prisma.productService.createMany({
+    data: [
+      {
+        name: 'Preventive Maintenance Visit',
+        type: ProductServiceType.SERVICE,
+        description: 'Quarterly HVAC service visit',
+        hsnSacCode: '998719',
+        unit: 'Visit',
+        defaultRate: 9000,
+        taxPercentage: 18,
+        status: ProductServiceStatus.ACTIVE,
+      },
+      {
+        name: 'Chiller Control Assembly',
+        type: ProductServiceType.PRODUCT,
+        description: 'Replacement control module with installation',
+        hsnSacCode: '841899',
+        unit: 'Nos',
+        defaultRate: 12400,
+        taxPercentage: 18,
+        status: ProductServiceStatus.ACTIVE,
+      },
+      {
+        name: 'Annual Maintenance Contract',
+        type: ProductServiceType.SERVICE,
+        description: 'Comprehensive preventive maintenance for HVAC assets',
+        hsnSacCode: '998719',
+        unit: 'Contract',
+        defaultRate: 25000,
+        taxPercentage: 18,
+        status: ProductServiceStatus.ACTIVE,
+      },
+      {
+        name: 'Copper Refrigerant Pipe',
+        type: ProductServiceType.PRODUCT,
+        description: 'Insulated copper pipe for refrigeration systems',
+        hsnSacCode: '741110',
+        unit: 'Meter',
+        defaultRate: 780,
+        taxPercentage: 12,
+        status: ProductServiceStatus.ACTIVE,
+      },
+    ],
+  });
+
+  const productServices = await prisma.productService.findMany({
+    orderBy: {
+      name: 'asc',
+    },
+  });
+
   await prisma.company.create({
     data: {
       companyName: 'Field Technician Tracker Services',
@@ -267,7 +390,7 @@ async function main() {
     },
   });
 
-  await prisma.invoice.create({
+  const proformaInvoice = await prisma.invoice.create({
     data: {
       invoiceType: InvoiceType.PROFORMA,
       invoiceNumber: 'PF-2026-001',
@@ -305,7 +428,7 @@ async function main() {
     },
   });
 
-  await prisma.invoice.create({
+  const taxInvoice = await prisma.invoice.create({
     data: {
       invoiceType: InvoiceType.TAX,
       invoiceNumber: 'TAX-2026-001',
@@ -340,6 +463,50 @@ async function main() {
           },
         ],
       },
+    },
+  });
+
+  await prisma.outstanding.createMany({
+    data: [
+      {
+        invoiceId: proformaInvoice.id,
+        invoiceType: InvoiceType.PROFORMA,
+        invoiceNumber: proformaInvoice.invoiceNumber,
+        customerId: customers[0].id,
+        customerName: 'Green Valley Apartments',
+        invoiceDate: new Date('2026-06-22T00:00:00.000Z'),
+        dueDate: new Date('2026-06-22T00:00:00.000Z'),
+        totalAmount: 21240,
+        paidAmount: 0,
+        creditAmount: 0,
+        outstandingAmount: 21240,
+        status: OutstandingStatus.OVERDUE,
+        note: 'Awaiting customer approval for proforma conversion.',
+      },
+      {
+        invoiceId: taxInvoice.id,
+        invoiceType: InvoiceType.TAX,
+        invoiceNumber: taxInvoice.invoiceNumber,
+        customerId: customers[1].id,
+        customerName: 'Sunrise Medical Center',
+        invoiceDate: new Date('2026-06-22T00:00:00.000Z'),
+        dueDate: new Date('2026-06-25T00:00:00.000Z'),
+        totalAmount: 14631.68,
+        paidAmount: 10000,
+        creditAmount: 0,
+        outstandingAmount: 4631.68,
+        status: OutstandingStatus.PARTIAL,
+        note: 'Advance received before final dispatch.',
+      },
+    ],
+  });
+
+  await prisma.amcInvoice.create({
+    data: {
+      amcId: amcs[0].id,
+      invoiceId: taxInvoice.id,
+      billingPeriodStart: new Date('2026-06-22T00:00:00.000Z'),
+      billingPeriodEnd: new Date('2026-09-21T00:00:00.000Z'),
     },
   });
 
@@ -413,6 +580,83 @@ async function main() {
         inputType: 'number',
         placeholder: 'Rounded adjustment',
         isActive: true,
+      },
+    ],
+  });
+
+  const leads = await Promise.all([
+    prisma.lead.create({
+      data: {
+        leadName: 'Cold Room Upgrade Opportunity',
+        customerName: 'Sunrise Medical Center',
+        phone: '+91-9000000011',
+        email: 'facilities@sunrise.example.com',
+        location: 'Bengaluru',
+        branchId: suppliers[1].id,
+        branchName: suppliers[1].supplierName,
+        source: 'Referral',
+        interestedProductServiceId: productServices.find(
+          (record) => record.name === 'Annual Maintenance Contract',
+        ).id,
+        status: 'NEW',
+        note: 'Requested a callback for annual maintenance options.',
+        nextFollowUpDate: new Date('2026-06-30T00:00:00.000Z'),
+      },
+    }),
+    prisma.lead.create({
+      data: {
+        leadName: 'Factory Chiller Retrofit',
+        customerName: 'Lakeside Tech Park',
+        phone: '+91-9444455566',
+        email: 'projects@lakeside.example.com',
+        location: 'Bengaluru',
+        branchId: suppliers[0].id,
+        branchName: suppliers[0].supplierName,
+        source: 'Website',
+        interestedProductServiceId: productServices.find(
+          (record) => record.name === 'Chiller Control Assembly',
+        ).id,
+        status: 'CONTACTED',
+        note: 'Requested commercial quote for retrofit scope.',
+        nextFollowUpDate: new Date('2026-06-26T00:00:00.000Z'),
+      },
+    }),
+  ]);
+
+  await prisma.leadNote.createMany({
+    data: [
+      {
+        leadId: leads[0].id,
+        note: 'Requested a callback for annual maintenance options.',
+        createdById: adminUser.id,
+        createdByName: adminUser.name,
+      },
+      {
+        leadId: leads[1].id,
+        note: 'Requested commercial quote for retrofit scope.',
+        createdById: adminUser.id,
+        createdByName: adminUser.name,
+      },
+    ],
+  });
+
+  await prisma.leadStatusHistory.createMany({
+    data: [
+      {
+        leadId: leads[0].id,
+        status: 'NEW',
+        note: 'Requested a callback for annual maintenance options.',
+        nextFollowUpDate: new Date('2026-06-30T00:00:00.000Z'),
+        changedById: adminUser.id,
+        changedByName: adminUser.name,
+      },
+      {
+        leadId: leads[1].id,
+        status: 'CONTACTED',
+        note: 'Requested commercial quote for retrofit scope.',
+        nextFollowUpDate: new Date('2026-06-26T00:00:00.000Z'),
+        changedById: adminUser.id,
+        changedByName: adminUser.name,
       },
     ],
   });

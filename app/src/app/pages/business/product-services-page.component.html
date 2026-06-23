@@ -1,0 +1,158 @@
+<section class="page">
+  <header class="page-header">
+    <div class="page-heading">
+      <p class="page-eyebrow">Business</p>
+      <h1 class="page-title">Product and Service</h1>
+      <p class="page-subtitle">
+        Maintain reusable product and service records for invoice and quotation line items.
+      </p>
+    </div>
+  </header>
+
+  @if (errorMessage()) {
+    <section class="panel state-panel error-panel">
+      <i class="pi pi-exclamation-circle"></i>
+      <div>
+        <h3>Product and service action needs attention</h3>
+        <p>{{ errorMessage() }}</p>
+      </div>
+    </section>
+  }
+
+  <section class="panel section-shell">
+    <div class="section-header">
+      <div>
+        <h3>Search and filters</h3>
+        <p>Use backend-driven filters for type, status, HSN / SAC code, and keyword search.</p>
+      </div>
+
+      <div class="toolbar-actions">
+        <app-filter-dropdown>
+          <label class="field">
+            <span>Type</span>
+            <p-select
+              [options]="typeOptions"
+              optionLabel="label"
+              optionValue="value"
+              appendTo="body"
+              [(ngModel)]="typeFilter">
+            </p-select>
+          </label>
+
+          <label class="field">
+            <span>Status</span>
+            <p-select
+              [options]="statusOptions"
+              optionLabel="label"
+              optionValue="value"
+              appendTo="body"
+              [(ngModel)]="statusFilter">
+            </p-select>
+          </label>
+
+          <label class="field">
+            <span>HSN / SAC Code</span>
+            <input pInputText [(ngModel)]="hsnSacCodeFilter" placeholder="Filter by HSN / SAC code" />
+          </label>
+
+          <div class="filter-actions">
+            <button pButton type="button" label="Apply" icon="pi pi-filter" (click)="applyFilters()"></button>
+            <button pButton type="button" label="Reset" text (click)="resetFilters()"></button>
+          </div>
+        </app-filter-dropdown>
+
+        <button pButton type="button" label="Refresh" icon="pi pi-refresh" text [loading]="loading()" (click)="loadProductServices()">
+        </button>
+      </div>
+    </div>
+
+    <div class="filters-grid compact-grid">
+      <label class="field">
+        <span>Search</span>
+        <input
+          pInputText
+          [(ngModel)]="searchTerm"
+          placeholder="Search name, description, or HSN / SAC code"
+          (keydown.enter)="applyFilters()" />
+      </label>
+
+      <div class="filter-actions">
+        <button pButton type="button" label="Search" icon="pi pi-search" (click)="applyFilters()"></button>
+        <button pButton type="button" label="Reset" text (click)="resetFilters()"></button>
+      </div>
+    </div>
+  </section>
+
+  <app-data-table-with-actions
+    title="Product and Service"
+    subtitle="Use master data here to speed up invoice and quotation line-item entry."
+    createLabel="Create Product and Service"
+    [showCreateButton]="true"
+    [records]="productServices()"
+    [loading]="loading()"
+    [footerLabel]="totalRecords() + ' record(s) available.'"
+    [emptyColspan]="8"
+    [page]="page()"
+    [totalPages]="totalPages()"
+    [hasPreviousPage]="hasPreviousPage()"
+    [hasNextPage]="hasNextPage()"
+    (create)="openCreateDialog()"
+    (previousPage)="previousPage()"
+    (nextPage)="nextPage()">
+    <ng-template #header>
+      <tr>
+        <th>Name</th>
+        <th>Type</th>
+        <th>HSN / SAC</th>
+        <th>Unit</th>
+        <th>Default Rate</th>
+        <th>Tax %</th>
+        <th>Status</th>
+        <th></th>
+      </tr>
+    </ng-template>
+
+    <ng-template #body let-productService>
+      <tr>
+        <td>
+          <strong>{{ productService.name }}</strong>
+          <div class="muted-row">{{ productService.description }}</div>
+        </td>
+        <td>
+          <p-tag [value]="productService.type" [severity]="typeSeverity(productService.type)"></p-tag>
+        </td>
+        <td>{{ productService.hsnSacCode }}</td>
+        <td>{{ productService.unit }}</td>
+        <td>{{ productService.defaultRate | number : '1.2-2' }}</td>
+        <td>{{ productService.taxPercentage | number : '1.2-2' }}</td>
+        <td>
+          <p-tag [value]="productService.status" [severity]="statusSeverity(productService.status)"></p-tag>
+        </td>
+        <td class="action-cell">
+          <button pButton type="button" label="View" text icon="pi pi-eye" (click)="openViewDialog(productService)">
+          </button>
+          <button pButton type="button" label="Edit" text icon="pi pi-pencil" (click)="openEditDialog(productService)">
+          </button>
+          <button
+            pButton
+            type="button"
+            label="Delete"
+            text
+            severity="danger"
+            icon="pi pi-trash"
+            (click)="deleteProductService(productService)">
+          </button>
+        </td>
+      </tr>
+    </ng-template>
+  </app-data-table-with-actions>
+
+  <app-product-service-form-dialog
+    [visible]="dialogVisible()"
+    [saving]="saving()"
+    [mode]="dialogMode"
+    [productService]="selectedProductService"
+    (cancel)="closeDialog()"
+    (save)="saveProductService($event)">
+  </app-product-service-form-dialog>
+</section>

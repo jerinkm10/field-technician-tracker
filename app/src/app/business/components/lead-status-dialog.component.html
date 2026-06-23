@@ -1,0 +1,67 @@
+<p-dialog
+  [visible]="visible"
+  [modal]="true"
+  [closable]="!saving"
+  [dismissableMask]="false"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: 'min(92vw, 34rem)' }"
+  header="Update Lead Status"
+  (onHide)="handleHide()">
+  <div class="status-dialog">
+    @if (lead) {
+      <div class="lead-summary">
+        <strong>{{ lead.leadName }}</strong>
+        <span>{{ lead.customerName }} | {{ lead.branchName }}</span>
+      </div>
+    }
+
+    <label class="field">
+      <span>Status</span>
+      <p-select
+        [options]="statusOptions"
+        optionLabel="label"
+        optionValue="value"
+        appendTo="body"
+        [(ngModel)]="draft.status">
+      </p-select>
+    </label>
+
+    <label class="field">
+      <span>Next Follow Up Date</span>
+      <input type="date" [(ngModel)]="draft.nextFollowUpDate" />
+    </label>
+
+    <label class="field">
+      <span>Note</span>
+      <textarea [(ngModel)]="draft.note" rows="4"></textarea>
+    </label>
+
+    @if (lead?.note) {
+      <p class="current-note">
+        Current note: {{ lead?.note }}
+      </p>
+    }
+  </div>
+
+  <ng-template #footer>
+    <div class="dialog-actions">
+      <button
+        pButton
+        type="button"
+        label="Cancel"
+        text
+        [disabled]="saving"
+        (click)="cancel.emit()">
+      </button>
+      <button
+        pButton
+        type="button"
+        [label]="saving ? 'Saving...' : 'Save Status'"
+        icon="pi pi-check"
+        [disabled]="saving || !canSubmit()"
+        (click)="submit()">
+      </button>
+    </div>
+  </ng-template>
+</p-dialog>

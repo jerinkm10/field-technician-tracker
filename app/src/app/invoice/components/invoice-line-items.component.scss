@@ -23,3 +23,10 @@
 .action-cell {
   width: 52px;
 }
+
+:host ::ng-deep .line-items-shell .p-inputnumber,
+:host ::ng-deep .line-items-shell .p-autocomplete,
+:host ::ng-deep .line-items-shell .p-autocomplete-input,
+:host ::ng-deep .line-items-shell .p-inputtext {
+  width: 100%;
+}

@@ -1,0 +1,91 @@
+<p-dialog
+  [visible]="visible"
+  [modal]="true"
+  [closable]="true"
+  [dismissableMask]="false"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: 'min(94vw, 74rem)' }"
+  header="Ledger Details"
+  (onHide)="handleHide()">
+  @if (ledgerEntry) {
+    <div class="ledger-detail">
+      <section class="summary-grid">
+        <div class="summary-card">
+          <span class="label">Type</span>
+          <strong>{{ typeLabel(ledgerEntry.type) }}</strong>
+          <p-tag [value]="ledgerEntry.status" [severity]="statusSeverity(ledgerEntry.status)"></p-tag>
+        </div>
+
+        <div class="summary-card">
+          <span class="label">Document</span>
+          <strong>{{ ledgerEntry.documentNumber }}</strong>
+          <span>{{ ledgerEntry.date | date : 'mediumDate' }}</span>
+        </div>
+
+        <div class="summary-card">
+          <span class="label">Customer</span>
+          <strong>{{ ledgerEntry.customerName }}</strong>
+          <span>{{ ledgerEntry.branchName || '-' }}</span>
+        </div>
+
+        <div class="summary-card">
+          <span class="label">Balance Snapshot</span>
+          <strong>Rs. {{ ledgerEntry.balance | number : '1.2-2' }}</strong>
+          <span>Debit {{ ledgerEntry.debit | number : '1.2-2' }} / Credit {{ ledgerEntry.credit | number : '1.2-2' }}</span>
+        </div>
+      </section>
+
+      <section class="detail-grid">
+        <article class="detail-card">
+          <h3>Document Context</h3>
+          <div class="detail-list">
+            <div><strong>Reference</strong><span>{{ ledgerEntry.referenceNumber || '-' }}</span></div>
+            <div><strong>Product / Service</strong><span>{{ ledgerEntry.productService }}</span></div>
+            <div><strong>HSN / SAC</strong><span>{{ ledgerEntry.hsnSacCode }}</span></div>
+            <div><strong>Total Amount</strong><span>Rs. {{ ledgerEntry.totalAmount | number : '1.2-2' }}</span></div>
+            <div><strong>Amount Due</strong><span>{{ ledgerEntry.amountDue !== null ? ('Rs. ' + (ledgerEntry.amountDue | number : '1.2-2')) : '-' }}</span></div>
+            <div><strong>Outstanding</strong><span>{{ ledgerEntry.outstandingAmount !== null ? ('Rs. ' + (ledgerEntry.outstandingAmount | number : '1.2-2')) : '-' }}</span></div>
+            <div><strong>Due Date</strong><span>{{ ledgerEntry.dueDate ? (ledgerEntry.dueDate | date : 'mediumDate') : '-' }}</span></div>
+            <div><strong>Valid Until</strong><span>{{ ledgerEntry.validUntil ? (ledgerEntry.validUntil | date : 'mediumDate') : '-' }}</span></div>
+          </div>
+        </article>
+
+        <article class="detail-card">
+          <h3>Notes</h3>
+          <p>{{ ledgerEntry.note || 'No additional notes for this ledger record.' }}</p>
+        </article>
+      </section>
+
+      @if (ledgerEntry.lineItems.length) {
+        <section class="detail-card">
+          <h3>Line Items</h3>
+
+          <div class="line-item-list">
+            @for (lineItem of ledgerEntry.lineItems; track lineItem.productServiceName + lineItem.hsnSac + lineItem.lineAmount) {
+              <article class="line-item-row">
+                <div>
+                  <strong>{{ lineItem.productServiceName }}</strong>
+                  <p>{{ lineItem.description || '-' }}</p>
+                </div>
+
+                <div class="line-item-meta">
+                  <span>HSN / SAC: {{ lineItem.hsnSac }}</span>
+                  <span>Qty: {{ lineItem.quantity | number : '1.0-2' }}</span>
+                  <span>Unit Rate: {{ lineItem.unitPrice | number : '1.2-2' }}</span>
+                  <strong>Line Amount: {{ lineItem.lineAmount | number : '1.2-2' }}</strong>
+                </div>
+              </article>
+            }
+          </div>
+        </section>
+      }
+    </div>
+  }
+
+  <ng-template #footer>
+    <div class="dialog-actions">
+      <button pButton type="button" label="Close" text (click)="cancel.emit()"></button>
+    </div>
+  </ng-template>
+</p-dialog>

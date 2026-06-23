@@ -78,7 +78,7 @@ export class BillingDocumentListPageComponent {
         ? 'Tax invoice desk'
         : 'Proforma invoice desk';
     this.pageSubtitle = this.kind === 'quotation'
-      ? 'List, filter, and manage quotation records with preview-ready supplier and customer billing data.'
+      ? 'List, filter, and manage quotation records with preview-ready branch and customer billing data.'
       : this.kind === 'tax'
         ? 'List and manage issued tax invoices with backend filters, view/edit routes, and PDF output.'
         : 'List and manage commercial proforma invoices with backend search, filters, preview, and PDF support.';

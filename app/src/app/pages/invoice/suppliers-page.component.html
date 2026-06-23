@@ -2,9 +2,9 @@
   <header class="page-header">
     <div class="page-heading">
       <p class="page-eyebrow">Settings</p>
-      <h1 class="page-title">Supplier master</h1>
+      <h1 class="page-title">Branch master</h1>
       <p class="page-subtitle">
-        Search suppliers, manage active or inactive status, and keep billing bank details ready for invoice creation.
+        Search branches, manage active or inactive status, and keep billing bank details ready for invoice creation.
       </p>
     </div>
   </header>
@@ -13,7 +13,7 @@
     <section class="panel state-panel error-panel">
       <i class="pi pi-exclamation-circle"></i>
       <div>
-        <h3>Supplier action needs attention</h3>
+        <h3>Branch action needs attention</h3>
         <p>{{ errorMessage() }}</p>
       </div>
     </section>
@@ -23,7 +23,7 @@
     <div class="section-header">
       <div>
         <h3>Search and filters</h3>
-        <p>Use backend-driven filters for supplier name, phone, GSTIN, and status.</p>
+        <p>Use backend-driven filters for branch name, phone, GSTIN, and status.</p>
       </div>
 
       <div class="toolbar-actions">
@@ -66,7 +66,7 @@
         <input
           pInputText
           [(ngModel)]="searchTerm"
-          placeholder="Search supplier by name, phone, or GSTIN"
+          placeholder="Search branch by name, phone, or GSTIN"
           (keydown.enter)="applyFilters()" />
       </label>
 
@@ -78,13 +78,13 @@
   </section>
 
   <app-data-table-with-actions
-    title="Suppliers"
-    subtitle="Maintain billing-ready supplier records for proforma, tax invoice, and quotation flows."
-    createLabel="Create Supplier"
+    title="Branches"
+    subtitle="Maintain billing-ready branch records for proforma, tax invoice, and quotation flows."
+    createLabel="Create Branch"
     [showCreateButton]="true"
     [records]="suppliers()"
     [loading]="loading()"
-    [footerLabel]="totalRecords() + ' supplier record(s) available.'"
+    [footerLabel]="totalRecords() + ' branch record(s) available.'"
     [emptyColspan]="8"
     [page]="page()"
     [totalPages]="totalPages()"
@@ -95,7 +95,7 @@
     (nextPage)="nextPage()">
     <ng-template #header>
       <tr>
-        <th>Supplier</th>
+        <th>Branch</th>
         <th>Phone</th>
         <th>Email</th>
         <th>GSTIN</th>

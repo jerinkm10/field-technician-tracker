@@ -108,29 +108,29 @@ export class InvoiceSuppliersPageComponent {
       error: () => {
         this.loading.set(false);
         this.errorMessage.set(
-          'Unable to load suppliers. Make sure the backend is running and the database is migrated.',
+          'Unable to load branches. Make sure the backend is running and the database is migrated.',
         );
       },
     });
   }
 
   protected openCreateDialog(): void {
-    void this.router.navigate(['/settings/suppliers/create']);
+    void this.router.navigate(['/settings/branch/create']);
   }
 
   protected openViewDialog(supplier: SupplierRecord): void {
-    void this.router.navigate(['/settings/suppliers', supplier.id, 'view']);
+    void this.router.navigate(['/settings/branch', supplier.id, 'view']);
   }
 
   protected openEditDialog(supplier: SupplierRecord): void {
-    void this.router.navigate(['/settings/suppliers', supplier.id, 'edit']);
+    void this.router.navigate(['/settings/branch', supplier.id, 'edit']);
   }
 
   protected closeDialog(): void {
     this.dialogVisible.set(false);
     this.editingSupplier = null;
     this.dialogMode = 'create';
-    void this.router.navigate(['/settings/suppliers']);
+    void this.router.navigate(['/settings/branch']);
   }
 
   protected saveSupplier(payload: SupplierUpsertPayload): void {
@@ -149,14 +149,14 @@ export class InvoiceSuppliersPageComponent {
       error: () => {
         this.saving.set(false);
         this.errorMessage.set(
-          'Supplier save failed. GSTIN must be unique and all fields are required.',
+          'Branch save failed. GSTIN must be unique and all fields are required.',
         );
       },
     });
   }
 
   protected deleteSupplier(supplier: SupplierRecord): void {
-    if (!window.confirm(`Delete supplier "${supplier.supplierName}"?`)) {
+    if (!window.confirm(`Delete branch "${supplier.supplierName}"?`)) {
       return;
     }
 
@@ -166,7 +166,7 @@ export class InvoiceSuppliersPageComponent {
       },
       error: () => {
         this.errorMessage.set(
-          'Supplier delete failed. Suppliers linked to invoices must stay in the master list.',
+          'Branch delete failed. Branches linked to invoices must stay in the master list.',
         );
       },
     });
@@ -230,8 +230,8 @@ export class InvoiceSuppliersPageComponent {
         this.dialogVisible.set(true);
       },
       error: () => {
-        this.errorMessage.set('Unable to load the selected supplier.');
-        void this.router.navigate(['/settings/suppliers']);
+        this.errorMessage.set('Unable to load the selected branch.');
+        void this.router.navigate(['/settings/branch']);
       },
     });
   }

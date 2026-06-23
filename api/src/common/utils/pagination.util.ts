@@ -19,15 +19,21 @@ export function createPaginationMeta(
   page: number,
   limit: number,
 ): {
+  hasNextPage: boolean;
+  hasPreviousPage: boolean;
   page: number;
   limit: number;
   total: number;
   totalPages: number;
 } {
+  const totalPages = total > 0 ? Math.ceil(total / limit) : 0;
+
   return {
+    hasNextPage: totalPages > 0 && page < totalPages,
+    hasPreviousPage: page > 1 && totalPages > 0,
     page,
     limit,
     total,
-    totalPages: total > 0 ? Math.ceil(total / limit) : 0,
+    totalPages,
   };
 }

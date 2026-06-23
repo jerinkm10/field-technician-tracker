@@ -44,12 +44,13 @@ export class ProformaInvoicesController {
     @Param('id') invoiceId: string,
     @Res({ passthrough: true }) response: Response,
   ) {
+    const invoice = await this.proformaInvoicesService.getProformaInvoice(invoiceId);
     const pdfBuffer =
       await this.proformaInvoicesService.getProformaInvoicePdf(invoiceId);
     response.setHeader('Content-Type', 'application/pdf');
     response.setHeader(
       'Content-Disposition',
-      `inline; filename="proforma-invoice-${invoiceId}.pdf"`,
+      `inline; filename="${invoice.invoiceNumber}.pdf"`,
     );
 
     return new StreamableFile(pdfBuffer);

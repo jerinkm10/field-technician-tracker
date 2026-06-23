@@ -167,7 +167,7 @@ export class CustomersService {
   async deleteCustomer(customerId: string) {
     await this.getCustomerOrThrow(customerId);
 
-    const [invoiceCount, quotationCount, jobCount] = await Promise.all([
+    const [invoiceCount, quotationCount, jobCount, amcCount] = await Promise.all([
       this.prismaService.invoice.count({
         where: { customerId },
       }),
@@ -177,11 +177,14 @@ export class CustomersService {
       this.prismaService.job.count({
         where: { customerId },
       }),
+      this.prismaService.amc.count({
+        where: { customerId },
+      }),
     ]);
 
-    if (invoiceCount > 0 || quotationCount > 0 || jobCount > 0) {
+    if (invoiceCount > 0 || quotationCount > 0 || jobCount > 0 || amcCount > 0) {
       throw new ConflictException(
-        'Customers linked to jobs, invoices, or quotations cannot be deleted',
+        'Customers linked to jobs, invoices, quotations, or AMC contracts cannot be deleted',
       );
     }
 

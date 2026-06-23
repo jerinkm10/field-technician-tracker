@@ -1,0 +1,137 @@
+.preview-sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 0.25rem;
+}
+
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(61, 107, 134, 0.22);
+}
+
+.brand-block {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.brand-block img {
+  width: 96px;
+  max-height: 72px;
+  object-fit: contain;
+}
+
+.brand-block h2,
+.document-meta h1,
+.preview-card h3 {
+  margin: 0;
+}
+
+.company-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  color: var(--ftt-muted);
+}
+
+.company-copy strong {
+  color: var(--ftt-text);
+}
+
+.document-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.45rem;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.16em;
+  color: #3d6b86;
+}
+
+.preview-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.preview-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid rgba(61, 107, 134, 0.18);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.preview-card p {
+  margin: 0;
+}
+
+.preview-card span {
+  color: var(--ftt-muted);
+}
+
+.summary-grid {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+}
+
+.summary-grid div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.9rem 1rem;
+  border-radius: 18px;
+  background: rgba(61, 107, 134, 0.06);
+}
+
+.summary-grid strong {
+  color: #3d6b86;
+}
+
+.notes-card p {
+  line-height: 1.7;
+}
+
+.invoice-table {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.invoice-row {
+  display: grid;
+  gap: 0.6rem;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  padding: 0.85rem 0.95rem;
+  border-radius: 16px;
+  background: rgba(61, 107, 134, 0.06);
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 720px) {
+  .preview-header {
+    flex-direction: column;
+  }
+
+  .document-meta {
+    align-items: flex-start;
+  }
+}

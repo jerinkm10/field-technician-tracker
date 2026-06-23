@@ -52,7 +52,7 @@ export class InvoiceInputFieldsPageComponent {
 
   protected readonly sectionOptions: Option[] = [
     { label: 'All sections', value: '' },
-    { label: 'Supplier', value: 'Supplier' },
+    { label: 'Branch', value: 'Supplier' },
     { label: 'Customer', value: 'Customer' },
     { label: 'Line Items', value: 'Line Items' },
     { label: 'Totals', value: 'Totals' },
@@ -201,5 +201,9 @@ export class InvoiceInputFieldsPageComponent {
 
     this.page.update((value) => value + 1);
     this.loadFields();
+  }
+
+  protected displaySection(section: string): string {
+    return section === 'Supplier' ? 'Branch' : section;
   }
 }

@@ -10,12 +10,16 @@ import {
   inject,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ProductServiceAutocompleteComponent } from '../../business/components/product-service-autocomplete.component';
 import { ButtonModule } from 'primeng/button';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
 import { TableModule } from 'primeng/table';
 
-import { BillingLineItemPayload } from '../../shared/models/billing.models';
+import {
+  BillingLineItemPayload,
+  ProductServiceRecord,
+} from '../../shared/models/billing.models';
 
 @Component({
   selector: 'app-invoice-line-items',
@@ -24,6 +28,7 @@ import { BillingLineItemPayload } from '../../shared/models/billing.models';
     FormsModule,
     InputNumberModule,
     InputTextModule,
+    ProductServiceAutocompleteComponent,
     TableModule,
   ],
   templateUrl: './invoice-line-items.component.html',
@@ -86,6 +91,41 @@ export class InvoiceLineItemsComponent implements OnChanges {
     );
 
     this.emitChange();
+  }
+
+  protected updateProductServiceName(index: number, value: string): void {
+    this.workingLineItems[index].productServiceName = value;
+    this.emitChange();
+  }
+
+  protected updateTextField(
+    index: number,
+    field: 'description' | 'hsnSac',
+    value: string,
+  ): void {
+    this.workingLineItems[index][field] = value;
+    this.emitChange();
+  }
+
+  protected applyProductServiceSelection(
+    index: number,
+    productService: ProductServiceRecord | null,
+  ): void {
+    if (!productService) {
+      return;
+    }
+
+    const lineItem = this.workingLineItems[index];
+    const splitTaxPercentage = this.roundCurrency(productService.taxPercentage / 2);
+
+    lineItem.productServiceName = productService.name;
+    lineItem.description = productService.description;
+    lineItem.hsnSac = productService.hsnSacCode;
+    lineItem.unitPrice = productService.defaultRate;
+    lineItem.cgstPercentage = splitTaxPercentage;
+    lineItem.sgstPercentage = splitTaxPercentage;
+
+    this.recalculateLine(index);
   }
 
   protected trackByIndex(index: number): number {

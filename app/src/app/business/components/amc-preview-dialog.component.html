@@ -1,0 +1,99 @@
+<p-dialog
+  [visible]="visible"
+  [modal]="true"
+  [closable]="true"
+  [dismissableMask]="false"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: 'min(94vw, 78rem)' }"
+  header="AMC Preview"
+  (onHide)="handleHide()">
+  @if (amc) {
+    <div class="preview-sheet">
+      <header class="preview-header">
+        <div class="brand-block">
+          @if (company?.logoAttachment) {
+            <img [src]="company?.logoAttachment ?? ''" [alt]="company?.companyName ?? 'Company logo'" />
+          } @else {
+            <h2>{{ company?.companyName || amc.branch.supplierName }}</h2>
+          }
+
+          <div class="company-copy">
+            <strong>{{ company?.companyName || amc.branch.supplierName }}</strong>
+            <span>{{ company?.address || amc.branch.address }}</span>
+            <span>{{ company?.phone || amc.branch.phone }}</span>
+            <span>{{ company?.email || amc.branch.email }}</span>
+          </div>
+        </div>
+
+        <div class="document-meta">
+          <p class="eyebrow">Annual Maintenance Contract</p>
+          <h1>{{ amc.amcNumber }}</h1>
+          <p-tag [value]="amc.status" [severity]="statusSeverity(amc.status)"></p-tag>
+        </div>
+      </header>
+
+      <section class="preview-grid">
+        <article class="preview-card">
+          <h3>Customer</h3>
+          <p>{{ amc.customerName }}</p>
+          <span>{{ amc.customer.phone }}</span>
+          <span>{{ amc.customer.billingAddress }}</span>
+          <span>GSTIN: {{ amc.customer.gstin || '-' }}</span>
+        </article>
+
+        <article class="preview-card">
+          <h3>Branch</h3>
+          <p>{{ amc.branch.supplierName }}</p>
+          <span>{{ amc.branch.phone }}</span>
+          <span>{{ amc.branch.address }}</span>
+          <span>GSTIN: {{ amc.branch.gstin }}</span>
+        </article>
+      </section>
+
+      <section class="summary-grid">
+        <div><strong>Contract Period</strong><span>{{ amc.startDate | date : 'mediumDate' }} - {{ amc.endDate | date : 'mediumDate' }}</span></div>
+        <div><strong>Duration</strong><span>{{ amc.durationMonths }} month(s)</span></div>
+        <div><strong>Billing Period</strong><span>{{ billingPeriodLabel(amc.billingPeriod) }} ({{ amc.billingPeriodMonths }} months)</span></div>
+        <div><strong>Contract Amount</strong><span>Rs. {{ amc.contractAmount | number : '1.2-2' }}</span></div>
+        <div><strong>Tax Percentage</strong><span>{{ amc.taxPercentage | number : '1.2-2' }}%</span></div>
+        <div><strong>Next Billing</strong><span>{{ amc.nextBillingDate ? (amc.nextBillingDate | date : 'mediumDate') : 'Completed' }}</span></div>
+        <div><strong>Last Paid</strong><span>{{ amc.lastPaidDate ? (amc.lastPaidDate | date : 'mediumDate') : '-' }}</span></div>
+        <div><strong>Status</strong><span>{{ amc.status }}</span></div>
+      </section>
+
+      <section class="preview-card notes-card">
+        <h3>Terms / Notes</h3>
+        <p>{{ amc.note || 'No additional terms were saved for this AMC.' }}</p>
+      </section>
+
+      @if (amc.invoices.length) {
+        <section class="preview-card">
+          <h3>Generated Invoices</h3>
+          <div class="invoice-table">
+            @for (invoiceLink of amc.invoices; track invoiceLink.id) {
+              <div class="invoice-row">
+                <strong>{{ invoiceLink.invoice.invoiceNumber }}</strong>
+                <span>{{ invoiceLink.invoice.invoiceDate | date : 'mediumDate' }}</span>
+                <span>{{ invoiceLink.billingPeriodStart | date : 'mediumDate' }} - {{ invoiceLink.billingPeriodEnd | date : 'mediumDate' }}</span>
+                <span>Rs. {{ invoiceLink.invoice.totalAmount | number : '1.2-2' }}</span>
+              </div>
+            }
+          </div>
+        </section>
+      }
+    </div>
+  }
+
+  <ng-template #footer>
+    <div class="dialog-actions">
+      <button pButton type="button" label="Close" text (click)="cancel.emit()"></button>
+      <button pButton type="button" label="Download PDF" text icon="pi pi-download" (click)="downloadPdf.emit()">
+      </button>
+      @if (amc?.status !== 'CANCELLED') {
+        <button pButton type="button" label="Create Invoice" icon="pi pi-file-plus" (click)="createInvoice.emit()">
+        </button>
+      }
+    </div>
+  </ng-template>
+</p-dialog>

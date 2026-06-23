@@ -113,16 +113,16 @@ export class SupplierFormDialogComponent implements OnChanges {
   protected dialogTitle(): string {
     switch (this.mode) {
       case 'edit':
-        return 'Edit Supplier';
+        return 'Edit Branch';
       case 'view':
-        return 'Supplier Details';
+        return 'Branch Details';
       default:
-        return 'Create Supplier';
+        return 'Create Branch';
     }
   }
 
   protected primaryActionLabel(): string {
-    return this.mode === 'edit' ? 'Update Supplier' : 'Create Supplier';
+    return this.mode === 'edit' ? 'Update Branch' : 'Create Branch';
   }
 
   protected isReadOnly(): boolean {
