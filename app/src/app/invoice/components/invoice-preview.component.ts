@@ -27,6 +27,14 @@ export class InvoicePreviewComponent {
     return 'INVOICE';
   }
 
+  protected showRecipientCopy(): boolean {
+    return this.documentHeading() === 'INVOICE';
+  }
+
+  protected showDocumentTypeLabel(): boolean {
+    return !this.showRecipientCopy();
+  }
+
   protected totalQuantity(): number {
     return this.preview.lineItems.reduce((sum, item) => sum + item.quantity, 0);
   }

@@ -14,11 +14,16 @@
     </div>
 
     <div class="header-meta">
-      <p class="recipient-copy">Original for Recipient</p>
-      <h1>{{ documentHeading() }} {{ preview.documentNumber || 'Draft' }}</h1>
-      <p class="document-date"><strong>Date</strong> {{ preview.documentDate | date : 'MMMM dd, yyyy' }}</p>
+      @if (showRecipientCopy()) {
+        <p class="recipient-copy">Original for Recipient</p>
+      }
+      @if (showDocumentTypeLabel()) {
+        <p class="document-type-label">{{ documentHeading() }}</p>
+      }
+      <h1>{{ preview.documentNumber || 'Draft' }}</h1>
+      <p class="document-date"><strong>Date:</strong> {{ preview.documentDate | date : 'dd MMM yyyy' }}</p>
       @if (preview.validUntil) {
-        <p class="valid-until">Valid Until {{ preview.validUntil | date : 'MMMM dd, yyyy' }}</p>
+        <p class="valid-until">Valid Until: {{ preview.validUntil | date : 'dd MMM yyyy' }}</p>
       }
     </div>
   </header>
