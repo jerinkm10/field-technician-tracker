@@ -1,0 +1,68 @@
+services:
+  api:
+    image: node:20-alpine
+    working_dir: /usr/src/api
+    volumes:
+      - ./api:/usr/src/api
+    environment:
+      PORT: 3007
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/field_technician_tracker?schema=public
+      JWT_SECRET: change-me
+      JWT_EXPIRES_IN: 1d
+    command: tail -f /dev/null
+    ports:
+      - "3007:3007"
+    depends_on:
+      - postgres
+      - redis
+    tty: true
+    stdin_open: true
+
+  app:
+    image: node:20-alpine
+    working_dir: /usr/src/app
+    volumes:
+      - ./app:/usr/src/app
+    command: tail -f /dev/null
+    ports:
+      - "4200:4200"
+    tty: true
+    stdin_open: true
+
+  mob:
+    build:
+      context: .
+      dockerfile: mobile/Dockerfile
+    working_dir: /usr/src/mobile
+    volumes:
+      - ./mobile:/usr/src/mobile
+    command: tail -f /dev/null
+    tty: true
+    stdin_open: true
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: field_technician_tracker
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d field_technician_tracker"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+
+volumes:
+  postgres_data:
+  redis_data:

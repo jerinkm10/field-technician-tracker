@@ -1,0 +1,121 @@
+.login-page {
+  display: grid;
+  min-height: 100vh;
+  align-items: center;
+  gap: 2rem;
+  padding: 2rem;
+  grid-template-columns: minmax(0, 1.1fr) minmax(360px, 430px);
+}
+
+.login-story {
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
+  padding: 2rem 0;
+}
+
+.story-overline {
+  margin: 0;
+  color: var(--ftt-brand);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.login-story h1 {
+  margin: 0;
+  max-width: 14ch;
+  font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+  font-size: clamp(2.8rem, 6vw, 4.8rem);
+  line-height: 0.95;
+}
+
+.login-story p {
+  margin: 0;
+  max-width: 36rem;
+  color: var(--ftt-muted);
+  font-size: 1.02rem;
+  line-height: 1.7;
+}
+
+.story-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.story-metrics {
+  display: grid;
+  gap: 1rem;
+  padding: 1.5rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.story-metrics div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.story-metrics span {
+  color: var(--ftt-muted);
+  font-size: 0.82rem;
+}
+
+.story-metrics strong {
+  font-size: 1rem;
+}
+
+.login-card {
+  overflow: hidden;
+  border-radius: 30px;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding-top: 1rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.field span {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--ftt-muted);
+}
+
+.field input {
+  width: 100%;
+}
+
+.login-error {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.login-hint {
+  margin: 0;
+  color: var(--ftt-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+@media (max-width: 960px) {
+  .login-page {
+    padding: 1rem;
+    grid-template-columns: 1fr;
+  }
+
+  .story-metrics {
+    grid-template-columns: 1fr;
+  }
+}

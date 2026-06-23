@@ -1,0 +1,20 @@
+# Flutter and Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub/
+.pub-cache/
+build/
+
+# IDE
+.idea/
+.vscode/
+
+# Platform artifacts
+android/
+ios/
+linux/
+macos/
+windows/
+web/

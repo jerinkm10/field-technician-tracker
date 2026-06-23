@@ -1,0 +1,40 @@
+<section class="page">
+  <header class="page-header">
+    <div class="page-heading">
+      <p class="page-eyebrow">Invoice</p>
+      <h1 class="page-title">Invoice input fields</h1>
+      <p class="page-subtitle">
+        This page documents the input groups currently used by the proforma and tax invoice
+        editors.
+      </p>
+    </div>
+  </header>
+
+  <section class="panel section-shell">
+    <div class="section-header">
+      <div>
+        <h3>Current Invoice Form Sections</h3>
+        <p>Shared field sets are reused across both invoice types.</p>
+      </div>
+      <p-tag value="Shared across Proforma and Tax" severity="info"></p-tag>
+    </div>
+
+    <p-table [value]="fieldGroups" responsiveLayout="scroll">
+      <ng-template #header>
+        <tr>
+          <th>Section</th>
+          <th>Fields</th>
+          <th>Purpose</th>
+        </tr>
+      </ng-template>
+
+      <ng-template #body let-group>
+        <tr>
+          <td>{{ group.section }}</td>
+          <td>{{ group.fields }}</td>
+          <td>{{ group.purpose }}</td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </section>
+</section>

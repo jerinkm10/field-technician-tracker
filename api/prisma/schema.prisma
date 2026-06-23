@@ -1,0 +1,323 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  TECHNICIAN
+}
+
+enum TechnicianStatus {
+  AVAILABLE
+  ON_JOB
+  OFFLINE
+}
+
+enum JobStatus {
+  PENDING
+  ASSIGNED
+  STARTED
+  COMPLETED
+  CANCELLED
+}
+
+enum AttachmentType {
+  PHOTO
+  SIGNATURE
+}
+
+enum SupplierStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum CustomerStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum InvoiceType {
+  PROFORMA
+  TAX
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  CANCELLED
+}
+
+enum QuotationStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+  EXPIRED
+}
+
+model User {
+  id         String      @id @default(cuid())
+  name       String
+  email      String      @unique
+  password   String
+  role       Role
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  technician Technician?
+
+  @@index([role])
+}
+
+model Technician {
+  id               String           @id @default(cuid())
+  userId           String           @unique
+  phone            String           @unique
+  status           TechnicianStatus @default(OFFLINE)
+  currentLatitude  Float?
+  currentLongitude Float?
+  lastSeenAt       DateTime?
+  user             User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobs             Job[]
+  jobVisits        JobVisit[]
+  locationLogs     LocationLog[]
+
+  @@index([status])
+}
+
+model Customer {
+  id              String          @id @default(cuid())
+  name            String
+  phone           String
+  email           String?
+  gstin           String?         @unique
+  address         String
+  billingAddress  String?
+  shippingAddress String?
+  placeOfSupply   String?
+  latitude        Float?
+  longitude       Float?
+  status          CustomerStatus  @default(ACTIVE)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  jobs            Job[]
+  invoices        Invoice[]
+  quotations      Quotation[]
+
+  @@index([name])
+  @@index([phone])
+  @@index([gstin])
+  @@index([status])
+}
+
+model Job {
+  id            String          @id @default(cuid())
+  jobNumber     String          @unique
+  title         String
+  description   String
+  customerId    String
+  technicianId  String
+  status        JobStatus       @default(PENDING)
+  scheduledDate DateTime
+  startedAt     DateTime?
+  completedAt   DateTime?
+  customer      Customer        @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  technician    Technician      @relation(fields: [technicianId], references: [id], onDelete: Restrict)
+  visits        JobVisit[]
+  locationLogs  LocationLog[]
+  attachments   JobAttachment[]
+
+  @@index([customerId])
+  @@index([technicianId])
+  @@index([status])
+  @@index([scheduledDate])
+}
+
+model JobVisit {
+  id               String     @id @default(cuid())
+  jobId            String
+  technicianId     String
+  checkInAt        DateTime
+  checkOutAt       DateTime?
+  timeSpentMinutes Int?
+  startLatitude    Float
+  startLongitude   Float
+  endLatitude      Float?
+  endLongitude     Float?
+  job              Job        @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  technician       Technician @relation(fields: [technicianId], references: [id], onDelete: Restrict)
+
+  @@index([jobId])
+  @@index([technicianId])
+  @@index([checkInAt])
+}
+
+model LocationLog {
+  id           String     @id @default(cuid())
+  technicianId String
+  jobId        String?
+  latitude     Float
+  longitude    Float
+  accuracy     Float
+  speed        Float
+  batteryLevel Int?
+  recordedAt   DateTime   @default(now())
+  technician   Technician @relation(fields: [technicianId], references: [id], onDelete: Cascade)
+  job          Job?       @relation(fields: [jobId], references: [id], onDelete: SetNull)
+
+  @@index([technicianId])
+  @@index([jobId])
+  @@index([recordedAt])
+}
+
+model JobAttachment {
+  id        String         @id @default(cuid())
+  jobId     String
+  type      AttachmentType
+  fileUrl   String
+  createdAt DateTime       @default(now())
+  job       Job            @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId])
+  @@index([type])
+}
+
+model Supplier {
+  id            String         @id @default(cuid())
+  supplierName  String
+  phone         String
+  email         String
+  gstin         String         @unique
+  address       String
+  bankName      String
+  accountNumber String
+  ifscCode      String
+  status        SupplierStatus @default(ACTIVE)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  invoices      Invoice[]
+
+  @@index([supplierName])
+  @@index([phone])
+  @@index([gstin])
+  @@index([status])
+}
+
+model Invoice {
+  id               String          @id @default(cuid())
+  invoiceType      InvoiceType
+  invoiceNumber    String          @unique
+  invoiceDate      DateTime
+  supplierId       String
+  customerId       String
+  customerName     String
+  customerAddress  String
+  customerGstin    String
+  placeOfSupply    String
+  notes            String?
+  termsAndConditions String?
+  totalBeforeTax   Float
+  totalTaxAmount   Float
+  roundedOff       Float
+  totalAmount      Float
+  amountDue        Float
+  status           InvoiceStatus   @default(DRAFT)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+  supplier         Supplier        @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  customer         Customer        @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  lineItems      InvoiceLineItem[]
+
+  @@index([invoiceType])
+  @@index([invoiceDate])
+  @@index([supplierId])
+  @@index([customerId])
+  @@index([status])
+}
+
+model InvoiceLineItem {
+  id                 String  @id @default(cuid())
+  invoiceId          String
+  productServiceName String
+  description        String
+  hsnSac             String
+  quantity           Float
+  unitPrice          Float
+  cgstAmount         Float
+  cgstPercentage     Float
+  sgstAmount         Float
+  sgstPercentage     Float
+  lineAmount         Float
+  invoice            Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
+}
+
+model Quotation {
+  id                 String           @id @default(cuid())
+  quotationNumber    String           @unique
+  quotationDate      DateTime
+  validUntil         DateTime
+  supplierId         String
+  customerId         String
+  customerName       String
+  customerAddress    String
+  customerGstin      String
+  placeOfSupply      String
+  notes              String?
+  termsAndConditions String?
+  totalBeforeTax     Float
+  totalTaxAmount     Float
+  roundedOff         Float
+  totalAmount        Float
+  status             QuotationStatus  @default(DRAFT)
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  supplier           Supplier         @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  customer           Customer         @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  lineItems          QuotationLineItem[]
+
+  @@index([quotationDate])
+  @@index([validUntil])
+  @@index([supplierId])
+  @@index([customerId])
+  @@index([status])
+}
+
+model QuotationLineItem {
+  id                 String    @id @default(cuid())
+  quotationId        String
+  productServiceName String
+  description        String
+  hsnSac             String
+  quantity           Float
+  unitPrice          Float
+  cgstAmount         Float
+  cgstPercentage     Float
+  sgstAmount         Float
+  sgstPercentage     Float
+  lineAmount         Float
+  quotation          Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+
+  @@index([quotationId])
+}
+
+model InvoiceInputField {
+  id          String   @id @default(cuid())
+  section     String
+  fieldKey    String   @unique
+  label       String
+  inputType   String
+  placeholder String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([section])
+  @@index([isActive])
+}

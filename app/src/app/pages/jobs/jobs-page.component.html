@@ -1,0 +1,44 @@
+<section class="page">
+  <header class="page-header">
+    <div class="page-heading">
+      <p class="page-eyebrow">Jobs</p>
+      <h1 class="page-title">Dispatch and job planning board</h1>
+      <p class="page-subtitle">
+        This scaffolded jobs page is ready for future admin CRUD actions, assignment workflows, and
+        richer data tables.
+      </p>
+    </div>
+
+    <button pButton type="button" label="Create Job" icon="pi pi-plus"></button>
+  </header>
+
+  <section class="panel section-shell">
+    <p-table [value]="jobs" responsiveLayout="scroll">
+      <ng-template #header>
+        <tr>
+          <th>Job Number</th>
+          <th>Customer</th>
+          <th>Technician</th>
+          <th>Scheduled</th>
+          <th>Status</th>
+          <th></th>
+        </tr>
+      </ng-template>
+
+      <ng-template #body let-job>
+        <tr>
+          <td>{{ job.jobNumber }}</td>
+          <td>{{ job.customer }}</td>
+          <td>{{ job.technician }}</td>
+          <td>{{ job.scheduled }}</td>
+          <td>
+            <p-tag [value]="job.status" [severity]="statusSeverity(job.status)"></p-tag>
+          </td>
+          <td class="action-cell">
+            <button pButton type="button" label="Manage" text icon="pi pi-arrow-right"></button>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </section>
+</section>

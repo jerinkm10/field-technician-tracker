@@ -1,0 +1,71 @@
+import { HttpErrorResponse } from '@angular/common/http';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { ActivatedRoute, Router } from '@angular/router';
+import { ButtonModule } from 'primeng/button';
+import { CardModule } from 'primeng/card';
+import { InputTextModule } from 'primeng/inputtext';
+import { TagModule } from 'primeng/tag';
+
+import { AuthService } from '../../core/services/auth.service';
+
+@Component({
+  selector: 'app-login-page',
+  imports: [ButtonModule, CardModule, FormsModule, InputTextModule, TagModule],
+  templateUrl: './login-page.component.html',
+  styleUrl: './login-page.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
+})
+export class LoginPageComponent {
+  private readonly router = inject(Router);
+  private readonly activatedRoute = inject(ActivatedRoute);
+  private readonly authService = inject(AuthService);
+
+  protected email = 'admin@example.com';
+  protected password = 'password';
+  protected readonly loading = signal(false);
+  protected readonly errorMessage = signal<string | null>(null);
+
+  protected login(): void {
+    if (this.loading()) {
+      return;
+    }
+
+    this.loading.set(true);
+    this.errorMessage.set(null);
+
+    this.authService
+      .login({
+        email: this.email.trim(),
+        password: this.password,
+      })
+      .subscribe({
+        next: async (response) => {
+          if (response.user.role !== 'ADMIN') {
+            this.loading.set(false);
+            this.authService.logout({ navigate: false });
+            this.errorMessage.set(
+              'This dashboard only supports ADMIN accounts. Use admin@example.com with password "password".',
+            );
+            return;
+          }
+
+          this.authService.startSession(response);
+
+          const returnUrl =
+            this.activatedRoute.snapshot.queryParamMap.get('returnUrl') || '/dashboard';
+
+          this.loading.set(false);
+          await this.router.navigateByUrl(returnUrl);
+        },
+        error: (error: HttpErrorResponse) => {
+          this.loading.set(false);
+          this.errorMessage.set(
+            error.status === 401
+              ? 'Invalid email or password.'
+              : 'Unable to sign in right now. Make sure the API is running on port 3007.',
+          );
+        },
+      });
+  }
+}

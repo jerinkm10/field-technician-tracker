@@ -1,0 +1,138 @@
+<section class="page">
+  <header class="page-header">
+    <div class="page-heading">
+      <p class="page-eyebrow">Reports</p>
+      <h1 class="page-title">Technician daily performance report</h1>
+      <p class="page-subtitle">
+        Filter by technician and date, review daily work totals, and export the current result set
+        to Excel.
+      </p>
+    </div>
+
+    <button
+      pButton
+      type="button"
+      label="Export to Excel"
+      icon="pi pi-file-excel"
+      [disabled]="!rows().length"
+      (click)="exportToExcel()">
+    </button>
+  </header>
+
+  <div class="card-grid">
+    @for (metric of summaryCards(); track metric.label) {
+      <article class="panel metric-card">
+        <p-tag [value]="metric.label" severity="info"></p-tag>
+        <h2 class="metric-value">{{ metric.value }}</h2>
+        <p class="metric-note">{{ metric.note }}</p>
+      </article>
+    }
+  </div>
+
+  <section class="panel section-shell">
+    <div class="section-header">
+      <h3>Filters</h3>
+      <p>Use the controls below to narrow the report scope.</p>
+    </div>
+
+    <div class="filters-grid">
+      <label class="filter-field">
+        <span>Technician</span>
+        <select
+          [ngModel]="filters().technicianId || ''"
+          (ngModelChange)="updateFilter('technicianId', $event)">
+          <option value="">All technicians</option>
+          @for (technician of technicians(); track technician.id) {
+            <option [value]="technician.id">{{ technician.name }}</option>
+          }
+        </select>
+      </label>
+
+      <label class="filter-field">
+        <span>Date</span>
+        <input
+          type="date"
+          [ngModel]="filters().date || ''"
+          (ngModelChange)="updateFilter('date', $event)" />
+      </label>
+
+      <label class="filter-field">
+        <span>Status</span>
+        <select
+          [ngModel]="filters().status || ''"
+          (ngModelChange)="updateFilter('status', $event)">
+          @for (status of statusOptions; track status.label) {
+            <option [value]="status.value">{{ status.label }}</option>
+          }
+        </select>
+      </label>
+
+      <div class="filter-actions">
+        <button pButton type="button" label="Apply" icon="pi pi-filter" [loading]="loading()" (click)="applyFilters()">
+        </button>
+        <button pButton type="button" label="Reset" text (click)="clearFilters()"></button>
+      </div>
+    </div>
+  </section>
+
+  @if (errorMessage()) {
+    <section class="panel state-panel error-panel">
+      <i class="pi pi-exclamation-circle"></i>
+      <div>
+        <h3>Report unavailable</h3>
+        <p>{{ errorMessage() }}</p>
+      </div>
+    </section>
+  }
+
+  <section class="panel section-shell">
+    <div class="section-header">
+      <h3>Technician Daily Summary</h3>
+      <p>{{ rows().length }} row(s) returned for the current filters.</p>
+    </div>
+
+    <p-table [value]="rows()" responsiveLayout="scroll">
+      <ng-template #header>
+        <tr>
+          <th>Technician</th>
+          <th>Total Jobs</th>
+          <th>Completed Jobs</th>
+          <th>Total Travel Distance</th>
+          <th>Total Site Time</th>
+          <th>First Location Time</th>
+          <th>Last Location Time</th>
+        </tr>
+      </ng-template>
+
+      <ng-template #body let-row>
+        <tr>
+          <td>{{ row.technicianName }}</td>
+          <td>{{ row.totalJobs }}</td>
+          <td>{{ row.completedJobs }}</td>
+          <td>{{ row.totalTravelDistance | number : '1.2-2' }} km</td>
+          <td>{{ formatSiteTime(row.totalSiteTime) }}</td>
+          <td>
+            @if (row.firstLocationTime) {
+              {{ row.firstLocationTime | date : 'medium' }}
+            } @else {
+              <span class="muted-value">No location logs</span>
+            }
+          </td>
+          <td>
+            @if (row.lastLocationTime) {
+              {{ row.lastLocationTime | date : 'medium' }}
+            } @else {
+              <span class="muted-value">No location logs</span>
+            }
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+
+    @if (!rows().length && !loading()) {
+      <div class="empty-state">
+        <p>No technician report rows matched the current filters.</p>
+      </div>
+    }
+  </section>
+</section>

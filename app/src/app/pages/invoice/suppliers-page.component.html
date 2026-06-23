@@ -1,0 +1,135 @@
+<section class="page">
+  <header class="page-header">
+    <div class="page-heading">
+      <p class="page-eyebrow">Invoice</p>
+      <h1 class="page-title">Supplier master</h1>
+      <p class="page-subtitle">
+        Search suppliers, manage active or inactive status, and keep billing bank details ready for
+        invoice creation.
+      </p>
+    </div>
+
+    <button pButton type="button" label="Create Supplier" icon="pi pi-plus" (click)="openCreateDialog()"></button>
+  </header>
+
+  @if (errorMessage()) {
+    <section class="panel state-panel error-panel">
+      <i class="pi pi-exclamation-circle"></i>
+      <div>
+        <h3>Supplier action needs attention</h3>
+        <p>{{ errorMessage() }}</p>
+      </div>
+    </section>
+  }
+
+  <section class="panel section-shell">
+    <div class="section-header">
+      <div>
+        <h3>Filters</h3>
+        <p>Search supplier name, phone, or GSTIN and narrow by status.</p>
+      </div>
+
+      <button pButton type="button" label="Refresh" icon="pi pi-refresh" text [loading]="loading()" (click)="loadSuppliers()">
+      </button>
+    </div>
+
+    <div class="filters-grid">
+      <label class="field field-span-2">
+        <span>Search</span>
+        <input
+          pInputText
+          [(ngModel)]="searchTerm"
+          placeholder="Search supplier by name, phone, or GSTIN"
+          (keydown.enter)="loadSuppliers()" />
+      </label>
+
+      <label class="field">
+        <span>Status</span>
+        <p-select
+          [options]="statusOptions"
+          optionLabel="label"
+          optionValue="value"
+          appendTo="body"
+          [(ngModel)]="statusFilter">
+        </p-select>
+      </label>
+
+      <div class="filter-actions">
+        <button pButton type="button" label="Apply" icon="pi pi-filter" (click)="loadSuppliers()"></button>
+        <button
+          pButton
+          type="button"
+          label="Reset"
+          text
+          (click)="searchTerm = ''; statusFilter = ''; loadSuppliers()">
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel section-shell">
+    <div class="section-header">
+      <div>
+        <h3>Suppliers</h3>
+        <p>{{ suppliers().length }} supplier record(s) available.</p>
+      </div>
+    </div>
+
+    <p-table [value]="suppliers()" responsiveLayout="scroll">
+      <ng-template #header>
+        <tr>
+          <th>Supplier</th>
+          <th>Phone</th>
+          <th>Email</th>
+          <th>GSTIN</th>
+          <th>Bank</th>
+          <th>Status</th>
+          <th>Updated</th>
+          <th></th>
+        </tr>
+      </ng-template>
+
+      <ng-template #body let-supplier>
+        <tr>
+          <td>
+            <strong>{{ supplier.supplierName }}</strong>
+            <div class="muted-row">{{ supplier.address }}</div>
+          </td>
+          <td>{{ supplier.phone }}</td>
+          <td>{{ supplier.email }}</td>
+          <td>{{ supplier.gstin }}</td>
+          <td>
+            <strong>{{ supplier.bankName }}</strong>
+            <div class="muted-row">{{ supplier.accountNumber }} | {{ supplier.ifscCode }}</div>
+          </td>
+          <td>
+            <p-tag [value]="supplier.status" [severity]="statusSeverity(supplier.status)"></p-tag>
+          </td>
+          <td>{{ supplier.updatedAt | date : 'medium' }}</td>
+          <td class="action-cell">
+            <button pButton type="button" label="Edit" text icon="pi pi-pencil" (click)="openEditDialog(supplier)">
+            </button>
+            <button
+              pButton
+              type="button"
+              label="Delete"
+              text
+              severity="danger"
+              icon="pi pi-trash"
+              (click)="deleteSupplier(supplier)">
+            </button>
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </section>
+
+  <app-supplier-form-dialog
+    [visible]="dialogVisible()"
+    [saving]="saving()"
+    [mode]="editingSupplier ? 'edit' : 'create'"
+    [supplier]="editingSupplier"
+    (cancel)="closeDialog()"
+    (save)="saveSupplier($event)">
+  </app-supplier-form-dialog>
+</section>

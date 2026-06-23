@@ -1,0 +1,197 @@
+<section class="page">
+  <header class="page-header">
+    <div class="page-heading">
+      <p class="page-eyebrow">Live Map</p>
+      <h1 class="page-title">Technician live tracking map</h1>
+      <p class="page-subtitle">
+        The map loads current technician positions from <code>GET /admin/live-map</code> and applies
+        realtime updates from the <code>technician_location_updated</code> Socket.IO event.
+      </p>
+    </div>
+
+    <button
+      pButton
+      type="button"
+      label="Refresh"
+      icon="pi pi-refresh"
+      [loading]="refreshing()"
+      (click)="refresh()">
+    </button>
+  </header>
+
+  <section class="panel legend-panel">
+    <div class="legend-list">
+      <div class="legend-item">
+        <span class="legend-dot available"></span>
+        <span>Available</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-dot on-job"></span>
+        <span>On Job</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-dot offline"></span>
+        <span>Offline</span>
+      </div>
+    </div>
+
+    <p-tag
+      [severity]="realtimeService.connected() ? 'success' : 'warn'"
+      [value]="realtimeService.connected() ? 'Socket Connected' : 'Socket Disconnected'">
+    </p-tag>
+  </section>
+
+  @if (errorMessage()) {
+    <section class="panel state-panel error-panel">
+      <i class="pi pi-exclamation-circle"></i>
+      <div>
+        <h3>Live map unavailable</h3>
+        <p>{{ errorMessage() }}</p>
+      </div>
+    </section>
+  }
+
+  <div class="map-layout">
+    <section class="panel map-stage">
+      @if (googleMapsReady()) {
+        <google-map
+          class="map-canvas"
+          height="100%"
+          width="100%"
+          [center]="center()"
+          [zoom]="zoom()"
+          [options]="mapOptions">
+          @for (technician of mappableTechnicians(); track technician.id) {
+            <map-marker
+              [position]="{ lat: latitudeOf(technician)!, lng: longitudeOf(technician)! }"
+              [title]="technician.user.name"
+              [options]="markerOptions(technician)"
+              (mapClick)="selectTechnician(technician.id)">
+            </map-marker>
+          }
+        </google-map>
+
+        @if (loading()) {
+          <div class="map-overlay">
+            <i class="pi pi-spin pi-spinner"></i>
+            <p>Loading technician positions...</p>
+          </div>
+        }
+      } @else {
+        <div class="map-placeholder">
+          <i class="pi pi-map"></i>
+          <h3>Google Maps API key required</h3>
+          <p>Update <code>src/index.html</code> with a valid key to render the live technician map.</p>
+        </div>
+      }
+    </section>
+
+    <aside class="map-sidebar">
+      <article class="panel detail-card">
+        @if (selectedTechnician(); as technician) {
+          <div class="detail-header">
+            <div>
+              <p class="detail-eyebrow">Selected Technician</p>
+              <h3>{{ technician.user.name }}</h3>
+              <p>{{ technician.phone }}</p>
+            </div>
+            <p-tag
+              [value]="statusLabel(technician.status)"
+              [severity]="statusSeverity(technician.status)">
+            </p-tag>
+          </div>
+
+          <div class="detail-grid">
+            <div class="detail-row">
+              <span>Current Job</span>
+              <strong>{{ jobLabel(technician) }}</strong>
+            </div>
+            <div class="detail-row">
+              <span>Last Seen</span>
+              <strong>
+                @if (lastSeenOf(technician)) {
+                  {{ lastSeenOf(technician) | date : 'medium' }}
+                } @else {
+                  Not available
+                }
+              </strong>
+            </div>
+            <div class="detail-row">
+              <span>Latitude</span>
+              <strong>
+                @if (latitudeOf(technician) !== null) {
+                  {{ latitudeOf(technician) | number : '1.5-5' }}
+                } @else {
+                  Not available
+                }
+              </strong>
+            </div>
+            <div class="detail-row">
+              <span>Longitude</span>
+              <strong>
+                @if (longitudeOf(technician) !== null) {
+                  {{ longitudeOf(technician) | number : '1.5-5' }}
+                } @else {
+                  Not available
+                }
+              </strong>
+            </div>
+          </div>
+        } @else {
+          <div class="empty-selection">
+            <i class="pi pi-map-marker"></i>
+            <h3>No technician selected</h3>
+            <p>Choose a technician marker or list item to inspect details.</p>
+          </div>
+        }
+      </article>
+
+      <section class="panel list-panel">
+        <div class="list-header">
+          <h3>Technicians</h3>
+          <span>{{ technicians().length }} total</span>
+        </div>
+
+        @if (!technicians().length && !loading()) {
+          <div class="empty-state">
+            <p>No technicians available for live tracking yet.</p>
+          </div>
+        }
+
+        <div class="technician-list">
+          @for (technician of technicians(); track technician.id) {
+            <button
+              type="button"
+              class="technician-row"
+              [class.is-selected]="selectedTechnicianId() === technician.id"
+              (click)="selectTechnician(technician.id)">
+              <span
+                class="list-status-dot"
+                [class.available]="technician.status === 'AVAILABLE'"
+                [class.on-job]="technician.status === 'ON_JOB'"
+                [class.offline]="technician.status === 'OFFLINE'">
+              </span>
+
+              <div class="technician-copy">
+                <strong>{{ technician.user.name }}</strong>
+                <span>{{ jobLabel(technician) }}</span>
+                <small>
+                  @if (lastSeenOf(technician)) {
+                    Seen {{ lastSeenOf(technician) | date : 'short' }}
+                  } @else {
+                    Last seen unavailable
+                  }
+                </small>
+              </div>
+
+              <p-tag
+                [value]="statusLabel(technician.status)"
+                [severity]="statusSeverity(technician.status)">
+              </p-tag>
+            </button>
+          }
+        </div>
+      </section>
+    </aside>
+  </div>
+</section>

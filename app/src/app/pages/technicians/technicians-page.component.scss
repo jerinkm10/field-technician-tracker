@@ -1,0 +1,24 @@
+.roster-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  padding: 1.4rem;
+}
+
+.roster-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.roster-head h3 {
+  margin: 0 0 0.35rem;
+  font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+}
+
+.roster-head p,
+.contact-line {
+  margin: 0;
+  color: var(--ftt-muted);
+  line-height: 1.6;
+}

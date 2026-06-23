@@ -1,0 +1,86 @@
+<section class="page">
+  <header class="page-header">
+    <div class="page-heading">
+      <p class="page-eyebrow">Dashboard</p>
+      <h1 class="page-title">Daily field operations at a glance</h1>
+      <p class="page-subtitle">
+        Use this overview to monitor technician readiness, live socket health, and the highest
+        priority workstreams before deeper data flows are connected.
+      </p>
+    </div>
+
+    <div class="header-actions">
+      <button pButton type="button" label="Open Live Map" icon="pi pi-map" routerLink="/live-map"></button>
+    </div>
+  </header>
+
+  <div class="card-grid">
+    @for (metric of metrics; track metric.label) {
+      <article class="panel metric-card">
+        <p-tag [value]="metric.label" [severity]="metric.severity"></p-tag>
+        <h2 class="metric-value">{{ metric.value }}</h2>
+        <p class="metric-note">{{ metric.note }}</p>
+      </article>
+    }
+  </div>
+
+  <div class="two-column-layout">
+    <section class="panel hero-panel">
+      <div class="hero-copy">
+        <p class="hero-label">Realtime Status</p>
+        <h2>Socket.IO channel is {{ realtime.connected() ? 'connected' : 'waiting for connection' }}</h2>
+        <p>
+          The dashboard shell already includes a shared realtime service so job updates and live
+          technician movement can be wired into one place next.
+        </p>
+      </div>
+
+      <div class="hero-actions">
+        <p-tag [severity]="socketSeverity()" [value]="realtime.connected() ? 'Online' : 'Offline'"></p-tag>
+        <span>{{ realtime.lastEvent() }}</span>
+      </div>
+    </section>
+
+    <section class="panel section-shell">
+      <div class="section-header">
+        <h3>Quick Routing</h3>
+      </div>
+
+      <div class="action-list">
+        <button pButton type="button" label="Jobs Queue" icon="pi pi-briefcase" text routerLink="/jobs"></button>
+        <button
+          pButton
+          type="button"
+          label="Technician Roster"
+          icon="pi pi-users"
+          text
+          routerLink="/technicians">
+        </button>
+        <button
+          pButton
+          type="button"
+          label="Reports Workspace"
+          icon="pi pi-chart-line"
+          text
+          routerLink="/reports">
+        </button>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel section-shell">
+    <div class="section-header">
+      <h3>Operations Timeline</h3>
+      <p>Placeholder activity feed for the base dashboard scaffold.</p>
+    </div>
+
+    <div class="timeline-list">
+      @for (entry of timeline; track entry) {
+        <div class="timeline-row">
+          <span class="timeline-dot"></span>
+          <p>{{ entry }}</p>
+        </div>
+      }
+    </div>
+  </section>
+</section>

@@ -1,0 +1,71 @@
+<section class="login-page">
+  <div class="login-story">
+    <p class="story-overline">Field Operations</p>
+    <h1>Keep dispatch, technicians, jobs, and live movement in one calm workspace.</h1>
+    <p>
+      This admin dashboard scaffold gives you a dedicated login page, routed sections, a reusable
+      shell, and a live-map ready surface for the next implementation steps.
+    </p>
+
+    <div class="story-tags">
+      <p-tag value="PrimeNG UI"></p-tag>
+      <p-tag value="Google Maps Ready" severity="info"></p-tag>
+      <p-tag value="Socket.IO Ready" severity="success"></p-tag>
+    </div>
+
+    <div class="story-metrics panel">
+      <div>
+        <span>Realtime</span>
+        <strong>Technician Presence</strong>
+      </div>
+      <div>
+        <span>Dispatch</span>
+        <strong>Job Coordination</strong>
+      </div>
+      <div>
+        <span>Insights</span>
+        <strong>Operational Reports</strong>
+      </div>
+    </div>
+  </div>
+
+  <p-card class="login-card">
+    <ng-template #title>Admin Login</ng-template>
+    <ng-template #subtitle>Enter credentials to access the tracking dashboard.</ng-template>
+
+    <div class="login-form">
+      <label class="field">
+        <span>Email Address</span>
+        <input pInputText [(ngModel)]="email" type="email" name="email" placeholder="admin@example.com" />
+      </label>
+
+      <label class="field">
+        <span>Password</span>
+        <input
+          pInputText
+          [(ngModel)]="password"
+          type="password"
+          name="password"
+          placeholder="Enter password" />
+      </label>
+
+      <button
+        pButton
+        type="button"
+        [label]="loading() ? 'Signing In...' : 'Sign In'"
+        icon="pi pi-arrow-right"
+        iconPos="right"
+        [disabled]="loading() || !email || !password"
+        (click)="login()">
+      </button>
+
+      @if (errorMessage()) {
+        <p class="login-error">{{ errorMessage() }}</p>
+      }
+
+      <p class="login-hint">
+        Seeded admin login: <strong>admin@example.com</strong> / <strong>password</strong>
+      </p>
+    </div>
+  </p-card>
+</section>

@@ -1,0 +1,79 @@
+<p-dialog
+  [visible]="visible"
+  [modal]="true"
+  [closable]="!saving"
+  [dismissableMask]="!saving"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: 'min(92vw, 48rem)' }"
+  [header]="mode === 'edit' ? 'Edit Supplier' : 'Create Supplier'"
+  (onHide)="handleHide()">
+  <div class="supplier-form">
+    <div class="field-grid">
+      <label class="field">
+        <span>Supplier Name</span>
+        <input pInputText [(ngModel)]="draft.supplierName" />
+      </label>
+
+      <label class="field">
+        <span>Phone</span>
+        <input pInputText [(ngModel)]="draft.phone" />
+      </label>
+
+      <label class="field">
+        <span>Email</span>
+        <input pInputText type="email" [(ngModel)]="draft.email" />
+      </label>
+
+      <label class="field">
+        <span>GSTIN</span>
+        <input pInputText [(ngModel)]="draft.gstin" />
+      </label>
+
+      <label class="field">
+        <span>Bank Name</span>
+        <input pInputText [(ngModel)]="draft.bankName" />
+      </label>
+
+      <label class="field">
+        <span>Account Number</span>
+        <input pInputText [(ngModel)]="draft.accountNumber" />
+      </label>
+
+      <label class="field">
+        <span>IFSC Code</span>
+        <input pInputText [(ngModel)]="draft.ifscCode" />
+      </label>
+
+      <label class="field">
+        <span>Status</span>
+        <p-select
+          [options]="statusOptions"
+          optionLabel="label"
+          optionValue="value"
+          [(ngModel)]="draft.status"
+          appendTo="body">
+        </p-select>
+      </label>
+    </div>
+
+    <label class="field">
+      <span>Address</span>
+      <textarea [(ngModel)]="draft.address" rows="4"></textarea>
+    </label>
+  </div>
+
+  <ng-template #footer>
+    <div class="dialog-actions">
+      <button pButton type="button" label="Cancel" text [disabled]="saving" (click)="cancel.emit()"></button>
+      <button
+        pButton
+        type="button"
+        [label]="saving ? 'Saving...' : mode === 'edit' ? 'Update Supplier' : 'Create Supplier'"
+        icon="pi pi-check"
+        [disabled]="saving || !canSubmit()"
+        (click)="submit()">
+      </button>
+    </div>
+  </ng-template>
+</p-dialog>

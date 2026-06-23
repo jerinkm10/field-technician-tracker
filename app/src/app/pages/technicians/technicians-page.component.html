@@ -1,0 +1,32 @@
+<section class="page">
+  <header class="page-header">
+    <div class="page-heading">
+      <p class="page-eyebrow">Technicians</p>
+      <h1 class="page-title">Roster and field readiness</h1>
+      <p class="page-subtitle">
+        Technician cards can later expand into availability controls, assignment history, and
+        profile-level performance data.
+      </p>
+    </div>
+
+    <button pButton type="button" label="Invite Technician" icon="pi pi-user-plus" outlined></button>
+  </header>
+
+  <div class="card-grid">
+    @for (technician of technicians; track technician.phone) {
+      <article class="panel roster-card">
+        <div class="roster-head">
+          <div>
+            <h3>{{ technician.name }}</h3>
+            <p>{{ technician.zone }}</p>
+          </div>
+          <p-tag [value]="technician.status" [severity]="statusSeverity(technician.status)"></p-tag>
+        </div>
+
+        <p class="contact-line">{{ technician.phone }}</p>
+
+        <button pButton type="button" label="View Profile" icon="pi pi-arrow-right" text></button>
+      </article>
+    }
+  </div>
+</section>

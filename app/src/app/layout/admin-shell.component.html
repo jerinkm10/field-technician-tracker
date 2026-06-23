@@ -1,0 +1,97 @@
+<div class="shell">
+  <aside class="sidebar" [class.is-open]="sidebarOpen()">
+    <div class="brand">
+      <p-avatar label="FT" shape="circle" size="large"></p-avatar>
+      <div class="brand-copy">
+        <p class="brand-overline">Admin Console</p>
+        <h1>{{ appName }}</h1>
+      </div>
+    </div>
+
+    <p-divider></p-divider>
+
+    <nav class="nav">
+      @for (item of primaryNavigation; track item.route) {
+        <a
+          class="nav-link"
+          [routerLink]="item.route!"
+          routerLinkActive="is-active"
+          (click)="closeSidebar()">
+          <i [class]="item.icon"></i>
+          <span>{{ item.label }}</span>
+        </a>
+      }
+
+      <div class="nav-group" [class.is-active]="isGroupActive(invoiceNavigation)">
+        <div class="nav-group-title">
+          <div class="nav-group-copy">
+            <i class="pi pi-receipt"></i>
+            <span>Invoice</span>
+          </div>
+          <i class="pi pi-angle-right nav-group-caret"></i>
+        </div>
+
+        <div class="nav-children">
+          @for (item of invoiceNavigation; track item.route) {
+            <a
+              class="nav-link nav-child-link"
+              [routerLink]="item.route!"
+              routerLinkActive="is-active"
+              (click)="closeSidebar()">
+              <i [class]="item.icon"></i>
+              <span>{{ item.label }}</span>
+            </a>
+          }
+        </div>
+      </div>
+    </nav>
+
+    <div class="sidebar-footer">
+      <p-tag
+        [severity]="connectionSeverity()"
+        [value]="realtime.connected() ? 'Socket Connected' : 'Socket Offline'">
+      </p-tag>
+      <p>{{ realtime.lastEvent() }}</p>
+    </div>
+  </aside>
+
+  <button
+    type="button"
+    class="sidebar-backdrop"
+    [class.is-visible]="sidebarOpen()"
+    (click)="closeSidebar()"
+    aria-label="Close sidebar">
+  </button>
+
+  <div class="shell-content">
+    <header class="topbar panel">
+      <div class="topbar-copy">
+        <button
+          pButton
+          type="button"
+          icon="pi pi-bars"
+          text
+          class="menu-toggle"
+          (click)="toggleSidebar()"
+          aria-label="Toggle sidebar">
+        </button>
+        <div>
+          <p class="topbar-overline">Operations Center</p>
+          <h2>Field Activity Control Panel</h2>
+        </div>
+      </div>
+
+      <div class="topbar-actions">
+        <p-tag
+          [severity]="connectionSeverity()"
+          [value]="realtime.connected() ? 'Live Tracking Online' : 'Live Tracking Pending'">
+        </p-tag>
+        <button pButton type="button" label="Logout" icon="pi pi-sign-out" text (click)="logout()"></button>
+      </div>
+    </header>
+
+    <main class="page-content">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+</div>

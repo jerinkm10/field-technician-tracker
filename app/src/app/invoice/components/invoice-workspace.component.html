@@ -1,0 +1,416 @@
+<section class="page">
+  <header class="page-header">
+    <div class="page-heading">
+      <p class="page-eyebrow">Invoice</p>
+      <h1 class="page-title">{{ pageTitle }}</h1>
+      <p class="page-subtitle">{{ pageSubtitle }}</p>
+    </div>
+
+    <div class="header-actions">
+      <button pButton type="button" label="New Invoice" icon="pi pi-plus" (click)="startNewInvoice()"></button>
+      <button
+        pButton
+        type="button"
+        label="Refresh"
+        icon="pi pi-refresh"
+        text
+        [loading]="loading()"
+        (click)="loadInvoices()">
+      </button>
+    </div>
+  </header>
+
+  @if (errorMessage()) {
+    <section class="panel state-panel error-panel">
+      <i class="pi pi-exclamation-circle"></i>
+      <div>
+        <h3>Invoice action needs attention</h3>
+        <p>{{ errorMessage() }}</p>
+      </div>
+    </section>
+  }
+
+  <section class="panel section-shell">
+    <div class="workspace-grid">
+      <div class="workspace-column list-column">
+        <div class="section-header">
+          <div>
+            <h3>{{ invoiceTypeLabel() }} List</h3>
+            <p>{{ invoices().length }} invoice(s) available.</p>
+          </div>
+        </div>
+
+        <p-table [value]="invoices()" responsiveLayout="scroll">
+          <ng-template #header>
+            <tr>
+              <th>Number</th>
+              <th>Date</th>
+              <th>Supplier</th>
+              <th>Total</th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          </ng-template>
+
+          <ng-template #body let-invoice>
+            <tr>
+              <td>{{ invoice.invoiceNumber }}</td>
+              <td>{{ invoice.invoiceDate | date : 'mediumDate' }}</td>
+              <td>{{ invoice.supplier.supplierName }}</td>
+              <td>{{ invoice.totalAmount | number : '1.2-2' }}</td>
+              <td>
+                <p-tag [value]="invoice.status" [severity]="statusSeverity(invoice.status)"></p-tag>
+              </td>
+              <td class="action-cell">
+                <button
+                  pButton
+                  type="button"
+                  label="Edit"
+                  text
+                  icon="pi pi-pencil"
+                  (click)="editInvoice(invoice)">
+                </button>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
+
+        @if (!invoices().length && !loading()) {
+          <div class="empty-state">
+            <p>No {{ invoiceTypeLabel().toLowerCase() }} records are available yet.</p>
+          </div>
+        }
+      </div>
+
+      <div class="workspace-column editor-column">
+        <div class="section-header">
+          <div>
+            <h3>{{ editingInvoiceId ? 'Edit Invoice' : 'Create Invoice' }}</h3>
+            <p>Use the shared supplier autocomplete and line item editor below.</p>
+          </div>
+
+          @if (editingInvoiceId) {
+            <p-tag value="Editing existing invoice" severity="info"></p-tag>
+          } @else {
+            <p-tag value="New draft" severity="warn"></p-tag>
+          }
+        </div>
+
+        <div class="form-grid compact-grid">
+          <label class="field">
+            <span>Invoice Number</span>
+            <input pInputText [(ngModel)]="draft.invoiceNumber" />
+          </label>
+
+          <label class="field">
+            <span>Invoice Date</span>
+            <input type="date" [(ngModel)]="draft.invoiceDate" />
+          </label>
+
+          <label class="field">
+            <span>Status</span>
+            <p-select
+              [options]="statusOptions"
+              optionLabel="label"
+              optionValue="value"
+              appendTo="body"
+              [(ngModel)]="draft.status">
+            </p-select>
+          </label>
+        </div>
+
+        <section class="subsection">
+          <div class="subsection-header">
+            <div>
+              <h4>Supplier</h4>
+              <p>Search by supplier name, phone, or GSTIN.</p>
+            </div>
+
+            <button
+              pButton
+              type="button"
+              label="+ Create Supplier"
+              text
+              icon="pi pi-plus"
+              (click)="openSupplierDialog()">
+            </button>
+          </div>
+
+          <div class="supplier-row">
+            <p-autoComplete
+              [(ngModel)]="supplierSearchValue"
+              [suggestions]="supplierSuggestions()"
+              optionLabel="supplierName"
+              [dropdown]="true"
+              [forceSelection]="true"
+              [style]="{ width: '100%' }"
+              placeholder="Search supplier by name, phone, or GSTIN"
+              appendTo="body"
+              (completeMethod)="searchSuppliers($event)"
+              (onSelect)="handleSupplierSelection($event.value)"
+              (ngModelChange)="handleSupplierSelection($event)">
+              <ng-template let-supplier #item>
+                <div class="supplier-option">
+                  <strong>{{ supplier.supplierName }}</strong>
+                  <span>{{ supplier.phone }}</span>
+                  <span>{{ supplier.gstin }}</span>
+                </div>
+              </ng-template>
+            </p-autoComplete>
+          </div>
+
+          @if (selectedSupplier) {
+            <div class="supplier-preview panel">
+              <div>
+                <span class="info-label">Supplier</span>
+                <strong>{{ selectedSupplier.supplierName }}</strong>
+                <p>{{ selectedSupplier.address }}</p>
+              </div>
+              <div>
+                <span class="info-label">GSTIN</span>
+                <strong>{{ selectedSupplier.gstin }}</strong>
+                <p>{{ selectedSupplier.phone }} | {{ selectedSupplier.email }}</p>
+              </div>
+              <div>
+                <span class="info-label">Bank</span>
+                <strong>{{ selectedSupplier.bankName }}</strong>
+                <p>{{ selectedSupplier.accountNumber }} | {{ selectedSupplier.ifscCode }}</p>
+              </div>
+            </div>
+          }
+        </section>
+
+        <section class="subsection">
+          <div class="subsection-header">
+            <div>
+              <h4>Customer Details</h4>
+              <p>Enter the billing details that will appear on the invoice.</p>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <label class="field">
+              <span>Customer Name</span>
+              <input pInputText [(ngModel)]="draft.customerName" />
+            </label>
+
+            <label class="field">
+              <span>Customer GSTIN</span>
+              <input pInputText [(ngModel)]="draft.customerGstin" />
+            </label>
+
+            <label class="field">
+              <span>Place of Supply</span>
+              <input pInputText [(ngModel)]="draft.placeOfSupply" />
+            </label>
+
+            <label class="field field-span-full">
+              <span>Customer Address</span>
+              <textarea [(ngModel)]="draft.customerAddress" rows="3"></textarea>
+            </label>
+          </div>
+        </section>
+
+        <section class="subsection">
+          <div class="subsection-header">
+            <div>
+              <h4>Line Items</h4>
+              <p>Quantities, pricing, and GST are rolled into the totals automatically.</p>
+            </div>
+
+            <button pButton type="button" label="Add Line" icon="pi pi-plus" text (click)="addLineItem()"></button>
+          </div>
+
+          <p-table [value]="draft.lineItems" responsiveLayout="scroll">
+            <ng-template #header>
+              <tr>
+                <th>Product / Service</th>
+                <th>Description</th>
+                <th>HSN / SAC</th>
+                <th>Qty</th>
+                <th>Unit Price</th>
+                <th>CGST %</th>
+                <th>CGST Amt</th>
+                <th>SGST %</th>
+                <th>SGST Amt</th>
+                <th>Line Amount</th>
+                <th></th>
+              </tr>
+            </ng-template>
+
+            <ng-template #body let-item let-rowIndex="rowIndex">
+              <tr>
+                <td>
+                  <input pInputText [(ngModel)]="item.productServiceName" class="table-input" />
+                </td>
+                <td>
+                  <input pInputText [(ngModel)]="item.description" class="table-input" />
+                </td>
+                <td>
+                  <input pInputText [(ngModel)]="item.hsnSac" class="table-input" />
+                </td>
+                <td>
+                  <p-inputNumber
+                    [(ngModel)]="item.quantity"
+                    [min]="0"
+                    [minFractionDigits]="0"
+                    [maxFractionDigits]="2"
+                    [style]="{ width: '100%' }"
+                    (ngModelChange)="recalculateLine(item)">
+                  </p-inputNumber>
+                </td>
+                <td>
+                  <p-inputNumber
+                    [(ngModel)]="item.unitPrice"
+                    [min]="0"
+                    mode="decimal"
+                    [minFractionDigits]="2"
+                    [maxFractionDigits]="2"
+                    [style]="{ width: '100%' }"
+                    (ngModelChange)="recalculateLine(item)">
+                  </p-inputNumber>
+                </td>
+                <td>
+                  <p-inputNumber
+                    [(ngModel)]="item.cgstPercentage"
+                    [min]="0"
+                    [max]="100"
+                    [minFractionDigits]="0"
+                    [maxFractionDigits]="2"
+                    [style]="{ width: '100%' }"
+                    (ngModelChange)="recalculateLine(item)">
+                  </p-inputNumber>
+                </td>
+                <td>{{ item.cgstAmount | number : '1.2-2' }}</td>
+                <td>
+                  <p-inputNumber
+                    [(ngModel)]="item.sgstPercentage"
+                    [min]="0"
+                    [max]="100"
+                    [minFractionDigits]="0"
+                    [maxFractionDigits]="2"
+                    [style]="{ width: '100%' }"
+                    (ngModelChange)="recalculateLine(item)">
+                  </p-inputNumber>
+                </td>
+                <td>{{ item.sgstAmount | number : '1.2-2' }}</td>
+                <td>{{ item.lineAmount | number : '1.2-2' }}</td>
+                <td class="action-cell">
+                  <button
+                    pButton
+                    type="button"
+                    icon="pi pi-trash"
+                    text
+                    severity="danger"
+                    (click)="removeLineItem(rowIndex)">
+                  </button>
+                </td>
+              </tr>
+            </ng-template>
+          </p-table>
+        </section>
+
+        <section class="subsection">
+          <div class="subsection-header">
+            <div>
+              <h4>Totals</h4>
+              <p>Rounded total and due amount can be adjusted before saving.</p>
+            </div>
+          </div>
+
+          <div class="form-grid compact-grid">
+            <label class="field">
+              <span>Total Before Tax</span>
+              <p-inputNumber
+                [(ngModel)]="draft.totalBeforeTax"
+                [disabled]="true"
+                mode="decimal"
+                [minFractionDigits]="2"
+                [maxFractionDigits]="2"
+                [style]="{ width: '100%' }">
+              </p-inputNumber>
+            </label>
+
+            <label class="field">
+              <span>Total Tax Amount</span>
+              <p-inputNumber
+                [(ngModel)]="draft.totalTaxAmount"
+                [disabled]="true"
+                mode="decimal"
+                [minFractionDigits]="2"
+                [maxFractionDigits]="2"
+                [style]="{ width: '100%' }">
+              </p-inputNumber>
+            </label>
+
+            <label class="field">
+              <span>Rounded Off</span>
+              <p-inputNumber
+                [(ngModel)]="draft.roundedOff"
+                mode="decimal"
+                [minFractionDigits]="2"
+                [maxFractionDigits]="2"
+                [style]="{ width: '100%' }"
+                (ngModelChange)="recalculateTotals()">
+              </p-inputNumber>
+            </label>
+
+            <label class="field">
+              <span>Total Amount</span>
+              <p-inputNumber
+                [(ngModel)]="draft.totalAmount"
+                [disabled]="true"
+                mode="decimal"
+                [minFractionDigits]="2"
+                [maxFractionDigits]="2"
+                [style]="{ width: '100%' }">
+              </p-inputNumber>
+            </label>
+
+            <label class="field">
+              <span>Amount Due</span>
+              <p-inputNumber
+                [(ngModel)]="draft.amountDue"
+                mode="decimal"
+                [minFractionDigits]="2"
+                [maxFractionDigits]="2"
+                [style]="{ width: '100%' }">
+              </p-inputNumber>
+            </label>
+          </div>
+        </section>
+
+        <div class="editor-actions">
+          <button
+            pButton
+            type="button"
+            [label]="saving() ? 'Saving...' : editingInvoiceId ? 'Update Invoice' : 'Create Invoice'"
+            icon="pi pi-save"
+            [disabled]="saving()"
+            (click)="saveInvoice()">
+          </button>
+          <button pButton type="button" label="Clear" text [disabled]="saving()" (click)="startNewInvoice()"></button>
+          @if (editingInvoiceId) {
+            <button
+              pButton
+              type="button"
+              label="Delete"
+              severity="danger"
+              text
+              [disabled]="deleting()"
+              (click)="deleteInvoice()">
+            </button>
+          }
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <app-supplier-form-dialog
+    [visible]="supplierDialogVisible()"
+    [saving]="savingSupplier()"
+    mode="create"
+    (cancel)="closeSupplierDialog()"
+    (save)="createSupplier($event)">
+  </app-supplier-form-dialog>
+</section>
