@@ -1,0 +1,82 @@
+<p-dialog
+  [visible]="visible"
+  [modal]="true"
+  [closable]="!saving"
+  [dismissableMask]="!saving"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: 'min(92vw, 42rem)' }"
+  [header]="dialogTitle()"
+  (onHide)="handleHide()">
+  <div class="input-field-form">
+    <div class="field-grid">
+      <label class="field">
+        <span>Section</span>
+        <input pInputText [(ngModel)]="draft.section" [disabled]="isReadOnly()" />
+      </label>
+
+      <label class="field">
+        <span>Field Key</span>
+        <input pInputText [(ngModel)]="draft.fieldKey" [disabled]="isReadOnly()" />
+      </label>
+
+      <label class="field">
+        <span>Label</span>
+        <input pInputText [(ngModel)]="draft.label" [disabled]="isReadOnly()" />
+      </label>
+
+      <label class="field">
+        <span>Input Type</span>
+        <p-select
+          [options]="inputTypeOptions"
+          optionLabel="label"
+          optionValue="value"
+          appendTo="body"
+          [(ngModel)]="draft.inputType"
+          [disabled]="isReadOnly()">
+        </p-select>
+      </label>
+
+      <label class="field field-span-2">
+        <span>Placeholder</span>
+        <input pInputText [(ngModel)]="draft.placeholder" [disabled]="isReadOnly()" />
+      </label>
+
+      <label class="field">
+        <span>Status</span>
+        <p-select
+          [options]="activeOptions"
+          optionLabel="label"
+          optionValue="value"
+          appendTo="body"
+          [(ngModel)]="draft.isActive"
+          [disabled]="isReadOnly()">
+        </p-select>
+      </label>
+    </div>
+  </div>
+
+  <ng-template #footer>
+    <div class="dialog-actions">
+      <button
+        pButton
+        type="button"
+        [label]="isReadOnly() ? 'Close' : 'Cancel'"
+        text
+        [disabled]="saving"
+        (click)="cancel.emit()">
+      </button>
+
+      @if (!isReadOnly()) {
+        <button
+          pButton
+          type="button"
+          [label]="saving ? 'Saving...' : primaryActionLabel()"
+          icon="pi pi-check"
+          [disabled]="saving || !canSubmit()"
+          (click)="submit()">
+        </button>
+      }
+    </div>
+  </ng-template>
+</p-dialog>

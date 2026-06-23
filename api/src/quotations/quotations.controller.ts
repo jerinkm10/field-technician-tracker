@@ -7,9 +7,12 @@ import {
   Patch,
   Post,
   Query,
+  Res,
+  StreamableFile,
   UseGuards,
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
+import type { Response } from 'express';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -32,6 +35,21 @@ export class QuotationsController {
   @Get(':id')
   async getQuotation(@Param('id') quotationId: string) {
     return this.quotationsService.getQuotationById(quotationId);
+  }
+
+  @Get(':id/pdf')
+  async downloadQuotationPdf(
+    @Param('id') quotationId: string,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const pdfBuffer = await this.quotationsService.getQuotationPdf(quotationId);
+    response.setHeader('Content-Type', 'application/pdf');
+    response.setHeader(
+      'Content-Disposition',
+      `inline; filename="quotation-${quotationId}.pdf"`,
+    );
+
+    return new StreamableFile(pdfBuffer);
   }
 
   @Post()

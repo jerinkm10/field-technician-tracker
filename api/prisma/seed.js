@@ -8,6 +8,8 @@ const {
   SupplierStatus,
   InvoiceType,
   InvoiceStatus,
+  CustomerStatus,
+  QuotationStatus,
 } = require('@prisma/client');
 
 const prisma = new PrismaClient();
@@ -16,6 +18,9 @@ async function main() {
   const passwordHash = await bcrypt.hash('password', 10);
 
   await prisma.invoiceLineItem.deleteMany();
+  await prisma.quotationLineItem.deleteMany();
+  await prisma.quotation.deleteMany();
+  await prisma.invoiceInputField.deleteMany();
   await prisma.invoice.deleteMany();
   await prisma.supplier.deleteMany();
   await prisma.jobAttachment.deleteMany();
@@ -82,18 +87,45 @@ async function main() {
       data: {
         name: 'Green Valley Apartments',
         phone: '+91-8012345678',
+        email: 'accounts@greenvalley.example.com',
+        gstin: '29AAACG1234B1Z7',
         address: '12 Lake View Road, Bengaluru',
+        billingAddress: '12 Lake View Road, Bengaluru',
+        shippingAddress: '12 Lake View Road, Bengaluru',
+        placeOfSupply: 'Karnataka',
         latitude: 12.9279232,
         longitude: 77.6271078,
+        status: CustomerStatus.ACTIVE,
       },
     }),
     prisma.customer.create({
       data: {
         name: 'Sunrise Medical Center',
         phone: '+91-8098765432',
+        email: 'finance@sunrise.example.com',
+        gstin: '29AAACS9876M1Z2',
         address: '44 Residency Cross, Bengaluru',
+        billingAddress: '44 Residency Cross, Bengaluru',
+        shippingAddress: '44 Residency Cross, Bengaluru',
+        placeOfSupply: 'Karnataka',
         latitude: 12.9755264,
         longitude: 77.6058014,
+        status: CustomerStatus.ACTIVE,
+      },
+    }),
+    prisma.customer.create({
+      data: {
+        name: 'Lakeside Tech Park',
+        phone: '+91-8080808080',
+        email: 'procurement@lakeside.example.com',
+        gstin: '29AABCL9087Q1Z9',
+        address: '8 Outer Ring Road, Bengaluru',
+        billingAddress: '8 Outer Ring Road, Bengaluru',
+        shippingAddress: '8 Tower B Service Lane, Bengaluru',
+        placeOfSupply: 'Karnataka',
+        latitude: 12.9611153,
+        longitude: 77.6382145,
+        status: CustomerStatus.ACTIVE,
       },
     }),
   ]);
@@ -220,10 +252,13 @@ async function main() {
       invoiceNumber: 'PF-2026-001',
       invoiceDate: new Date('2026-06-22T00:00:00.000Z'),
       supplierId: suppliers[0].id,
+      customerId: customers[0].id,
       customerName: 'Green Valley Apartments',
       customerAddress: '12 Lake View Road, Bengaluru',
       customerGstin: '29AAACG1234B1Z7',
       placeOfSupply: 'Karnataka',
+      notes: 'Prepared for approval before service execution.',
+      termsAndConditions: 'Payment due within 15 days from confirmation.',
       totalBeforeTax: 18000,
       totalTaxAmount: 3240,
       roundedOff: 0,
@@ -255,10 +290,13 @@ async function main() {
       invoiceNumber: 'TAX-2026-001',
       invoiceDate: new Date('2026-06-22T00:00:00.000Z'),
       supplierId: suppliers[1].id,
+      customerId: customers[1].id,
       customerName: 'Sunrise Medical Center',
       customerAddress: '44 Residency Cross, Bengaluru',
       customerGstin: '29AAACS9876M1Z2',
       placeOfSupply: 'Karnataka',
+      notes: 'Includes installation support and commissioning.',
+      termsAndConditions: 'Balance due on delivery and completion.',
       totalBeforeTax: 12400,
       totalTaxAmount: 2232,
       roundedOff: -0.32,
@@ -282,6 +320,80 @@ async function main() {
         ],
       },
     },
+  });
+
+  await prisma.quotation.create({
+    data: {
+      quotationNumber: 'QT-2026-001',
+      quotationDate: new Date('2026-06-23T00:00:00.000Z'),
+      validUntil: new Date('2026-07-07T00:00:00.000Z'),
+      supplierId: suppliers[0].id,
+      customerId: customers[2].id,
+      customerName: 'Lakeside Tech Park',
+      customerAddress: '8 Outer Ring Road, Bengaluru',
+      customerGstin: '29AABCL9087Q1Z9',
+      placeOfSupply: 'Karnataka',
+      notes: 'Commercial quotation for annual maintenance contract.',
+      termsAndConditions: 'Validity 14 days. Taxes extra where applicable.',
+      totalBeforeTax: 25000,
+      totalTaxAmount: 4500,
+      roundedOff: 0,
+      totalAmount: 29500,
+      status: QuotationStatus.SENT,
+      lineItems: {
+        create: [
+          {
+            productServiceName: 'Annual Maintenance Contract',
+            description: 'Comprehensive preventive maintenance for HVAC assets',
+            hsnSac: '998719',
+            quantity: 1,
+            unitPrice: 25000,
+            cgstAmount: 2250,
+            cgstPercentage: 9,
+            sgstAmount: 2250,
+            sgstPercentage: 9,
+            lineAmount: 29500,
+          },
+        ],
+      },
+    },
+  });
+
+  await prisma.invoiceInputField.createMany({
+    data: [
+      {
+        section: 'Supplier',
+        fieldKey: 'supplier.gstin',
+        label: 'Supplier GSTIN',
+        inputType: 'text',
+        placeholder: 'Auto-filled from supplier master',
+        isActive: true,
+      },
+      {
+        section: 'Customer',
+        fieldKey: 'customer.billingAddress',
+        label: 'Billing Address',
+        inputType: 'textarea',
+        placeholder: 'Auto-filled from customer master',
+        isActive: true,
+      },
+      {
+        section: 'Line Items',
+        fieldKey: 'lineItems.hsnSac',
+        label: 'HSN / SAC',
+        inputType: 'text',
+        placeholder: 'Enter HSN or SAC code',
+        isActive: true,
+      },
+      {
+        section: 'Totals',
+        fieldKey: 'totals.roundedOff',
+        label: 'Rounded Off',
+        inputType: 'number',
+        placeholder: 'Rounded adjustment',
+        isActive: true,
+      },
+    ],
   });
 
   console.log('Seed completed');

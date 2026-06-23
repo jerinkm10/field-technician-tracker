@@ -7,9 +7,12 @@ import {
   Patch,
   Post,
   Query,
+  Res,
+  StreamableFile,
   UseGuards,
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
+import type { Response } from 'express';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -32,6 +35,21 @@ export class TaxInvoicesController {
   @Get(':id')
   async getTaxInvoice(@Param('id') invoiceId: string) {
     return this.taxInvoicesService.getTaxInvoice(invoiceId);
+  }
+
+  @Get(':id/pdf')
+  async downloadTaxInvoicePdf(
+    @Param('id') invoiceId: string,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const pdfBuffer = await this.taxInvoicesService.getTaxInvoicePdf(invoiceId);
+    response.setHeader('Content-Type', 'application/pdf');
+    response.setHeader(
+      'Content-Disposition',
+      `inline; filename="tax-invoice-${invoiceId}.pdf"`,
+    );
+
+    return new StreamableFile(pdfBuffer);
   }
 
   @Post()

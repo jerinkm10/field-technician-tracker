@@ -12,6 +12,11 @@ import { TrackingModule } from './tracking/tracking.module';
 import { ReportsModule } from './reports/reports.module';
 import { SuppliersModule } from './suppliers/suppliers.module';
 import { InvoicesModule } from './invoices/invoices.module';
+import { CustomersModule } from './customers/customers.module';
+import { ProformaInvoicesModule } from './proforma-invoices/proforma-invoices.module';
+import { TaxInvoicesModule } from './tax-invoices/tax-invoices.module';
+import { QuotationsModule } from './quotations/quotations.module';
+import { InvoiceInputFieldsModule } from './invoice-input-fields/invoice-input-fields.module';
 
 @Module({
   imports: [
@@ -30,7 +35,12 @@ import { InvoicesModule } from './invoices/invoices.module';
     TrackingModule,
     ReportsModule,
     SuppliersModule,
+    CustomersModule,
     InvoicesModule,
+    ProformaInvoicesModule,
+    TaxInvoicesModule,
+    QuotationsModule,
+    InvoiceInputFieldsModule,
   ],
   controllers: [HealthController],
 })

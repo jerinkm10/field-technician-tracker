@@ -1,0 +1,212 @@
+<section class="page">
+  <header class="page-header">
+    <div class="page-heading">
+      <p class="page-eyebrow">Invoice</p>
+      <h1 class="page-title">{{ pageTitle }}</h1>
+      <p class="page-subtitle">
+        Use supplier and customer autocomplete, live tax totals, preview, and PDF download from the same document workspace.
+      </p>
+    </div>
+
+    <div class="header-actions">
+      <button pButton type="button" label="Back" icon="pi pi-arrow-left" text (click)="goBack()"></button>
+      @if (isReadOnly()) {
+        <button pButton type="button" label="Edit" icon="pi pi-pencil" (click)="goToEdit()"></button>
+      } @else {
+        <button pButton type="button" label="Preview" icon="pi pi-eye" outlined (click)="openPreview()"></button>
+        <button pButton type="button" label="Save" icon="pi pi-check" [loading]="saving()" (click)="saveDocument()"></button>
+      }
+    </div>
+  </header>
+
+  @if (errorMessage()) {
+    <section class="panel state-panel error-panel">
+      <i class="pi pi-exclamation-circle"></i>
+      <div>
+        <h3>Document action needs attention</h3>
+        <p>{{ errorMessage() }}</p>
+      </div>
+    </section>
+  }
+
+  <section class="panel section-shell">
+    <div class="editor-grid">
+      <label class="field">
+        <span>{{ kind === 'quotation' ? 'Quotation Number' : 'Invoice Number' }}</span>
+        <input pInputText [(ngModel)]="draft.documentNumber" [disabled]="isReadOnly()" />
+      </label>
+
+      <label class="field">
+        <span>{{ kind === 'quotation' ? 'Quotation Date' : 'Invoice Date' }}</span>
+        <input type="date" [(ngModel)]="draft.documentDate" [disabled]="isReadOnly()" />
+      </label>
+
+      @if (isQuotation()) {
+        <label class="field">
+          <span>Valid Until</span>
+          <input type="date" [(ngModel)]="draft.validUntil" [disabled]="isReadOnly()" />
+        </label>
+      }
+
+      <label class="field">
+        <span>Status</span>
+        <p-select
+          [options]="statusOptions()"
+          optionLabel="label"
+          optionValue="value"
+          appendTo="body"
+          [(ngModel)]="draft.status"
+          [disabled]="isReadOnly()">
+        </p-select>
+      </label>
+    </div>
+  </section>
+
+  <section class="panel section-shell">
+    <div class="section-header">
+      <div>
+        <h3>Supplier</h3>
+        <p>Pick a supplier from master data or create one inline.</p>
+      </div>
+    </div>
+
+    <app-supplier-autocomplete
+      [selectedSupplier]="selectedSupplier()"
+      [disabled]="isReadOnly()"
+      (selectedSupplierChange)="applySupplierSelection($event); draft.supplierId = $event?.id || ''"
+      (createRequested)="openSupplierDialog()">
+    </app-supplier-autocomplete>
+
+    <div class="detail-card">
+      <h4>{{ selectedSupplier()?.supplierName || 'Supplier details' }}</h4>
+      <p>{{ selectedSupplier()?.address || 'Select a supplier to auto-fill company and bank details.' }}</p>
+      <p>{{ selectedSupplier()?.phone || '-' }} | {{ selectedSupplier()?.email || '-' }}</p>
+      <p>GSTIN: {{ selectedSupplier()?.gstin || '-' }}</p>
+    </div>
+  </section>
+
+  <section class="panel section-shell">
+    <div class="section-header">
+      <div>
+        <h3>Customer</h3>
+        <p>Pick the bill-to customer from master data or create one inline.</p>
+      </div>
+    </div>
+
+    <app-customer-autocomplete
+      [selectedCustomer]="selectedCustomer()"
+      [disabled]="isReadOnly()"
+      (selectedCustomerChange)="applyCustomerSelection($event)"
+      (createRequested)="openCustomerDialog()">
+    </app-customer-autocomplete>
+
+    <div class="detail-card">
+      <h4>{{ draft.customerName || selectedCustomer()?.customerName || 'Bill To details' }}</h4>
+      <p>{{ draft.customerAddress || selectedCustomer()?.billingAddress || 'Select a customer to auto-fill billing details.' }}</p>
+      <p>{{ selectedCustomer()?.phone || '-' }} | {{ selectedCustomer()?.email || '-' }}</p>
+      <p>GSTIN: {{ draft.customerGstin || selectedCustomer()?.gstin || '-' }}</p>
+      <p>Place Of Supply: {{ draft.placeOfSupply || selectedCustomer()?.placeOfSupply || '-' }}</p>
+    </div>
+  </section>
+
+  <section class="panel section-shell">
+    <app-invoice-line-items
+      [lineItems]="draft.lineItems"
+      [readonly]="isReadOnly()"
+      (lineItemsChange)="handleLineItemsChange($event)">
+    </app-invoice-line-items>
+  </section>
+
+  <section class="panel section-shell">
+    <div class="totals-grid">
+      <label class="field">
+        <span>Total Before Tax</span>
+        <p-inputNumber [(ngModel)]="draft.totalBeforeTax" [disabled]="true" mode="decimal" [maxFractionDigits]="2"></p-inputNumber>
+      </label>
+
+      <label class="field">
+        <span>Total Tax Amount</span>
+        <p-inputNumber [(ngModel)]="draft.totalTaxAmount" [disabled]="true" mode="decimal" [maxFractionDigits]="2"></p-inputNumber>
+      </label>
+
+      <label class="field">
+        <span>Rounded Off</span>
+        <p-inputNumber
+          [(ngModel)]="draft.roundedOff"
+          [disabled]="isReadOnly()"
+          mode="decimal"
+          [maxFractionDigits]="2"
+          (ngModelChange)="handleRoundedOffChange()">
+        </p-inputNumber>
+      </label>
+
+      <label class="field">
+        <span>Total Amount</span>
+        <p-inputNumber [(ngModel)]="draft.totalAmount" [disabled]="true" mode="decimal" [maxFractionDigits]="2"></p-inputNumber>
+      </label>
+
+      <label class="field">
+        <span>Amount Due</span>
+        <p-inputNumber [(ngModel)]="draft.amountDue" [disabled]="true" mode="decimal" [maxFractionDigits]="2"></p-inputNumber>
+      </label>
+    </div>
+  </section>
+
+  <section class="panel section-shell">
+    <div class="editor-grid two-column">
+      <label class="field">
+        <span>Notes</span>
+        <textarea [(ngModel)]="draft.notes" rows="5" [disabled]="isReadOnly()"></textarea>
+      </label>
+
+      <label class="field">
+        <span>Terms & Conditions</span>
+        <textarea [(ngModel)]="draft.termsAndConditions" rows="5" [disabled]="isReadOnly()"></textarea>
+      </label>
+    </div>
+  </section>
+
+  <p-dialog
+    [visible]="previewVisible()"
+    [modal]="true"
+    [draggable]="false"
+    [resizable]="false"
+    [style]="{ width: 'min(94vw, 1100px)' }"
+    header="Invoice Preview"
+    (onHide)="closePreview()">
+    <app-invoice-preview [preview]="previewModel()"></app-invoice-preview>
+
+    <ng-template #footer>
+      <div class="dialog-actions">
+        <button pButton type="button" label="Close" text (click)="closePreview()"></button>
+        <button
+          pButton
+          type="button"
+          label="Download PDF"
+          icon="pi pi-download"
+          [loading]="downloading()"
+          [disabled]="!documentId"
+          (click)="downloadPdf()">
+        </button>
+      </div>
+    </ng-template>
+  </p-dialog>
+
+  <app-supplier-form-dialog
+    [visible]="supplierDialogVisible()"
+    [saving]="saving()"
+    mode="create"
+    [supplier]="null"
+    (cancel)="closeSupplierDialog()"
+    (save)="createSupplier($event)">
+  </app-supplier-form-dialog>
+
+  <app-customer-form-dialog
+    [visible]="customerDialogVisible()"
+    [saving]="saving()"
+    mode="create"
+    [customer]="null"
+    (cancel)="closeCustomerDialog()"
+    (save)="createCustomer($event)">
+  </app-customer-form-dialog>
+</section>

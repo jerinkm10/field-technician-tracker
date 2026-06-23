@@ -40,7 +40,7 @@ type StatusOption = {
 export class SupplierFormDialogComponent implements OnChanges {
   @Input() visible = false;
   @Input() saving = false;
-  @Input() mode: 'create' | 'edit' = 'create';
+  @Input() mode: 'create' | 'edit' | 'view' = 'create';
   @Input() supplier: SupplierRecord | null = null;
 
   @Output() readonly cancel = new EventEmitter<void>();
@@ -76,6 +76,10 @@ export class SupplierFormDialogComponent implements OnChanges {
   }
 
   protected submit(): void {
+    if (this.isReadOnly()) {
+      return;
+    }
+
     this.save.emit({
       supplierName: this.draft.supplierName.trim(),
       phone: this.draft.phone.trim(),
@@ -90,7 +94,7 @@ export class SupplierFormDialogComponent implements OnChanges {
   }
 
   protected canSubmit(): boolean {
-    return Boolean(
+    return !this.isReadOnly() && Boolean(
       this.draft.supplierName.trim() &&
         this.draft.phone.trim() &&
         this.draft.email.trim() &&
@@ -104,6 +108,25 @@ export class SupplierFormDialogComponent implements OnChanges {
 
   protected handleHide(): void {
     this.cancel.emit();
+  }
+
+  protected dialogTitle(): string {
+    switch (this.mode) {
+      case 'edit':
+        return 'Edit Supplier';
+      case 'view':
+        return 'Supplier Details';
+      default:
+        return 'Create Supplier';
+    }
+  }
+
+  protected primaryActionLabel(): string {
+    return this.mode === 'edit' ? 'Update Supplier' : 'Create Supplier';
+  }
+
+  protected isReadOnly(): boolean {
+    return this.mode === 'view';
   }
 
   private emptyDraft(): SupplierUpsertPayload {

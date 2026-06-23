@@ -1,0 +1,132 @@
+<div class="line-items-shell">
+  <div class="section-header">
+    <div>
+      <h3>Line Items</h3>
+      <p>Use the editable grid to calculate taxable value, GST, and final line amount.</p>
+    </div>
+
+    @if (!readonly) {
+      <button pButton type="button" label="Add Item" icon="pi pi-plus" (click)="addLineItem()"></button>
+    }
+  </div>
+
+  <p-table [value]="workingLineItems" responsiveLayout="scroll">
+    <ng-template #header>
+      <tr>
+        <th>Product / Service</th>
+        <th>Description</th>
+        <th>HSN/SAC</th>
+        <th>Qty</th>
+        <th>Unit Price</th>
+        <th>CGST %</th>
+        <th>CGST Amount</th>
+        <th>SGST %</th>
+        <th>SGST Amount</th>
+        <th>Line Amount</th>
+        <th></th>
+      </tr>
+    </ng-template>
+
+    <ng-template #body let-item let-rowIndex="rowIndex">
+      <tr>
+        <td>
+          <input
+            pInputText
+            [(ngModel)]="workingLineItems[rowIndex].productServiceName"
+            [disabled]="readonly"
+            (ngModelChange)="recalculateLine(rowIndex)" />
+        </td>
+        <td>
+          <input
+            pInputText
+            [(ngModel)]="workingLineItems[rowIndex].description"
+            [disabled]="readonly"
+            (ngModelChange)="recalculateLine(rowIndex)" />
+        </td>
+        <td>
+          <input
+            pInputText
+            [(ngModel)]="workingLineItems[rowIndex].hsnSac"
+            [disabled]="readonly"
+            (ngModelChange)="recalculateLine(rowIndex)" />
+        </td>
+        <td>
+          <p-inputNumber
+            [(ngModel)]="workingLineItems[rowIndex].quantity"
+            [min]="0"
+            [maxFractionDigits]="2"
+            [disabled]="readonly"
+            (ngModelChange)="recalculateLine(rowIndex)">
+          </p-inputNumber>
+        </td>
+        <td>
+          <p-inputNumber
+            [(ngModel)]="workingLineItems[rowIndex].unitPrice"
+            mode="decimal"
+            [min]="0"
+            [maxFractionDigits]="2"
+            [disabled]="readonly"
+            (ngModelChange)="recalculateLine(rowIndex)">
+          </p-inputNumber>
+        </td>
+        <td>
+          <p-inputNumber
+            [(ngModel)]="workingLineItems[rowIndex].cgstPercentage"
+            [min]="0"
+            [maxFractionDigits]="2"
+            [disabled]="readonly"
+            (ngModelChange)="recalculateLine(rowIndex)">
+          </p-inputNumber>
+        </td>
+        <td>
+          <p-inputNumber
+            [(ngModel)]="workingLineItems[rowIndex].cgstAmount"
+            mode="decimal"
+            [min]="0"
+            [maxFractionDigits]="2"
+            [disabled]="true">
+          </p-inputNumber>
+        </td>
+        <td>
+          <p-inputNumber
+            [(ngModel)]="workingLineItems[rowIndex].sgstPercentage"
+            [min]="0"
+            [maxFractionDigits]="2"
+            [disabled]="readonly"
+            (ngModelChange)="recalculateLine(rowIndex)">
+          </p-inputNumber>
+        </td>
+        <td>
+          <p-inputNumber
+            [(ngModel)]="workingLineItems[rowIndex].sgstAmount"
+            mode="decimal"
+            [min]="0"
+            [maxFractionDigits]="2"
+            [disabled]="true">
+          </p-inputNumber>
+        </td>
+        <td>
+          <p-inputNumber
+            [(ngModel)]="workingLineItems[rowIndex].lineAmount"
+            mode="decimal"
+            [min]="0"
+            [maxFractionDigits]="2"
+            [disabled]="true">
+          </p-inputNumber>
+        </td>
+        <td class="action-cell">
+          @if (!readonly) {
+            <button
+              pButton
+              type="button"
+              icon="pi pi-trash"
+              text
+              severity="danger"
+              (click)="removeLineItem(rowIndex)">
+            </button>
+          }
+        </td>
+      </tr>
+    </ng-template>
+  </p-table>
+</div>

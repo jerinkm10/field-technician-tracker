@@ -38,4 +38,8 @@ export class TaxInvoicesService {
   async deleteTaxInvoice(invoiceId: string) {
     return this.invoicesService.deleteInvoiceByType(invoiceId, 'TAX');
   }
+
+  async getTaxInvoicePdf(invoiceId: string) {
+    return this.invoicesService.getInvoicePdfByType(invoiceId, 'TAX');
+  }
 }

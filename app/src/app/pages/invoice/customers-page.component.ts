@@ -6,40 +6,43 @@ import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
 import { TagModule } from 'primeng/tag';
 
-import { InvoiceInputFieldsApiService } from '../../core/services/invoice-input-fields-api.service';
+import { CustomersApiService } from '../../core/services/customers-api.service';
+import { CustomerFormDialogComponent } from '../../invoice/components/customer-form-dialog.component';
 import { DataTableWithActionsComponent } from '../../invoice/components/data-table-with-actions.component';
 import { FilterDropdownComponent } from '../../invoice/components/filter-dropdown.component';
-import { InvoiceInputFieldDialogComponent } from '../../invoice/components/invoice-input-field-dialog.component';
 import {
-  InvoiceInputFieldListFilters,
-  InvoiceInputFieldRecord,
-  InvoiceInputFieldUpsertPayload,
+  CustomerListFilters,
+  CustomerRecord,
+  CustomerStatus,
+  CustomerUpsertPayload,
 } from '../../shared/models/billing.models';
 
-type Option = {
+type StatusOption = {
   label: string;
-  value: string | boolean | '';
+  value: CustomerStatus | '';
 };
 
+type TagSeverity = 'success' | 'warn';
+
 @Component({
-  selector: 'app-invoice-input-fields-page',
+  selector: 'app-invoice-customers-page',
   imports: [
     ButtonModule,
+    CustomerFormDialogComponent,
     DataTableWithActionsComponent,
     DatePipe,
     FilterDropdownComponent,
     FormsModule,
     InputTextModule,
-    InvoiceInputFieldDialogComponent,
     SelectModule,
     TagModule,
   ],
-  templateUrl: './invoice-input-fields-page.component.html',
-  styleUrl: './invoice-input-fields-page.component.scss',
+  templateUrl: './customers-page.component.html',
+  styleUrl: './customers-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class InvoiceInputFieldsPageComponent {
-  protected readonly fields = signal<InvoiceInputFieldRecord[]>([]);
+export class InvoiceCustomersPageComponent {
+  protected readonly customers = signal<CustomerRecord[]>([]);
   protected readonly loading = signal(false);
   protected readonly saving = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
@@ -50,51 +53,39 @@ export class InvoiceInputFieldsPageComponent {
   protected readonly hasNextPage = signal(false);
   protected readonly totalRecords = signal(0);
 
-  protected readonly sectionOptions: Option[] = [
-    { label: 'All sections', value: '' },
-    { label: 'Supplier', value: 'Supplier' },
-    { label: 'Customer', value: 'Customer' },
-    { label: 'Line Items', value: 'Line Items' },
-    { label: 'Totals', value: 'Totals' },
-    { label: 'Invoice Header', value: 'Invoice Header' },
-  ];
-
-  protected readonly activeOptions: Option[] = [
+  protected readonly statusOptions: StatusOption[] = [
     { label: 'All statuses', value: '' },
-    { label: 'Active', value: true },
-    { label: 'Inactive', value: false },
+    { label: 'Active', value: 'ACTIVE' },
+    { label: 'Inactive', value: 'INACTIVE' },
   ];
 
   protected searchTerm = '';
-  protected sectionFilter = '';
-  protected isActiveFilter: boolean | '' = '';
-  protected editingField: InvoiceInputFieldRecord | null = null;
+  protected statusFilter: CustomerStatus | '' = '';
+  protected gstinFilter = '';
+  protected phoneFilter = '';
+  protected editingCustomer: CustomerRecord | null = null;
   protected dialogMode: 'create' | 'edit' | 'view' = 'create';
 
-  constructor(
-    private readonly invoiceInputFieldsApiService: InvoiceInputFieldsApiService,
-  ) {
-    this.loadFields();
+  constructor(private readonly customersApiService: CustomersApiService) {
+    this.loadCustomers();
   }
 
-  protected loadFields(): void {
+  protected loadCustomers(): void {
     this.loading.set(true);
     this.errorMessage.set(null);
 
-    const filters: InvoiceInputFieldListFilters = {
+    const filters: CustomerListFilters = {
       search: this.searchTerm.trim() || undefined,
-      section: this.sectionFilter || undefined,
-      isActive:
-        typeof this.isActiveFilter === 'boolean'
-          ? this.isActiveFilter
-          : undefined,
+      status: this.statusFilter || undefined,
+      gstin: this.gstinFilter.trim() || undefined,
+      phone: this.phoneFilter.trim() || undefined,
       page: this.page(),
       limit: 10,
     };
 
-    this.invoiceInputFieldsApiService.getInvoiceInputFieldsPage(filters).subscribe({
+    this.customersApiService.getCustomersPage(filters).subscribe({
       next: (response) => {
-        this.fields.set(response.data);
+        this.customers.set(response.data);
         this.totalRecords.set(response.meta.total);
         this.totalPages.set(response.meta.totalPages);
         this.hasPreviousPage.set(response.meta.hasPreviousPage);
@@ -104,7 +95,7 @@ export class InvoiceInputFieldsPageComponent {
       error: () => {
         this.loading.set(false);
         this.errorMessage.set(
-          'Unable to load invoice input fields. Make sure the backend is running and migrated.',
+          'Unable to load customers. Make sure the backend is running and the latest migrations are applied.',
         );
       },
     });
@@ -112,19 +103,19 @@ export class InvoiceInputFieldsPageComponent {
 
   protected openCreateDialog(): void {
     this.dialogMode = 'create';
-    this.editingField = null;
+    this.editingCustomer = null;
     this.dialogVisible.set(true);
   }
 
-  protected openViewDialog(field: InvoiceInputFieldRecord): void {
+  protected openViewDialog(customer: CustomerRecord): void {
     this.dialogMode = 'view';
-    this.editingField = field;
+    this.editingCustomer = customer;
     this.dialogVisible.set(true);
   }
 
-  protected openEditDialog(field: InvoiceInputFieldRecord): void {
+  protected openEditDialog(customer: CustomerRecord): void {
     this.dialogMode = 'edit';
-    this.editingField = field;
+    this.editingCustomer = customer;
     this.dialogVisible.set(true);
   }
 
@@ -132,57 +123,61 @@ export class InvoiceInputFieldsPageComponent {
     this.dialogVisible.set(false);
   }
 
-  protected saveField(payload: InvoiceInputFieldUpsertPayload): void {
+  protected saveCustomer(payload: CustomerUpsertPayload): void {
     this.saving.set(true);
 
-    const request = this.editingField
-      ? this.invoiceInputFieldsApiService.updateInvoiceInputField(
-          this.editingField.id,
-          payload,
-        )
-      : this.invoiceInputFieldsApiService.createInvoiceInputField(payload);
+    const request = this.editingCustomer
+      ? this.customersApiService.updateCustomer(this.editingCustomer.id, payload)
+      : this.customersApiService.createCustomer(payload);
 
     request.subscribe({
       next: () => {
         this.saving.set(false);
         this.dialogVisible.set(false);
-        this.loadFields();
+        this.loadCustomers();
       },
       error: () => {
         this.saving.set(false);
         this.errorMessage.set(
-          'Invoice input field save failed. Field key must remain unique.',
+          'Customer save failed. Verify GSTIN uniqueness and required address fields.',
         );
       },
     });
   }
 
-  protected deleteField(field: InvoiceInputFieldRecord): void {
-    if (!window.confirm(`Delete input field "${field.label}"?`)) {
+  protected deleteCustomer(customer: CustomerRecord): void {
+    if (!window.confirm(`Delete customer "${customer.customerName}"?`)) {
       return;
     }
 
-    this.invoiceInputFieldsApiService.deleteInvoiceInputField(field.id).subscribe({
+    this.customersApiService.deleteCustomer(customer.id).subscribe({
       next: () => {
-        this.loadFields();
+        this.loadCustomers();
       },
       error: () => {
-        this.errorMessage.set('Invoice input field delete failed.');
+        this.errorMessage.set(
+          'Customer delete failed. Customers linked to jobs, invoices, or quotations cannot be removed.',
+        );
       },
     });
   }
 
+  protected statusSeverity(status: CustomerStatus): TagSeverity {
+    return status === 'ACTIVE' ? 'success' : 'warn';
+  }
+
   protected applyFilters(): void {
     this.page.set(1);
-    this.loadFields();
+    this.loadCustomers();
   }
 
   protected resetFilters(): void {
     this.searchTerm = '';
-    this.sectionFilter = '';
-    this.isActiveFilter = '';
+    this.statusFilter = '';
+    this.gstinFilter = '';
+    this.phoneFilter = '';
     this.page.set(1);
-    this.loadFields();
+    this.loadCustomers();
   }
 
   protected previousPage(): void {
@@ -191,7 +186,7 @@ export class InvoiceInputFieldsPageComponent {
     }
 
     this.page.update((value) => value - 1);
-    this.loadFields();
+    this.loadCustomers();
   }
 
   protected nextPage(): void {
@@ -200,6 +195,6 @@ export class InvoiceInputFieldsPageComponent {
     }
 
     this.page.update((value) => value + 1);
-    this.loadFields();
+    this.loadCustomers();
   }
 }

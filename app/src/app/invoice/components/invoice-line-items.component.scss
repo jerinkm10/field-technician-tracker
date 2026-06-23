@@ -1,0 +1,25 @@
+.line-items-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.section-header h3,
+.section-header p {
+  margin: 0;
+}
+
+.section-header p {
+  color: var(--ftt-muted);
+}
+
+.action-cell {
+  width: 52px;
+}

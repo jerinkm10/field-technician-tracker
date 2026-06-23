@@ -4,6 +4,10 @@
   grid-template-columns: minmax(0, 2fr) minmax(220px, 0.9fr) auto;
 }
 
+.compact-grid {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
 .field {
   display: flex;
   flex-direction: column;
@@ -20,14 +24,11 @@
   width: 100%;
 }
 
-.field-span-2 {
-  min-width: 0;
-}
-
 .filter-actions,
-.action-cell {
+.action-cell,
+.toolbar-actions {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   gap: 0.5rem;
 }
 
@@ -71,6 +72,7 @@
 
   .filter-actions,
   .action-cell,
+  .toolbar-actions,
   .section-header {
     align-items: flex-start;
     flex-direction: column;

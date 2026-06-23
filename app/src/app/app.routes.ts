@@ -69,22 +69,144 @@ export const routes: Routes = [
           {
             path: 'proforma',
             loadComponent: () =>
-              import('./pages/invoice/proforma-invoice-page.component').then(
-                (module) => module.ProformaInvoicePageComponent
-              )
+              import('./pages/invoice/billing-document-list-page.component').then(
+                (module) => module.BillingDocumentListPageComponent
+              ),
+            data: {
+              kind: 'proforma',
+            }
+          },
+          {
+            path: 'proforma/create',
+            loadComponent: () =>
+              import('./pages/invoice/billing-document-editor-page.component').then(
+                (module) => module.BillingDocumentEditorPageComponent
+              ),
+            data: {
+              kind: 'proforma',
+              pageMode: 'create'
+            }
+          },
+          {
+            path: 'proforma/:id/view',
+            loadComponent: () =>
+              import('./pages/invoice/billing-document-editor-page.component').then(
+                (module) => module.BillingDocumentEditorPageComponent
+              ),
+            data: {
+              kind: 'proforma',
+              pageMode: 'view'
+            }
+          },
+          {
+            path: 'proforma/:id/edit',
+            loadComponent: () =>
+              import('./pages/invoice/billing-document-editor-page.component').then(
+                (module) => module.BillingDocumentEditorPageComponent
+              ),
+            data: {
+              kind: 'proforma',
+              pageMode: 'edit'
+            }
           },
           {
             path: 'tax',
             loadComponent: () =>
-              import('./pages/invoice/tax-invoice-page.component').then(
-                (module) => module.TaxInvoicePageComponent
-              )
+              import('./pages/invoice/billing-document-list-page.component').then(
+                (module) => module.BillingDocumentListPageComponent
+              ),
+            data: {
+              kind: 'tax',
+            }
+          },
+          {
+            path: 'tax/create',
+            loadComponent: () =>
+              import('./pages/invoice/billing-document-editor-page.component').then(
+                (module) => module.BillingDocumentEditorPageComponent
+              ),
+            data: {
+              kind: 'tax',
+              pageMode: 'create'
+            }
+          },
+          {
+            path: 'tax/:id/view',
+            loadComponent: () =>
+              import('./pages/invoice/billing-document-editor-page.component').then(
+                (module) => module.BillingDocumentEditorPageComponent
+              ),
+            data: {
+              kind: 'tax',
+              pageMode: 'view'
+            }
+          },
+          {
+            path: 'tax/:id/edit',
+            loadComponent: () =>
+              import('./pages/invoice/billing-document-editor-page.component').then(
+                (module) => module.BillingDocumentEditorPageComponent
+              ),
+            data: {
+              kind: 'tax',
+              pageMode: 'edit'
+            }
+          },
+          {
+            path: 'quotation',
+            loadComponent: () =>
+              import('./pages/invoice/billing-document-list-page.component').then(
+                (module) => module.BillingDocumentListPageComponent
+              ),
+            data: {
+              kind: 'quotation',
+            }
+          },
+          {
+            path: 'quotation/create',
+            loadComponent: () =>
+              import('./pages/invoice/billing-document-editor-page.component').then(
+                (module) => module.BillingDocumentEditorPageComponent
+              ),
+            data: {
+              kind: 'quotation',
+              pageMode: 'create'
+            }
+          },
+          {
+            path: 'quotation/:id/view',
+            loadComponent: () =>
+              import('./pages/invoice/billing-document-editor-page.component').then(
+                (module) => module.BillingDocumentEditorPageComponent
+              ),
+            data: {
+              kind: 'quotation',
+              pageMode: 'view'
+            }
+          },
+          {
+            path: 'quotation/:id/edit',
+            loadComponent: () =>
+              import('./pages/invoice/billing-document-editor-page.component').then(
+                (module) => module.BillingDocumentEditorPageComponent
+              ),
+            data: {
+              kind: 'quotation',
+              pageMode: 'edit'
+            }
           },
           {
             path: 'suppliers',
             loadComponent: () =>
               import('./pages/invoice/suppliers-page.component').then(
                 (module) => module.InvoiceSuppliersPageComponent
+              )
+          },
+          {
+            path: 'customers',
+            loadComponent: () =>
+              import('./pages/invoice/customers-page.component').then(
+                (module) => module.InvoiceCustomersPageComponent
               )
           },
           {

@@ -201,6 +201,7 @@ model Supplier {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   invoices      Invoice[]
+  quotations    Quotation[]
 
   @@index([supplierName])
   @@index([phone])
@@ -209,29 +210,29 @@ model Supplier {
 }
 
 model Invoice {
-  id               String          @id @default(cuid())
-  invoiceType      InvoiceType
-  invoiceNumber    String          @unique
-  invoiceDate      DateTime
-  supplierId       String
-  customerId       String
-  customerName     String
-  customerAddress  String
-  customerGstin    String
-  placeOfSupply    String
-  notes            String?
+  id                 String          @id @default(cuid())
+  invoiceType        InvoiceType
+  invoiceNumber      String          @unique
+  invoiceDate        DateTime
+  supplierId         String
+  customerId         String
+  customerName       String
+  customerAddress    String
+  customerGstin      String
+  placeOfSupply      String
+  notes              String?
   termsAndConditions String?
-  totalBeforeTax   Float
-  totalTaxAmount   Float
-  roundedOff       Float
-  totalAmount      Float
-  amountDue        Float
-  status           InvoiceStatus   @default(DRAFT)
-  createdAt        DateTime        @default(now())
-  updatedAt        DateTime        @updatedAt
-  supplier         Supplier        @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  customer         Customer        @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  lineItems      InvoiceLineItem[]
+  totalBeforeTax     Float
+  totalTaxAmount     Float
+  roundedOff         Float
+  totalAmount        Float
+  amountDue          Float
+  status             InvoiceStatus   @default(DRAFT)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  supplier           Supplier        @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  customer           Customer        @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  lineItems          InvoiceLineItem[]
 
   @@index([invoiceType])
   @@index([invoiceDate])

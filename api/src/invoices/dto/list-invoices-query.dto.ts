@@ -1,4 +1,4 @@
-import { InvoiceType } from '@prisma/client';
+import { InvoiceStatus, InvoiceType } from '@prisma/client';
 import { IsDateString, IsEnum, IsOptional, IsString } from 'class-validator';
 import { PaginationQueryDto } from '../../common/dto/pagination-query.dto';
 
@@ -16,8 +16,8 @@ export class ListInvoicesQueryDto extends PaginationQueryDto {
   customerId?: string;
 
   @IsOptional()
-  @IsEnum(['DRAFT', 'ISSUED', 'PAID', 'CANCELLED'] as const)
-  status?: 'DRAFT' | 'ISSUED' | 'PAID' | 'CANCELLED';
+  @IsEnum(InvoiceStatus)
+  status?: InvoiceStatus;
 
   @IsOptional()
   @IsDateString()

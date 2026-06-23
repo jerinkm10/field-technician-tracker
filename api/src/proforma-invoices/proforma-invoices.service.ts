@@ -41,4 +41,8 @@ export class ProformaInvoicesService {
   async deleteProformaInvoice(invoiceId: string) {
     return this.invoicesService.deleteInvoiceByType(invoiceId, 'PROFORMA');
   }
+
+  async getProformaInvoicePdf(invoiceId: string) {
+    return this.invoicesService.getInvoicePdfByType(invoiceId, 'PROFORMA');
+  }
 }

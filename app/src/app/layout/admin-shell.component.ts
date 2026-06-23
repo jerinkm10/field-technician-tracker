@@ -60,9 +60,19 @@ export class AdminShellComponent {
           icon: 'pi pi-file-check',
         },
         {
+          label: 'Quotation',
+          route: '/invoice/quotation',
+          icon: 'pi pi-file-edit',
+        },
+        {
           label: 'Suppliers',
           route: '/invoice/suppliers',
           icon: 'pi pi-building',
+        },
+        {
+          label: 'Customers',
+          route: '/invoice/customers',
+          icon: 'pi pi-id-card',
         },
         {
           label: 'Invoice Input Fields',

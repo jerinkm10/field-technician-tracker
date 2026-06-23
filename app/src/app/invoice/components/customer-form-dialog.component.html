@@ -5,14 +5,14 @@
   [dismissableMask]="!saving"
   [draggable]="false"
   [resizable]="false"
-  [style]="{ width: 'min(92vw, 48rem)' }"
+  [style]="{ width: 'min(92vw, 56rem)' }"
   [header]="dialogTitle()"
   (onHide)="handleHide()">
-  <div class="supplier-form">
+  <div class="customer-form">
     <div class="field-grid">
       <label class="field">
-        <span>Supplier Name</span>
-        <input pInputText [(ngModel)]="draft.supplierName" [disabled]="isReadOnly()" />
+        <span>Customer Name</span>
+        <input pInputText [(ngModel)]="draft.customerName" [disabled]="isReadOnly()" />
       </label>
 
       <label class="field">
@@ -31,18 +31,8 @@
       </label>
 
       <label class="field">
-        <span>Bank Name</span>
-        <input pInputText [(ngModel)]="draft.bankName" [disabled]="isReadOnly()" />
-      </label>
-
-      <label class="field">
-        <span>Account Number</span>
-        <input pInputText [(ngModel)]="draft.accountNumber" [disabled]="isReadOnly()" />
-      </label>
-
-      <label class="field">
-        <span>IFSC Code</span>
-        <input pInputText [(ngModel)]="draft.ifscCode" [disabled]="isReadOnly()" />
+        <span>Place Of Supply</span>
+        <input pInputText [(ngModel)]="draft.placeOfSupply" [disabled]="isReadOnly()" />
       </label>
 
       <label class="field">
@@ -51,17 +41,24 @@
           [options]="statusOptions"
           optionLabel="label"
           optionValue="value"
+          appendTo="body"
           [(ngModel)]="draft.status"
-          [disabled]="isReadOnly()"
-          appendTo="body">
+          [disabled]="isReadOnly()">
         </p-select>
       </label>
     </div>
 
-    <label class="field">
-      <span>Address</span>
-      <textarea [(ngModel)]="draft.address" rows="4" [disabled]="isReadOnly()"></textarea>
-    </label>
+    <div class="field-grid">
+      <label class="field">
+        <span>Billing Address</span>
+        <textarea [(ngModel)]="draft.billingAddress" rows="4" [disabled]="isReadOnly()"></textarea>
+      </label>
+
+      <label class="field">
+        <span>Shipping Address</span>
+        <textarea [(ngModel)]="draft.shippingAddress" rows="4" [disabled]="isReadOnly()"></textarea>
+      </label>
+    </div>
   </div>
 
   <ng-template #footer>

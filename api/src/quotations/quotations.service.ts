@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, QuotationStatus } from '@prisma/client';
+import { BillingDocumentPdfData, BillingDocumentsService } from '../billing-documents/billing-documents.service';
 import {
   createPaginationMeta,
   normalizePagination,
@@ -92,7 +93,10 @@ type QuotationRecord = Prisma.QuotationGetPayload<{
 
 @Injectable()
 export class QuotationsService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly billingDocumentsService: BillingDocumentsService,
+  ) {}
 
   async listQuotations(query: ListQuotationsQueryDto) {
     const { page, limit, skip } = normalizePagination(query.page, query.limit);
@@ -257,6 +261,14 @@ export class QuotationsService {
     });
   }
 
+  async getQuotationPdf(quotationId: string): Promise<Buffer> {
+    const quotation = await this.getQuotationOrThrow(quotationId);
+
+    return this.billingDocumentsService.buildPdfBuffer(
+      this.toPdfData(quotation),
+    );
+  }
+
   private async getQuotationOrThrow(
     quotationId: string,
   ): Promise<QuotationRecord> {
@@ -320,5 +332,44 @@ export class QuotationsService {
     }
 
     throw error;
+  }
+
+  private toPdfData(quotation: QuotationRecord): BillingDocumentPdfData {
+    return {
+      documentTypeLabel: 'Quotation',
+      documentNumber: quotation.quotationNumber,
+      documentDate: quotation.quotationDate,
+      validUntil: quotation.validUntil,
+      supplier: {
+        name: quotation.supplier.supplierName,
+        phone: quotation.supplier.phone,
+        email: quotation.supplier.email,
+        gstin: quotation.supplier.gstin,
+        address: quotation.supplier.address,
+        bankName: quotation.supplier.bankName,
+        accountNumber: quotation.supplier.accountNumber,
+        ifscCode: quotation.supplier.ifscCode,
+      },
+      customer: {
+        name: quotation.customerName,
+        phone: quotation.customer.phone,
+        email: quotation.customer.email,
+        gstin: quotation.customerGstin,
+        address:
+          quotation.customer.billingAddress ??
+          quotation.customerAddress ??
+          quotation.customer.address,
+        placeOfSupply: quotation.placeOfSupply,
+      },
+      lineItems: quotation.lineItems,
+      totalBeforeTax: quotation.totalBeforeTax,
+      totalTaxAmount: quotation.totalTaxAmount,
+      roundedOff: quotation.roundedOff,
+      totalAmount: quotation.totalAmount,
+      amountDue: quotation.totalAmount,
+      notes: quotation.notes,
+      termsAndConditions: quotation.termsAndConditions,
+      status: quotation.status,
+    };
   }
 }

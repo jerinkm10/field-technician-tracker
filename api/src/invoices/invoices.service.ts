@@ -4,6 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InvoiceStatus, Prisma } from '@prisma/client';
+import { BillingDocumentPdfData, BillingDocumentsService } from '../billing-documents/billing-documents.service';
 import { createPaginationMeta, normalizePagination } from '../common/utils/pagination.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
@@ -90,7 +91,10 @@ type InvoiceRecord = Prisma.InvoiceGetPayload<{
 
 @Injectable()
 export class InvoicesService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly billingDocumentsService: BillingDocumentsService,
+  ) {}
 
   async listInvoices(query: ListInvoicesQueryDto) {
     const { page, limit, skip } = normalizePagination(query.page, query.limit);
@@ -283,6 +287,25 @@ export class InvoicesService {
     return this.deleteInvoice(invoiceId);
   }
 
+  async getInvoicePdf(invoiceId: string): Promise<Buffer> {
+    const invoice = await this.getInvoiceById(invoiceId);
+
+    return this.billingDocumentsService.buildPdfBuffer(
+      this.toPdfData(invoice),
+    );
+  }
+
+  async getInvoicePdfByType(
+    invoiceId: string,
+    invoiceType: 'PROFORMA' | 'TAX',
+  ): Promise<Buffer> {
+    const invoice = await this.getInvoiceByIdAndType(invoiceId, invoiceType);
+
+    return this.billingDocumentsService.buildPdfBuffer(
+      this.toPdfData(invoice),
+    );
+  }
+
   private async getInvoiceOrThrow(invoiceId: string): Promise<InvoiceRecord> {
     const invoice = await this.prismaService.invoice.findUnique({
       where: {
@@ -326,6 +349,45 @@ export class InvoicesService {
     if (!customer) {
       throw new NotFoundException('Customer not found');
     }
+  }
+
+  private toPdfData(invoice: InvoiceRecord): BillingDocumentPdfData {
+    return {
+      documentTypeLabel:
+        invoice.invoiceType === 'PROFORMA' ? 'Proforma Invoice' : 'Tax Invoice',
+      documentNumber: invoice.invoiceNumber,
+      documentDate: invoice.invoiceDate,
+      supplier: {
+        name: invoice.supplier.supplierName,
+        phone: invoice.supplier.phone,
+        email: invoice.supplier.email,
+        gstin: invoice.supplier.gstin,
+        address: invoice.supplier.address,
+        bankName: invoice.supplier.bankName,
+        accountNumber: invoice.supplier.accountNumber,
+        ifscCode: invoice.supplier.ifscCode,
+      },
+      customer: {
+        name: invoice.customerName,
+        phone: invoice.customer.phone,
+        email: invoice.customer.email,
+        gstin: invoice.customerGstin,
+        address:
+          invoice.customer.billingAddress ??
+          invoice.customerAddress ??
+          invoice.customer.address,
+        placeOfSupply: invoice.placeOfSupply,
+      },
+      lineItems: invoice.lineItems,
+      totalBeforeTax: invoice.totalBeforeTax,
+      totalTaxAmount: invoice.totalTaxAmount,
+      roundedOff: invoice.roundedOff,
+      totalAmount: invoice.totalAmount,
+      amountDue: invoice.amountDue,
+      notes: invoice.notes,
+      termsAndConditions: invoice.termsAndConditions,
+      status: invoice.status,
+    };
   }
 
   private toLineItemCreateInput(

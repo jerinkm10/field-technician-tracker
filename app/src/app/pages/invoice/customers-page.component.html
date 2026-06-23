@@ -2,9 +2,9 @@
   <header class="page-header">
     <div class="page-heading">
       <p class="page-eyebrow">Invoice</p>
-      <h1 class="page-title">Invoice input fields</h1>
+      <h1 class="page-title">Customer master</h1>
       <p class="page-subtitle">
-        Keep configurable invoice field metadata organized for supplier, customer, header, line-item, and totals sections.
+        Search customers, manage billing details, and keep invoice and quotation bill-to records in sync.
       </p>
     </div>
   </header>
@@ -13,7 +13,7 @@
     <section class="panel state-panel error-panel">
       <i class="pi pi-exclamation-circle"></i>
       <div>
-        <h3>Input field action needs attention</h3>
+        <h3>Customer action needs attention</h3>
         <p>{{ errorMessage() }}</p>
       </div>
     </section>
@@ -23,31 +23,30 @@
     <div class="section-header">
       <div>
         <h3>Search and filters</h3>
-        <p>Use backend filters to narrow invoice field configuration by section and active state.</p>
+        <p>Use backend filters for customer name, phone, GSTIN, and account status.</p>
       </div>
 
       <div class="toolbar-actions">
         <app-filter-dropdown>
           <label class="field">
-            <span>Section</span>
+            <span>Status</span>
             <p-select
-              [options]="sectionOptions"
+              [options]="statusOptions"
               optionLabel="label"
               optionValue="value"
               appendTo="body"
-              [(ngModel)]="sectionFilter">
+              [(ngModel)]="statusFilter">
             </p-select>
           </label>
 
           <label class="field">
-            <span>Status</span>
-            <p-select
-              [options]="activeOptions"
-              optionLabel="label"
-              optionValue="value"
-              appendTo="body"
-              [(ngModel)]="isActiveFilter">
-            </p-select>
+            <span>GSTIN</span>
+            <input pInputText [(ngModel)]="gstinFilter" placeholder="Filter by GSTIN" />
+          </label>
+
+          <label class="field">
+            <span>Phone</span>
+            <input pInputText [(ngModel)]="phoneFilter" placeholder="Filter by phone" />
           </label>
 
           <div class="filter-actions">
@@ -56,7 +55,7 @@
           </div>
         </app-filter-dropdown>
 
-        <button pButton type="button" label="Refresh" icon="pi pi-refresh" text [loading]="loading()" (click)="loadFields()">
+        <button pButton type="button" label="Refresh" icon="pi pi-refresh" text [loading]="loading()" (click)="loadCustomers()">
         </button>
       </div>
     </div>
@@ -67,7 +66,7 @@
         <input
           pInputText
           [(ngModel)]="searchTerm"
-          placeholder="Search label, field key, or section"
+          placeholder="Search customer by name, phone, or GSTIN"
           (keydown.enter)="applyFilters()" />
       </label>
 
@@ -79,14 +78,14 @@
   </section>
 
   <app-data-table-with-actions
-    title="Invoice input fields"
-    subtitle="Field definitions used by invoice and quotation forms."
-    createLabel="Create Input Field"
+    title="Customers"
+    subtitle="Bill-to records shared by proforma invoices, tax invoices, and quotations."
+    createLabel="Create Customer"
     [showCreateButton]="true"
-    [records]="fields()"
+    [records]="customers()"
     [loading]="loading()"
-    [footerLabel]="totalRecords() + ' field record(s) available.'"
-    [emptyColspan]="7"
+    [footerLabel]="totalRecords() + ' customer record(s) available.'"
+    [emptyColspan]="8"
     [page]="page()"
     [totalPages]="totalPages()"
     [hasPreviousPage]="hasPreviousPage()"
@@ -96,32 +95,36 @@
     (nextPage)="nextPage()">
     <ng-template #header>
       <tr>
-        <th>Section</th>
-        <th>Field Key</th>
-        <th>Label</th>
-        <th>Input Type</th>
+        <th>Customer</th>
+        <th>Phone</th>
+        <th>Email</th>
+        <th>GSTIN</th>
+        <th>Place Of Supply</th>
         <th>Status</th>
         <th>Updated</th>
         <th></th>
       </tr>
     </ng-template>
 
-    <ng-template #body let-field>
+    <ng-template #body let-customer>
       <tr>
-        <td>{{ field.section }}</td>
-        <td>{{ field.fieldKey }}</td>
         <td>
-          <strong>{{ field.label }}</strong>
-          <div class="muted-row">{{ field.placeholder || 'No placeholder' }}</div>
+          <strong>{{ customer.customerName }}</strong>
+          <div class="muted-row">{{ customer.billingAddress }}</div>
         </td>
-        <td>{{ field.inputType }}</td>
+        <td>{{ customer.phone }}</td>
+        <td>{{ customer.email || '-' }}</td>
+        <td>{{ customer.gstin || '-' }}</td>
+        <td>{{ customer.placeOfSupply || '-' }}</td>
         <td>
-          <p-tag [value]="field.isActive ? 'ACTIVE' : 'INACTIVE'" [severity]="field.isActive ? 'success' : 'warn'"></p-tag>
+          <p-tag [value]="customer.status" [severity]="statusSeverity(customer.status)"></p-tag>
         </td>
-        <td>{{ field.updatedAt | date : 'medium' }}</td>
+        <td>{{ customer.updatedAt | date : 'medium' }}</td>
         <td class="action-cell">
-          <button pButton type="button" label="View" text icon="pi pi-eye" (click)="openViewDialog(field)"></button>
-          <button pButton type="button" label="Edit" text icon="pi pi-pencil" (click)="openEditDialog(field)"></button>
+          <button pButton type="button" label="View" text icon="pi pi-eye" (click)="openViewDialog(customer)">
+          </button>
+          <button pButton type="button" label="Edit" text icon="pi pi-pencil" (click)="openEditDialog(customer)">
+          </button>
           <button
             pButton
             type="button"
@@ -129,19 +132,19 @@
             text
             severity="danger"
             icon="pi pi-trash"
-            (click)="deleteField(field)">
+            (click)="deleteCustomer(customer)">
           </button>
         </td>
       </tr>
     </ng-template>
   </app-data-table-with-actions>
 
-  <app-invoice-input-field-dialog
+  <app-customer-form-dialog
     [visible]="dialogVisible()"
     [saving]="saving()"
     [mode]="dialogMode"
-    [field]="editingField"
+    [customer]="editingCustomer"
     (cancel)="closeDialog()"
-    (save)="saveField($event)">
-  </app-invoice-input-field-dialog>
+    (save)="saveCustomer($event)">
+  </app-customer-form-dialog>
 </section>

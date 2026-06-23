@@ -4,15 +4,17 @@ import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
-import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 
 import {
+  SupplierListFilters,
   SupplierRecord,
-  SuppliersApiService,
   SupplierStatus,
   SupplierUpsertPayload,
-} from '../../core/services/suppliers-api.service';
+} from '../../shared/models/billing.models';
+import { SuppliersApiService } from '../../core/services/suppliers-api.service';
+import { DataTableWithActionsComponent } from '../../invoice/components/data-table-with-actions.component';
+import { FilterDropdownComponent } from '../../invoice/components/filter-dropdown.component';
 import { SupplierFormDialogComponent } from '../../invoice/components/supplier-form-dialog.component';
 
 type StatusOption = {
@@ -26,12 +28,13 @@ type TagSeverity = 'success' | 'warn';
   selector: 'app-invoice-suppliers-page',
   imports: [
     ButtonModule,
+    DataTableWithActionsComponent,
     DatePipe,
+    FilterDropdownComponent,
     FormsModule,
     InputTextModule,
     SelectModule,
     SupplierFormDialogComponent,
-    TableModule,
     TagModule,
   ],
   templateUrl: './suppliers-page.component.html',
@@ -44,8 +47,13 @@ export class InvoiceSuppliersPageComponent {
   protected readonly saving = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly dialogVisible = signal(false);
+  protected readonly page = signal(1);
+  protected readonly totalPages = signal(1);
+  protected readonly hasPreviousPage = signal(false);
+  protected readonly hasNextPage = signal(false);
+  protected readonly totalRecords = signal(0);
 
-  protected statusOptions: StatusOption[] = [
+  protected readonly statusOptions: StatusOption[] = [
     { label: 'All statuses', value: '' },
     { label: 'Active', value: 'ACTIVE' },
     { label: 'Inactive', value: 'INACTIVE' },
@@ -53,7 +61,10 @@ export class InvoiceSuppliersPageComponent {
 
   protected searchTerm = '';
   protected statusFilter: SupplierStatus | '' = '';
+  protected gstinFilter = '';
+  protected phoneFilter = '';
   protected editingSupplier: SupplierRecord | null = null;
+  protected dialogMode: 'create' | 'edit' | 'view' = 'create';
 
   constructor(private readonly suppliersApiService: SuppliersApiService) {
     this.loadSuppliers();
@@ -63,31 +74,47 @@ export class InvoiceSuppliersPageComponent {
     this.loading.set(true);
     this.errorMessage.set(null);
 
-    this.suppliersApiService
-      .listSuppliers(
-        this.searchTerm.trim() || undefined,
-        this.statusFilter || undefined,
-      )
-      .subscribe({
-        next: (suppliers) => {
-          this.suppliers.set(suppliers);
-          this.loading.set(false);
-        },
-        error: () => {
-          this.loading.set(false);
-          this.errorMessage.set(
-            'Unable to load suppliers. Make sure the backend is running and the database is migrated.',
-          );
-        },
-      });
+    const filters: SupplierListFilters = {
+      search: this.searchTerm.trim() || undefined,
+      status: this.statusFilter || undefined,
+      gstin: this.gstinFilter.trim() || undefined,
+      phone: this.phoneFilter.trim() || undefined,
+      page: this.page(),
+      limit: 10,
+    };
+
+    this.suppliersApiService.getSuppliersPage(filters).subscribe({
+      next: (response) => {
+        this.suppliers.set(response.data);
+        this.totalRecords.set(response.meta.total);
+        this.totalPages.set(response.meta.totalPages);
+        this.hasPreviousPage.set(response.meta.hasPreviousPage);
+        this.hasNextPage.set(response.meta.hasNextPage);
+        this.loading.set(false);
+      },
+      error: () => {
+        this.loading.set(false);
+        this.errorMessage.set(
+          'Unable to load suppliers. Make sure the backend is running and the database is migrated.',
+        );
+      },
+    });
   }
 
   protected openCreateDialog(): void {
+    this.dialogMode = 'create';
     this.editingSupplier = null;
     this.dialogVisible.set(true);
   }
 
+  protected openViewDialog(supplier: SupplierRecord): void {
+    this.dialogMode = 'view';
+    this.editingSupplier = supplier;
+    this.dialogVisible.set(true);
+  }
+
   protected openEditDialog(supplier: SupplierRecord): void {
+    this.dialogMode = 'edit';
     this.editingSupplier = supplier;
     this.dialogVisible.set(true);
   }
@@ -137,5 +164,37 @@ export class InvoiceSuppliersPageComponent {
 
   protected statusSeverity(status: SupplierStatus): TagSeverity {
     return status === 'ACTIVE' ? 'success' : 'warn';
+  }
+
+  protected applyFilters(): void {
+    this.page.set(1);
+    this.loadSuppliers();
+  }
+
+  protected resetFilters(): void {
+    this.searchTerm = '';
+    this.statusFilter = '';
+    this.gstinFilter = '';
+    this.phoneFilter = '';
+    this.page.set(1);
+    this.loadSuppliers();
+  }
+
+  protected previousPage(): void {
+    if (!this.hasPreviousPage()) {
+      return;
+    }
+
+    this.page.update((value) => value - 1);
+    this.loadSuppliers();
+  }
+
+  protected nextPage(): void {
+    if (!this.hasNextPage()) {
+      return;
+    }
+
+    this.page.update((value) => value + 1);
+    this.loadSuppliers();
   }
 }

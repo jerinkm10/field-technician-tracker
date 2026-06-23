@@ -1,37 +1,17 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable } from 'rxjs';
+import { map, Observable } from 'rxjs';
 
 import { appSettings } from '../config/app.settings';
+import {
+  PaginatedResponse,
+  SupplierListFilters,
+  SupplierRecord,
+  SupplierStatus,
+  SupplierUpsertPayload,
+} from '../../shared/models/billing.models';
 
-export type SupplierStatus = 'ACTIVE' | 'INACTIVE';
-
-export type SupplierRecord = {
-  id: string;
-  supplierName: string;
-  phone: string;
-  email: string;
-  gstin: string;
-  address: string;
-  bankName: string;
-  accountNumber: string;
-  ifscCode: string;
-  status: SupplierStatus;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type SupplierUpsertPayload = {
-  supplierName: string;
-  phone: string;
-  email: string;
-  gstin: string;
-  address: string;
-  bankName: string;
-  accountNumber: string;
-  ifscCode: string;
-  status: SupplierStatus;
-};
+export type { SupplierRecord, SupplierStatus, SupplierUpsertPayload };
 
 @Injectable({
   providedIn: 'root',
@@ -44,17 +24,27 @@ export class SuppliersApiService {
     search?: string,
     status?: SupplierStatus,
   ): Observable<SupplierRecord[]> {
-    let params = new HttpParams();
+    return this.getSuppliersPage({
+      search,
+      status,
+      limit: 10,
+    }).pipe(map((response) => response.data));
+  }
 
-    if (search?.trim()) {
-      params = params.set('search', search.trim());
-    }
+  getSuppliersPage(
+    filters: SupplierListFilters = {},
+  ): Observable<PaginatedResponse<SupplierRecord>> {
+    return this.httpClient.get<PaginatedResponse<SupplierRecord>>(this.endpoint, {
+      params: this.buildParams(filters),
+    });
+  }
 
-    if (status) {
-      params = params.set('status', status);
-    }
-
-    return this.httpClient.get<SupplierRecord[]>(this.endpoint, { params });
+  searchSuppliers(search: string): Observable<SupplierRecord[]> {
+    return this.getSuppliersPage({
+      search,
+      status: 'ACTIVE',
+      limit: 10,
+    }).pipe(map((response) => response.data));
   }
 
   getSupplier(supplierId: string): Observable<SupplierRecord> {
@@ -77,5 +67,19 @@ export class SuppliersApiService {
 
   deleteSupplier(supplierId: string): Observable<SupplierRecord> {
     return this.httpClient.delete<SupplierRecord>(`${this.endpoint}/${supplierId}`);
+  }
+
+  private buildParams(filters: SupplierListFilters): HttpParams {
+    let params = new HttpParams();
+
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value === '' || value === null || value === undefined) {
+        return;
+      }
+
+      params = params.set(key, String(value));
+    });
+
+    return params;
   }
 }

@@ -2,10 +2,8 @@
   <header class="page-header">
     <div class="page-heading">
       <p class="page-eyebrow">Invoice</p>
-      <h1 class="page-title">Supplier master</h1>
-      <p class="page-subtitle">
-        Search suppliers, manage active or inactive status, and keep billing bank details ready for invoice creation.
-      </p>
+      <h1 class="page-title">{{ pageTitle }}</h1>
+      <p class="page-subtitle">{{ pageSubtitle }}</p>
     </div>
   </header>
 
@@ -13,7 +11,7 @@
     <section class="panel state-panel error-panel">
       <i class="pi pi-exclamation-circle"></i>
       <div>
-        <h3>Supplier action needs attention</h3>
+        <h3>Document action needs attention</h3>
         <p>{{ errorMessage() }}</p>
       </div>
     </section>
@@ -23,7 +21,7 @@
     <div class="section-header">
       <div>
         <h3>Search and filters</h3>
-        <p>Use backend-driven filters for supplier name, phone, GSTIN, and status.</p>
+        <p>Each list uses backend query parameters for search, status, customer, and date-range filtering.</p>
       </div>
 
       <div class="toolbar-actions">
@@ -31,7 +29,7 @@
           <label class="field">
             <span>Status</span>
             <p-select
-              [options]="statusOptions"
+              [options]="statusOptions()"
               optionLabel="label"
               optionValue="value"
               appendTo="body"
@@ -40,13 +38,25 @@
           </label>
 
           <label class="field">
-            <span>GSTIN</span>
-            <input pInputText [(ngModel)]="gstinFilter" placeholder="Filter by GSTIN" />
+            <span>Customer</span>
+            <p-select
+              [options]="customers()"
+              optionLabel="customerName"
+              optionValue="id"
+              appendTo="body"
+              [(ngModel)]="customerIdFilter"
+              placeholder="Filter by customer">
+            </p-select>
           </label>
 
           <label class="field">
-            <span>Phone</span>
-            <input pInputText [(ngModel)]="phoneFilter" placeholder="Filter by phone" />
+            <span>Date From</span>
+            <input type="date" [(ngModel)]="dateFrom" />
+          </label>
+
+          <label class="field">
+            <span>Date To</span>
+            <input type="date" [(ngModel)]="dateTo" />
           </label>
 
           <div class="filter-actions">
@@ -55,7 +65,7 @@
           </div>
         </app-filter-dropdown>
 
-        <button pButton type="button" label="Refresh" icon="pi pi-refresh" text [loading]="loading()" (click)="loadSuppliers()">
+        <button pButton type="button" label="Refresh" icon="pi pi-refresh" text [loading]="loading()" (click)="loadDocuments()">
         </button>
       </div>
     </div>
@@ -66,7 +76,7 @@
         <input
           pInputText
           [(ngModel)]="searchTerm"
-          placeholder="Search supplier by name, phone, or GSTIN"
+          placeholder="Search by document number, customer, or supplier"
           (keydown.enter)="applyFilters()" />
       </label>
 
@@ -78,56 +88,58 @@
   </section>
 
   <app-data-table-with-actions
-    title="Suppliers"
-    subtitle="Maintain billing-ready supplier records for proforma, tax invoice, and quotation flows."
-    createLabel="Create Supplier"
+    [title]="tableTitle"
+    subtitle="View, edit, or delete individual billing documents from the shared invoice workspace."
+    [createLabel]="'Create ' + (kind === 'quotation' ? 'Quotation' : kind === 'tax' ? 'Tax Invoice' : 'Proforma Invoice')"
     [showCreateButton]="true"
-    [records]="suppliers()"
+    [records]="documents()"
     [loading]="loading()"
-    [footerLabel]="totalRecords() + ' supplier record(s) available.'"
+    [footerLabel]="totalRecords() + ' record(s) available.'"
     [emptyColspan]="8"
     [page]="page()"
     [totalPages]="totalPages()"
     [hasPreviousPage]="hasPreviousPage()"
     [hasNextPage]="hasNextPage()"
-    (create)="openCreateDialog()"
+    (create)="createDocument()"
     (previousPage)="previousPage()"
     (nextPage)="nextPage()">
     <ng-template #header>
       <tr>
-        <th>Supplier</th>
-        <th>Phone</th>
-        <th>Email</th>
-        <th>GSTIN</th>
-        <th>Bank</th>
+        <th>Document</th>
+        <th>Customer</th>
+        <th>Date</th>
+        @if (kind === 'quotation') {
+          <th>Valid Until</th>
+        }
         <th>Status</th>
+        <th>Total Amount</th>
         <th>Updated</th>
         <th></th>
       </tr>
     </ng-template>
 
-    <ng-template #body let-supplier>
+    <ng-template #body let-document>
       <tr>
         <td>
-          <strong>{{ supplier.supplierName }}</strong>
-          <div class="muted-row">{{ supplier.address }}</div>
-        </td>
-        <td>{{ supplier.phone }}</td>
-        <td>{{ supplier.email }}</td>
-        <td>{{ supplier.gstin }}</td>
-        <td>
-          <strong>{{ supplier.bankName }}</strong>
-          <div class="muted-row">{{ supplier.accountNumber }} | {{ supplier.ifscCode }}</div>
+          <strong>{{ document.documentNumber }}</strong>
+          <div class="muted-row">{{ document.supplier.supplierName }}</div>
         </td>
         <td>
-          <p-tag [value]="supplier.status" [severity]="statusSeverity(supplier.status)"></p-tag>
+          <strong>{{ document.customerName }}</strong>
+          <div class="muted-row">{{ document.customerAddress }}</div>
         </td>
-        <td>{{ supplier.updatedAt | date : 'medium' }}</td>
+        <td>{{ document.documentDate | date : 'mediumDate' }}</td>
+        @if (kind === 'quotation') {
+          <td>{{ document.validUntil | date : 'mediumDate' }}</td>
+        }
+        <td>
+          <p-tag [value]="document.status" [severity]="statusSeverity(document.status)"></p-tag>
+        </td>
+        <td>{{ document.totalAmount | number : '1.2-2' }}</td>
+        <td>{{ document.updatedAt | date : 'medium' }}</td>
         <td class="action-cell">
-          <button pButton type="button" label="View" text icon="pi pi-eye" (click)="openViewDialog(supplier)">
-          </button>
-          <button pButton type="button" label="Edit" text icon="pi pi-pencil" (click)="openEditDialog(supplier)">
-          </button>
+          <button pButton type="button" label="View" text icon="pi pi-eye" (click)="viewDocument(document)"></button>
+          <button pButton type="button" label="Edit" text icon="pi pi-pencil" (click)="editDocument(document)"></button>
           <button
             pButton
             type="button"
@@ -135,19 +147,10 @@
             text
             severity="danger"
             icon="pi pi-trash"
-            (click)="deleteSupplier(supplier)">
+            (click)="deleteDocument(document)">
           </button>
         </td>
       </tr>
     </ng-template>
   </app-data-table-with-actions>
-
-  <app-supplier-form-dialog
-    [visible]="dialogVisible()"
-    [saving]="saving()"
-    [mode]="dialogMode"
-    [supplier]="editingSupplier"
-    (cancel)="closeDialog()"
-    (save)="saveSupplier($event)">
-  </app-supplier-form-dialog>
 </section>
