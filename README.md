@@ -23,6 +23,13 @@ field-technician-tracker/
   README.md
 ```
 
+## Deployment Modes
+
+- `docker-compose.yml`: local development containers
+- `docker-compose.prod.yml`: EC2 production deployment
+
+For the EC2 deployment steps, see [EC2-DEPLOY.md](./EC2-DEPLOY.md).
+
 ## Start Project Containers
 
 From the project root:
