@@ -6,6 +6,14 @@ export type CustomerStatus = 'ACTIVE' | 'INACTIVE';
 export type CompanyStatus = 'ACTIVE' | 'INACTIVE';
 export type ProductServiceType = 'PRODUCT' | 'SERVICE';
 export type ProductServiceStatus = 'ACTIVE' | 'INACTIVE';
+export type ProductServiceHistoryAction =
+  | 'CREATE'
+  | 'EDIT'
+  | 'RATE_CHANGE'
+  | 'TAX_CHANGE'
+  | 'STATUS_CHANGE'
+  | 'DEACTIVATE'
+  | 'DELETE';
 export type OutstandingInvoiceType = 'PROFORMA' | 'TAX';
 export type OutstandingStatus = 'PENDING' | 'PARTIAL' | 'PAID' | 'OVERDUE';
 export type AmcBillingPeriod = 'QUARTERLY' | 'HALF_YEARLY' | 'YEARLY';
@@ -205,6 +213,19 @@ export type ProductServiceUpsertPayload = {
   defaultRate: number;
   taxPercentage: number;
   status: ProductServiceStatus;
+};
+
+export type ProductServiceHistoryRecord = {
+  id: string;
+  productServiceId: string | null;
+  productServiceName: string;
+  action: ProductServiceHistoryAction;
+  oldValue: Record<string, string | number> | null;
+  newValue: Record<string, string | number> | null;
+  note: string | null;
+  changedById: string | null;
+  changedByName: string;
+  createdAt: string;
 };
 
 export type OutstandingRecord = {

@@ -136,6 +136,14 @@
           <button
             pButton
             type="button"
+            label="History"
+            text
+            icon="pi pi-history"
+            (click)="openHistoryDialog(productService)">
+          </button>
+          <button
+            pButton
+            type="button"
             label="Delete"
             text
             severity="danger"
@@ -155,4 +163,105 @@
     (cancel)="closeDialog()"
     (save)="saveProductService($event)">
   </app-product-service-form-dialog>
+
+  <p-dialog
+    [visible]="historyDialogVisible()"
+    [modal]="true"
+    [closable]="!historyLoading()"
+    [dismissableMask]="false"
+    [closeOnEscape]="false"
+    [draggable]="false"
+    [resizable]="false"
+    [style]="{ width: 'min(96vw, 78rem)' }"
+    header="Product and Service History"
+    (onHide)="closeHistoryDialog()">
+    <div class="history-dialog">
+      @if (historyProductService) {
+        <div class="history-dialog__header">
+          <div>
+            <strong>{{ historyProductService.name }}</strong>
+            <p>
+              {{ historyProductService.type }} | {{ historyProductService.hsnSacCode }}
+            </p>
+          </div>
+        </div>
+      }
+
+      <p-table
+        [value]="historyRecords()"
+        responsiveLayout="scroll"
+        [loading]="historyLoading()">
+        <ng-template #header>
+          <tr>
+            <th>Date / Time</th>
+            <th>Changed By</th>
+            <th>Action</th>
+            <th>Old Value</th>
+            <th>New Value</th>
+            <th>Note</th>
+          </tr>
+        </ng-template>
+
+        <ng-template #body let-entry>
+          <tr>
+            <td>{{ entry.createdAt | date: 'dd MMM yyyy, hh:mm a' }}</td>
+            <td>{{ entry.changedByName }}</td>
+            <td>
+              <p-tag [value]="historyActionLabel(entry.action)" severity="info"></p-tag>
+            </td>
+            <td>
+              @if (historyValueEntries(entry.oldValue).length > 0) {
+                <ul class="history-value-list">
+                  @for (item of historyValueEntries(entry.oldValue); track item.label) {
+                    <li>
+                      <strong>{{ item.label }}:</strong>
+                      <span>{{ item.value }}</span>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <span class="muted-row">-</span>
+              }
+            </td>
+            <td>
+              @if (historyValueEntries(entry.newValue).length > 0) {
+                <ul class="history-value-list">
+                  @for (item of historyValueEntries(entry.newValue); track item.label) {
+                    <li>
+                      <strong>{{ item.label }}:</strong>
+                      <span>{{ item.value }}</span>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <span class="muted-row">-</span>
+              }
+            </td>
+            <td>{{ entry.note || '-' }}</td>
+          </tr>
+        </ng-template>
+
+        <ng-template #emptymessage>
+          <tr>
+            <td colspan="6" class="history-empty">
+              No history records are available for this product or service yet.
+            </td>
+          </tr>
+        </ng-template>
+      </p-table>
+    </div>
+
+    <ng-template #footer>
+      <div class="filter-actions">
+        <button
+          pButton
+          type="button"
+          label="Close"
+          text
+          [disabled]="historyLoading()"
+          (click)="closeHistoryDialog()">
+        </button>
+      </div>
+    </ng-template>
+  </p-dialog>
 </section>

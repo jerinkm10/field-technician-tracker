@@ -10,9 +10,11 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { CreateProductServiceDto } from './dto/create-product-service.dto';
 import { ListProductServicesQueryDto } from './dto/list-product-services-query.dto';
 import { UpdateProductServiceDto } from './dto/update-product-service.dto';
@@ -31,6 +33,11 @@ export class ProductServicesController {
     return this.productServicesService.listProductServices(query);
   }
 
+  @Get(':id/history')
+  async getProductServiceHistory(@Param('id') productServiceId: string) {
+    return this.productServicesService.getProductServiceHistory(productServiceId);
+  }
+
   @Get(':id')
   async getProductService(@Param('id') productServiceId: string) {
     return this.productServicesService.getProductServiceById(productServiceId);
@@ -39,9 +46,11 @@ export class ProductServicesController {
   @Post()
   async createProductService(
     @Body() createProductServiceDto: CreateProductServiceDto,
+    @CurrentUser() currentUser: JwtPayload,
   ) {
     return this.productServicesService.createProductService(
       createProductServiceDto,
+      currentUser,
     );
   }
 
@@ -49,15 +58,23 @@ export class ProductServicesController {
   async updateProductService(
     @Param('id') productServiceId: string,
     @Body() updateProductServiceDto: UpdateProductServiceDto,
+    @CurrentUser() currentUser: JwtPayload,
   ) {
     return this.productServicesService.updateProductService(
       productServiceId,
       updateProductServiceDto,
+      currentUser,
     );
   }
 
   @Delete(':id')
-  async deleteProductService(@Param('id') productServiceId: string) {
-    return this.productServicesService.deleteProductService(productServiceId);
+  async deleteProductService(
+    @Param('id') productServiceId: string,
+    @CurrentUser() currentUser: JwtPayload,
+  ) {
+    return this.productServicesService.deleteProductService(
+      productServiceId,
+      currentUser,
+    );
   }
 }

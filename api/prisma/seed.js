@@ -8,6 +8,7 @@ const {
   SupplierStatus,
   ProductServiceType,
   ProductServiceStatus,
+  ProductServiceHistoryAction,
   OutstandingStatus,
   CompanyStatus,
   InvoiceType,
@@ -38,6 +39,7 @@ async function main() {
   await prisma.outstanding.deleteMany();
   await prisma.invoice.deleteMany();
   await prisma.company.deleteMany();
+  await prisma.productServiceHistory.deleteMany();
   await prisma.productService.deleteMany();
   await prisma.supplier.deleteMany();
   await prisma.jobAttachment.deleteMany();
@@ -424,6 +426,28 @@ async function main() {
     orderBy: {
       name: 'asc',
     },
+  });
+
+  await prisma.productServiceHistory.createMany({
+    data: productServices.map((productService) => ({
+      productServiceId: productService.id,
+      productServiceName: productService.name,
+      action: ProductServiceHistoryAction.CREATE,
+      oldValue: null,
+      newValue: {
+        name: productService.name,
+        type: productService.type,
+        description: productService.description,
+        hsnSacCode: productService.hsnSacCode,
+        unit: productService.unit,
+        defaultRate: productService.defaultRate,
+        taxPercentage: productService.taxPercentage,
+        status: productService.status,
+      },
+      note: 'Seeded product or service master record.',
+      changedById: adminUser.id,
+      changedByName: adminUser.name,
+    })),
   });
 
   await prisma.company.create({

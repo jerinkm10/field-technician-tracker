@@ -83,6 +83,16 @@ enum ProductServiceStatus {
   INACTIVE
 }
 
+enum ProductServiceHistoryAction {
+  CREATE
+  EDIT
+  RATE_CHANGE
+  TAX_CHANGE
+  STATUS_CHANGE
+  DEACTIVATE
+  DELETE
+}
+
 enum OutstandingStatus {
   PENDING
   PARTIAL
@@ -126,6 +136,7 @@ model User {
   assignedLeads     Lead[]             @relation("LeadAssignedEmployee")
   leadNotes         LeadNote[]
   leadStatusHistory LeadStatusHistory[]
+  productServiceHistory ProductServiceHistory[]
 
   @@index([role])
   @@index([status])
@@ -285,11 +296,31 @@ model ProductService {
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
   leads         Lead[]
+  history       ProductServiceHistory[]
 
   @@index([name])
   @@index([type])
   @@index([status])
   @@index([hsnSacCode])
+}
+
+model ProductServiceHistory {
+  id                 String                      @id @default(cuid())
+  productServiceId   String?
+  productServiceName String
+  action             ProductServiceHistoryAction
+  oldValue           Json?
+  newValue           Json?
+  note               String?
+  changedById        String?
+  changedByName      String
+  createdAt          DateTime                    @default(now())
+  productService     ProductService?             @relation(fields: [productServiceId], references: [id], onDelete: SetNull)
+  changedBy          User?                       @relation(fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@index([productServiceId])
+  @@index([action])
+  @@index([createdAt])
 }
 
 model Company {

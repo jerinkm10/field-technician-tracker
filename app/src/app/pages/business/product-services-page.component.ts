@@ -1,9 +1,11 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { DecimalPipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
+import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
+import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
 
 import { ProductServicesApiService } from '../../core/services/product-services-api.service';
@@ -12,6 +14,7 @@ import { ProductServiceFormDialogComponent } from '../../business/components/pro
 import { DataTableWithActionsComponent } from '../../invoice/components/data-table-with-actions.component';
 import { FilterDropdownComponent } from '../../invoice/components/filter-dropdown.component';
 import {
+  ProductServiceHistoryRecord,
   ProductServiceRecord,
   ProductServiceStatus,
   ProductServiceType,
@@ -30,12 +33,15 @@ type TagSeverity = 'success' | 'warn' | 'info';
   imports: [
     ButtonModule,
     DataTableWithActionsComponent,
+    DatePipe,
     DecimalPipe,
+    DialogModule,
     FilterDropdownComponent,
     FormsModule,
     InputTextModule,
     ProductServiceFormDialogComponent,
     SelectModule,
+    TableModule,
     TagModule,
   ],
   templateUrl: './product-services-page.component.html',
@@ -46,9 +52,12 @@ export class ProductServicesPageComponent {
   private readonly uiFeedback = inject(UiFeedbackService);
 
   protected readonly productServices = signal<ProductServiceRecord[]>([]);
+  protected readonly historyRecords = signal<ProductServiceHistoryRecord[]>([]);
   protected readonly loading = signal(false);
   protected readonly saving = signal(false);
+  protected readonly historyLoading = signal(false);
   protected readonly dialogVisible = signal(false);
+  protected readonly historyDialogVisible = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly page = signal(1);
   protected readonly totalPages = signal(1);
@@ -73,6 +82,7 @@ export class ProductServicesPageComponent {
   protected statusFilter: ProductServiceStatus | '' = '';
   protected hsnSacCodeFilter = '';
   protected selectedProductService: ProductServiceRecord | null = null;
+  protected historyProductService: ProductServiceRecord | null = null;
   protected dialogMode: 'create' | 'edit' | 'view' = 'create';
 
   constructor(
@@ -126,10 +136,38 @@ export class ProductServicesPageComponent {
     this.openDialogForRecord('edit', productService.id);
   }
 
+  protected openHistoryDialog(productService: ProductServiceRecord): void {
+    this.historyProductService = productService;
+    this.historyDialogVisible.set(true);
+    this.historyLoading.set(true);
+
+    this.productServicesApiService
+      .getProductServiceHistory(productService.id)
+      .subscribe({
+        next: (history) => {
+          this.historyRecords.set(history);
+          this.historyLoading.set(false);
+        },
+        error: () => {
+          this.historyRecords.set([]);
+          this.historyLoading.set(false);
+          this.errorMessage.set(
+            'Unable to load product and service history. Try again after refreshing the list.',
+          );
+        },
+      });
+  }
+
   protected closeDialog(): void {
     this.dialogVisible.set(false);
     this.selectedProductService = null;
     this.dialogMode = 'create';
+  }
+
+  protected closeHistoryDialog(): void {
+    this.historyDialogVisible.set(false);
+    this.historyProductService = null;
+    this.historyRecords.set([]);
   }
 
   protected saveProductService(payload: ProductServiceUpsertPayload): void {
@@ -230,6 +268,35 @@ export class ProductServicesPageComponent {
     return type === 'PRODUCT' ? 'info' : 'warn';
   }
 
+  protected historyActionLabel(action: ProductServiceHistoryRecord['action']): string {
+    switch (action) {
+      case 'RATE_CHANGE':
+        return 'Rate Change';
+      case 'TAX_CHANGE':
+        return 'Tax Change';
+      case 'STATUS_CHANGE':
+        return 'Status Change';
+      default:
+        return action
+          .replaceAll('_', ' ')
+          .toLowerCase()
+          .replace(/\b\w/g, (value) => value.toUpperCase());
+    }
+  }
+
+  protected historyValueEntries(
+    value: Record<string, string | number> | null,
+  ): Array<{ label: string; value: string }> {
+    if (!value) {
+      return [];
+    }
+
+    return Object.entries(value).map(([key, itemValue]) => ({
+      label: this.fieldLabel(key),
+      value: typeof itemValue === 'number' ? itemValue.toString() : itemValue,
+    }));
+  }
+
   private openDialogForRecord(
     mode: 'edit' | 'view',
     productServiceId: string,
@@ -248,5 +315,20 @@ export class ProductServicesPageComponent {
         this.errorMessage.set('Unable to load the selected product or service.');
       },
     });
+  }
+
+  private fieldLabel(field: string): string {
+    switch (field) {
+      case 'hsnSacCode':
+        return 'HSN / SAC Code';
+      case 'defaultRate':
+        return 'Default Rate';
+      case 'taxPercentage':
+        return 'Tax Percentage';
+      default:
+        return field
+          .replace(/([A-Z])/g, ' $1')
+          .replace(/^./, (value) => value.toUpperCase());
+    }
   }
 }

@@ -5,6 +5,7 @@ import { Observable } from 'rxjs';
 import { appSettings } from '../config/app.settings';
 import {
   PaginatedResponse,
+  ProductServiceHistoryRecord,
   ProductServiceListFilters,
   ProductServiceRecord,
   ProductServiceUpsertPayload,
@@ -31,6 +32,14 @@ export class ProductServicesApiService {
   getProductService(productServiceId: string): Observable<ProductServiceRecord> {
     return this.httpClient.get<ProductServiceRecord>(
       `${this.endpoint}/${productServiceId}`,
+    );
+  }
+
+  getProductServiceHistory(
+    productServiceId: string,
+  ): Observable<ProductServiceHistoryRecord[]> {
+    return this.httpClient.get<ProductServiceHistoryRecord[]>(
+      `${this.endpoint}/${productServiceId}/history`,
     );
   }
 
