@@ -15,7 +15,12 @@ import { PopoverModule } from 'primeng/popover';
       (click)="popover.toggle($event)">
     </button>
 
-    <p-popover #popover appendTo="body">
+    <p-popover
+      #popover
+      appendTo="body"
+      [style]="{
+        maxWidth: 'min(92vw, 26rem)'
+      }">
       <div class="filter-popover">
         <ng-content></ng-content>
       </div>
@@ -25,9 +30,13 @@ import { PopoverModule } from 'primeng/popover';
     `
       .filter-popover {
         min-width: min(82vw, 22rem);
+        min-height: 14rem;
+        max-height: min(72vh, calc(100vh - 6rem));
+        overflow: auto;
         display: flex;
         flex-direction: column;
         gap: 0.85rem;
+        padding-right: 0.2rem;
       }
     `,
   ],

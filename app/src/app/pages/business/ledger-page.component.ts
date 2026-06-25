@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { AutoCompleteModule } from 'primeng/autocomplete';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
@@ -16,6 +17,8 @@ import {
   CustomerRecord,
   LedgerDocumentType,
   LedgerRecord,
+  LedgerSearchSuggestion,
+  LedgerSummary,
   ProductServiceRecord,
 } from '../../shared/models/billing.models';
 
@@ -25,10 +28,12 @@ type Option<T> = {
 };
 
 type TagSeverity = 'success' | 'warn' | 'danger' | 'info';
+type SearchValue = LedgerSearchSuggestion | string | null;
 
 @Component({
   selector: 'app-ledger-page',
   imports: [
+    AutoCompleteModule,
     ButtonModule,
     DataTableWithActionsComponent,
     DatePipe,
@@ -46,6 +51,8 @@ type TagSeverity = 'success' | 'warn' | 'danger' | 'info';
 })
 export class LedgerPageComponent {
   protected readonly ledgerEntries = signal<LedgerRecord[]>([]);
+  protected readonly ledgerSummary = signal<LedgerSummary | null>(null);
+  protected readonly searchSuggestions = signal<LedgerSearchSuggestion[]>([]);
   protected readonly customers = signal<CustomerRecord[]>([]);
   protected readonly productServices = signal<ProductServiceRecord[]>([]);
   protected readonly loading = signal(false);
@@ -83,7 +90,7 @@ export class LedgerPageComponent {
     { label: 'Overdue', value: 'OVERDUE' },
   ];
 
-  protected searchTerm = '';
+  protected searchValue: SearchValue = '';
   protected fromDate = '';
   protected toDate = '';
   protected customerIdFilter = '';
@@ -108,7 +115,7 @@ export class LedgerPageComponent {
 
     this.ledgerApiService
       .getLedgerPage({
-        search: this.searchTerm.trim() || undefined,
+        search: this.resolveSearchQuery() || undefined,
         fromDate: this.fromDate || undefined,
         toDate: this.toDate || undefined,
         customerId: this.customerIdFilter || undefined,
@@ -122,6 +129,7 @@ export class LedgerPageComponent {
       .subscribe({
         next: (response) => {
           this.ledgerEntries.set(response.data);
+          this.ledgerSummary.set(response.summary);
           this.totalRecords.set(response.meta.total);
           this.totalPages.set(response.meta.totalPages);
           this.hasPreviousPage.set(response.meta.hasPreviousPage);
@@ -130,11 +138,39 @@ export class LedgerPageComponent {
         },
         error: () => {
           this.loading.set(false);
+          this.ledgerSummary.set(null);
           this.errorMessage.set(
             'Unable to load ledger records. Make sure the backend is running and migrated.',
           );
         },
       });
+  }
+
+  protected loadSearchSuggestions(query: string): void {
+    const normalizedQuery = query.trim();
+
+    if (!normalizedQuery) {
+      this.searchSuggestions.set([]);
+      return;
+    }
+
+    this.ledgerApiService.getLedgerSuggestions(normalizedQuery).subscribe({
+      next: (suggestions) => {
+        this.searchSuggestions.set(suggestions);
+      },
+      error: () => {
+        this.searchSuggestions.set([]);
+      },
+    });
+  }
+
+  protected handleSearchSelection(suggestion: LedgerSearchSuggestion): void {
+    this.searchValue = suggestion;
+  }
+
+  protected clearSearch(): void {
+    this.searchValue = '';
+    this.searchSuggestions.set([]);
   }
 
   protected applyFilters(): void {
@@ -143,7 +179,8 @@ export class LedgerPageComponent {
   }
 
   protected resetFilters(): void {
-    this.searchTerm = '';
+    this.searchValue = '';
+    this.searchSuggestions.set([]);
     this.fromDate = '';
     this.toDate = '';
     this.customerIdFilter = '';
@@ -231,6 +268,14 @@ export class LedgerPageComponent {
     }
   }
 
+  protected hasServiceCost(): boolean {
+    return (this.ledgerSummary()?.totalServiceCost ?? 0) > 0;
+  }
+
+  protected hasProductCost(): boolean {
+    return (this.ledgerSummary()?.totalProductCost ?? 0) > 0;
+  }
+
   private loadCustomers(): void {
     this.customersApiService
       .getCustomersPage({ status: 'ACTIVE', page: 1, limit: 100 })
@@ -255,5 +300,13 @@ export class LedgerPageComponent {
           this.productServices.set([]);
         },
       });
+  }
+
+  private resolveSearchQuery(): string {
+    if (typeof this.searchValue === 'string') {
+      return this.searchValue.trim();
+    }
+
+    return this.searchValue?.query.trim() ?? '';
   }
 }

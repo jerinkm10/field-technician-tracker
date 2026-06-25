@@ -61,5 +61,9 @@ export class UpdateAmcDto {
 
   @IsOptional()
   @IsString()
+  termsAndConditions?: string;
+
+  @IsOptional()
+  @IsString()
   note?: string;
 }

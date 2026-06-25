@@ -173,6 +173,18 @@ export class AdminShellComponent {
     return this.realtime.connected() ? 'success' : 'warn';
   }
 
+  protected canViewNavigationItem(item: NavigationItem): boolean {
+    if (item.route === '/business/ledger') {
+      return this.authService.canViewLedger();
+    }
+
+    return true;
+  }
+
+  protected visibleGroupChildren(group: NavigationItem): readonly NavigationItem[] {
+    return (group.children ?? []).filter((item) => this.canViewNavigationItem(item));
+  }
+
   protected isGroupActive(items: readonly NavigationItem[]): boolean {
     return items.some((item) => (item.route ? this.isRouteActive(item.route) : false));
   }
@@ -200,7 +212,10 @@ export class AdminShellComponent {
     let updated = false;
 
     for (const group of this.groupedNavigation) {
-      if (this.isGroupActive(group.children ?? []) && !nextState[group.label]) {
+      if (
+        this.isGroupActive(this.visibleGroupChildren(group)) &&
+        !nextState[group.label]
+      ) {
         nextState[group.label] = true;
         updated = true;
       }

@@ -103,11 +103,20 @@
     <div class="filters-grid compact-grid">
       <label class="field">
         <span>Search</span>
-        <input
-          pInputText
-          [(ngModel)]="searchTerm"
-          placeholder="Search customer, document number, product/service, HSN / SAC, or date"
-          (keydown.enter)="applyFilters()" />
+        <p-autoComplete
+          [(ngModel)]="searchValue"
+          [suggestions]="searchSuggestions()"
+          optionLabel="displayLabel"
+          [forceSelection]="false"
+          [dropdown]="true"
+          [showClear]="true"
+          appendTo="body"
+          placeholder="Search customer, invoice, quotation, product/service, or HSN / SAC"
+          (completeMethod)="loadSearchSuggestions($event.query)"
+          (onSelect)="handleSearchSelection($event.value)"
+          (onClear)="clearSearch()"
+          (keydown.enter)="applyFilters()">
+        </p-autoComplete>
       </label>
 
       <div class="filter-actions">
@@ -177,6 +186,38 @@
       </tr>
     </ng-template>
   </app-data-table-with-actions>
+
+  @if (ledgerSummary()) {
+    <section class="card-grid summary-card-grid">
+      <article class="panel metric-card">
+        <p-tag value="Total Amount" severity="info"></p-tag>
+        <h2 class="metric-value">Rs. {{ ledgerSummary()?.totalAmount | number : '1.2-2' }}</h2>
+        <p class="metric-note">Calculated from the current filtered ledger result set.</p>
+      </article>
+
+      <article class="panel metric-card">
+        <p-tag value="Total Tax" severity="warn"></p-tag>
+        <h2 class="metric-value">Rs. {{ ledgerSummary()?.totalTax | number : '1.2-2' }}</h2>
+        <p class="metric-note">Combined tax across the matching ledger documents.</p>
+      </article>
+
+      @if (hasServiceCost()) {
+        <article class="panel metric-card">
+          <p-tag value="Total Service Cost" severity="success"></p-tag>
+          <h2 class="metric-value">Rs. {{ ledgerSummary()?.totalServiceCost | number : '1.2-2' }}</h2>
+          <p class="metric-note">Matched from line items mapped to service masters.</p>
+        </article>
+      }
+
+      @if (hasProductCost()) {
+        <article class="panel metric-card">
+          <p-tag value="Total Product Cost" severity="danger"></p-tag>
+          <h2 class="metric-value">Rs. {{ ledgerSummary()?.totalProductCost | number : '1.2-2' }}</h2>
+          <p class="metric-note">Matched from line items mapped to product masters.</p>
+        </article>
+      }
+    </section>
+  }
 
   <app-ledger-detail-dialog
     [visible]="dialogVisible()"

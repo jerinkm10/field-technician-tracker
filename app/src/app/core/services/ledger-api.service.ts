@@ -4,9 +4,10 @@ import { Observable } from 'rxjs';
 
 import { appSettings } from '../config/app.settings';
 import {
+  LedgerPageResponse,
   LedgerListFilters,
   LedgerRecord,
-  PaginatedResponse,
+  LedgerSearchSuggestion,
 } from '../../shared/models/billing.models';
 
 @Injectable({
@@ -18,14 +19,23 @@ export class LedgerApiService {
 
   getLedgerPage(
     filters: LedgerListFilters = {},
-  ): Observable<PaginatedResponse<LedgerRecord>> {
-    return this.httpClient.get<PaginatedResponse<LedgerRecord>>(this.endpoint, {
+  ): Observable<LedgerPageResponse> {
+    return this.httpClient.get<LedgerPageResponse>(this.endpoint, {
       params: this.buildParams(filters),
     });
   }
 
   getLedgerEntry(ledgerEntryId: string): Observable<LedgerRecord> {
     return this.httpClient.get<LedgerRecord>(`${this.endpoint}/${encodeURIComponent(ledgerEntryId)}`);
+  }
+
+  getLedgerSuggestions(query: string): Observable<LedgerSearchSuggestion[]> {
+    return this.httpClient.get<LedgerSearchSuggestion[]>(
+      `${this.endpoint}/suggestions`,
+      {
+        params: new HttpParams().set('query', query),
+      },
+    );
   }
 
   private buildParams(filters: LedgerListFilters): HttpParams {

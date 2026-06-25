@@ -3,6 +3,7 @@ import { Routes } from '@angular/router';
 import {
   adminAuthGuard,
   adminChildAuthGuard,
+  ledgerAccessGuard,
   loginPageGuard,
 } from './core/guards/auth.guard';
 import { AdminShellComponent } from './layout/admin-shell.component';
@@ -240,6 +241,7 @@ export const routes: Routes = [
           },
           {
             path: 'ledger',
+            canActivate: [ledgerAccessGuard],
             loadComponent: () =>
               import('./pages/business/ledger-page.component').then(
                 (module) => module.LedgerPageComponent

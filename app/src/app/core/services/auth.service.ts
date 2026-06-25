@@ -57,12 +57,19 @@ export class AuthService {
   readonly isAdmin = computed(
     () => this.isAuthenticated() && this.hasDashboardAccess(this.currentUserState()?.role),
   );
+  readonly canViewLedger = computed(
+    () => this.isAuthenticated() && this.hasLedgerAccess(this.currentUserState()?.role),
+  );
 
   login(payload: LoginRequest): Observable<LoginResponse> {
     return this.httpClient.post<LoginResponse>(`${appSettings.apiBaseUrl}/auth/login`, payload);
   }
 
   hasDashboardAccess(role: AppUserRole | null | undefined): boolean {
+    return role === 'ADMIN' || role === 'ADMIN_OWNER';
+  }
+
+  hasLedgerAccess(role: AppUserRole | null | undefined): boolean {
     return role === 'ADMIN' || role === 'ADMIN_OWNER';
   }
 

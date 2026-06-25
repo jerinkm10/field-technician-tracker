@@ -8,13 +8,18 @@ import { LedgerService } from './ledger.service';
 
 @Controller('ledger')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
+@Roles(Role.ADMIN, Role.ADMIN_OWNER)
 export class LedgerController {
   constructor(private readonly ledgerService: LedgerService) {}
 
   @Get()
   async listLedgerEntries(@Query() query: ListLedgerQueryDto) {
     return this.ledgerService.listLedgerEntries(query);
+  }
+
+  @Get('suggestions')
+  async listLedgerSuggestions(@Query('query') query?: string) {
+    return this.ledgerService.listLedgerSuggestions(query);
   }
 
   @Get(':id')

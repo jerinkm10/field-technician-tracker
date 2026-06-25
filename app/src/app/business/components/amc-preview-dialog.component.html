@@ -64,9 +64,16 @@
       </section>
 
       <section class="preview-card notes-card">
-        <h3>Terms / Notes</h3>
-        <p>{{ amc.note || 'No additional terms were saved for this AMC.' }}</p>
+        <h3>Terms and Conditions</h3>
+        <p>{{ amc.termsAndConditions || 'No contract terms were saved for this AMC.' }}</p>
       </section>
+
+      @if (amc.note) {
+        <section class="preview-card notes-card">
+          <h3>Internal Note</h3>
+          <p>{{ amc.note }}</p>
+        </section>
+      }
 
       @if (amc.invoices.length) {
         <section class="preview-card">
@@ -76,11 +83,18 @@
               <div class="invoice-row">
                 <strong>{{ invoiceLink.invoice.invoiceNumber }}</strong>
                 <span>{{ invoiceLink.invoice.invoiceDate | date : 'mediumDate' }}</span>
-                <span>{{ invoiceLink.billingPeriodStart | date : 'mediumDate' }} - {{ invoiceLink.billingPeriodEnd | date : 'mediumDate' }}</span>
-                <span>Rs. {{ invoiceLink.invoice.totalAmount | number : '1.2-2' }}</span>
+                <span>{{ invoiceLink.periodStartDate | date : 'mediumDate' }} - {{ invoiceLink.periodEndDate | date : 'mediumDate' }}</span>
+                <span>Rs. {{ invoiceLink.amount | number : '1.2-2' }}</span>
               </div>
             }
           </div>
+        </section>
+      }
+
+      @if (!canCreateInvoiceAction()) {
+        <section class="preview-card invoice-status-card">
+          <h3>Invoice Availability</h3>
+          <p>{{ invoiceActionHint() }}</p>
         </section>
       }
     </div>
@@ -91,7 +105,7 @@
       <button pButton type="button" label="Close" text (click)="cancel.emit()"></button>
       <button pButton type="button" label="Download PDF" text icon="pi pi-download" (click)="downloadPdf.emit()">
       </button>
-      @if (amc?.status !== 'CANCELLED') {
+      @if (canCreateInvoiceAction()) {
         <button pButton type="button" label="Create Invoice" icon="pi pi-file-plus" (click)="createInvoice.emit()">
         </button>
       }

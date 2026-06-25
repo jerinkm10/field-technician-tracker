@@ -25,7 +25,7 @@
       @for (group of groupedNavigation; track group.label) {
         <div
           class="nav-group"
-          [class.is-active]="isGroupActive(group.children ?? [])"
+          [class.is-active]="isGroupActive(visibleGroupChildren(group))"
           [class.is-open]="isGroupExpanded(group.label)">
           <button
             type="button"
@@ -41,7 +41,7 @@
 
           @if (isGroupExpanded(group.label)) {
             <div class="nav-children">
-              @for (item of group.children ?? []; track item.route) {
+              @for (item of visibleGroupChildren(group); track item.route) {
                 <a
                   class="nav-link nav-child-link"
                   [routerLink]="item.route!"

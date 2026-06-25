@@ -53,5 +53,9 @@ export class CreateAmcDto {
 
   @IsOptional()
   @IsString()
+  termsAndConditions?: string;
+
+  @IsOptional()
+  @IsString()
   note?: string;
 }

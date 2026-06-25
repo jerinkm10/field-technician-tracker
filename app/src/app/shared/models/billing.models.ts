@@ -237,8 +237,9 @@ export type OutstandingUpdatePayload = {
 export type AmcInvoiceSummary = {
   id: string;
   invoiceId: string;
-  billingPeriodStart: string;
-  billingPeriodEnd: string;
+  periodStartDate: string;
+  periodEndDate: string;
+  amount: number;
   createdAt: string;
   invoice: {
     id: string;
@@ -267,6 +268,10 @@ export type AmcRecord = {
   status: AmcStatus;
   lastPaidDate: string | null;
   nextBillingDate: string | null;
+  currentBillingPeriodStartDate: string | null;
+  currentBillingPeriodEndDate: string | null;
+  canCreateInvoice: boolean;
+  termsAndConditions: string | null;
   note: string | null;
   createdAt: string;
   updatedAt: string;
@@ -288,6 +293,7 @@ export type AmcUpsertPayload = {
   status: AmcStatus;
   lastPaidDate?: string;
   nextBillingDate?: string;
+  termsAndConditions?: string;
   note?: string;
 };
 
@@ -347,6 +353,32 @@ export type LedgerRecord = {
   createdAt: string;
   updatedAt: string;
   lineItems: LedgerLineItemRecord[];
+};
+
+export type LedgerSummary = {
+  totalAmount: number;
+  totalTax: number;
+  totalServiceCost: number;
+  totalProductCost: number;
+};
+
+export type LedgerPageResponse = PaginatedResponse<LedgerRecord> & {
+  summary: LedgerSummary;
+};
+
+export type LedgerSearchSuggestionCategory =
+  | 'CUSTOMER'
+  | 'PRODUCT_SERVICE'
+  | 'HSN_SAC'
+  | 'INVOICE'
+  | 'QUOTATION';
+
+export type LedgerSearchSuggestion = {
+  category: LedgerSearchSuggestionCategory;
+  label: string;
+  value: string;
+  query: string;
+  displayLabel: string;
 };
 
 export type LeadNoteRecord = {

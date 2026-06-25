@@ -237,6 +237,14 @@ export class AmcPageComponent {
   }
 
   protected createInvoice(amc: AmcRecord): void {
+    if (!this.canCreateInvoice(amc)) {
+      this.uiFeedback.info(
+        'AMC invoice not available yet',
+        this.invoiceAvailabilityMessage(amc),
+      );
+      return;
+    }
+
     this.uiFeedback.confirm({
       header: 'Create AMC Invoice',
       message: `Create invoice for AMC "${amc.amcNumber}"?`,
@@ -413,6 +421,38 @@ export class AmcPageComponent {
     }
 
     return null;
+  }
+
+  protected canCreateInvoice(amc: AmcRecord | null | undefined): boolean {
+    return Boolean(amc?.canCreateInvoice);
+  }
+
+  protected invoiceAvailabilityMessage(amc: AmcRecord): string {
+    if (amc.status === 'CANCELLED') {
+      return 'Cancelled AMC contracts cannot generate invoices.';
+    }
+
+    if (!amc.currentBillingPeriodStartDate || !amc.currentBillingPeriodEndDate) {
+      return 'All billing periods for this AMC have already been invoiced.';
+    }
+
+    const periodStart = new Date(amc.currentBillingPeriodStartDate);
+    const today = new Date();
+    const startOfToday = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+    );
+
+    if (periodStart > startOfToday) {
+      return `The next invoice becomes available on ${periodStart.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      })}.`;
+    }
+
+    return 'An invoice already exists for the current billing period.';
   }
 
   private loadCustomers(): void {

@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { InvoiceType, Prisma } from '@prisma/client';
+import { InvoiceType, Prisma, ProductServiceType } from '@prisma/client';
 import {
   createPaginationMeta,
   normalizePagination,
@@ -26,6 +26,7 @@ type InvoiceLedgerRecord = Prisma.InvoiceGetPayload<{
     customerId: true;
     customerName: true;
     totalAmount: true;
+    totalTaxAmount: true;
     amountDue: true;
     status: true;
     notes: true;
@@ -68,6 +69,7 @@ type QuotationLedgerRecord = Prisma.QuotationGetPayload<{
     customerId: true;
     customerName: true;
     totalAmount: true;
+    totalTaxAmount: true;
     status: true;
     notes: true;
     createdAt: true;
@@ -110,6 +112,7 @@ type OutstandingLedgerRecord = Prisma.OutstandingGetPayload<{
     updatedAt: true;
     invoice: {
       select: {
+        totalTaxAmount: true;
         supplier: {
           select: {
             supplierName: true;
@@ -149,6 +152,28 @@ type LedgerLineItem = {
   lineAmount: number;
 };
 
+type LedgerSummary = {
+  totalAmount: number;
+  totalTax: number;
+  totalServiceCost: number;
+  totalProductCost: number;
+};
+
+type LedgerSearchSuggestionCategory =
+  | 'CUSTOMER'
+  | 'PRODUCT_SERVICE'
+  | 'HSN_SAC'
+  | 'INVOICE'
+  | 'QUOTATION';
+
+type LedgerSearchSuggestion = {
+  category: LedgerSearchSuggestionCategory;
+  label: string;
+  value: string;
+  query: string;
+  displayLabel: string;
+};
+
 type LedgerEntry = {
   id: string;
   sourceId: string;
@@ -168,6 +193,7 @@ type LedgerEntry = {
   branchName: string | null;
   referenceNumber: string | null;
   totalAmount: number;
+  taxAmount: number;
   amountDue: number | null;
   outstandingAmount: number | null;
   dueDate: Date | null;
@@ -186,6 +212,7 @@ const invoiceSelect = Prisma.validator<Prisma.InvoiceSelect>()({
   customerId: true,
   customerName: true,
   totalAmount: true,
+  totalTaxAmount: true,
   amountDue: true,
   status: true,
   notes: true,
@@ -226,6 +253,7 @@ const quotationSelect = Prisma.validator<Prisma.QuotationSelect>()({
   customerId: true,
   customerName: true,
   totalAmount: true,
+  totalTaxAmount: true,
   status: true,
   notes: true,
   createdAt: true,
@@ -266,6 +294,7 @@ const outstandingSelect = Prisma.validator<Prisma.OutstandingSelect>()({
   updatedAt: true,
   invoice: {
     select: {
+      totalTaxAmount: true,
       supplier: {
         select: {
           supplierName: true,
@@ -318,6 +347,12 @@ export class LedgerService {
       return {
         data: [],
         meta: createPaginationMeta(0, page, limit),
+        summary: {
+          totalAmount: 0,
+          totalTax: 0,
+          totalServiceCost: 0,
+          totalProductCost: 0,
+        },
       };
     }
 
@@ -370,6 +405,7 @@ export class LedgerService {
 
       return right.updatedAt.getTime() - left.updatedAt.getTime();
     });
+    const summary = await this.buildSummary(entries);
 
     const pagedEntries = entries.slice(skip, skip + limit).map((entry) =>
       this.toApiEntry(entry),
@@ -378,7 +414,143 @@ export class LedgerService {
     return {
       data: pagedEntries,
       meta: createPaginationMeta(entries.length, page, limit),
+      summary,
     };
+  }
+
+  async listLedgerSuggestions(query?: string): Promise<LedgerSearchSuggestion[]> {
+    const normalizedQuery = query?.trim();
+
+    if (!normalizedQuery) {
+      return [];
+    }
+
+    const [customers, productServices, invoices, quotations] = await Promise.all([
+      this.prismaService.customer.findMany({
+        where: {
+          name: {
+            contains: normalizedQuery,
+            mode: 'insensitive',
+          },
+        },
+        orderBy: {
+          name: 'asc',
+        },
+        take: 5,
+        select: {
+          name: true,
+        },
+      }),
+      this.prismaService.productService.findMany({
+        where: {
+          OR: [
+            {
+              name: {
+                contains: normalizedQuery,
+                mode: 'insensitive',
+              },
+            },
+            {
+              hsnSacCode: {
+                contains: normalizedQuery,
+                mode: 'insensitive',
+              },
+            },
+          ],
+        },
+        orderBy: {
+          name: 'asc',
+        },
+        take: 8,
+        select: {
+          name: true,
+          hsnSacCode: true,
+        },
+      }),
+      this.prismaService.invoice.findMany({
+        where: {
+          invoiceNumber: {
+            contains: normalizedQuery,
+            mode: 'insensitive',
+          },
+        },
+        orderBy: {
+          invoiceDate: 'desc',
+        },
+        take: 5,
+        select: {
+          invoiceNumber: true,
+        },
+      }),
+      this.prismaService.quotation.findMany({
+        where: {
+          quotationNumber: {
+            contains: normalizedQuery,
+            mode: 'insensitive',
+          },
+        },
+        orderBy: {
+          quotationDate: 'desc',
+        },
+        take: 5,
+        select: {
+          quotationNumber: true,
+        },
+      }),
+    ]);
+
+    const suggestions: LedgerSearchSuggestion[] = [];
+    const seen = new Set<string>();
+
+    const pushSuggestion = (suggestion: LedgerSearchSuggestion) => {
+      const key = `${suggestion.category}:${suggestion.query.toUpperCase()}`;
+      if (seen.has(key)) {
+        return;
+      }
+
+      seen.add(key);
+      suggestions.push(suggestion);
+    };
+
+    customers.forEach((customer) =>
+      pushSuggestion(
+        this.createSuggestion('CUSTOMER', 'Customer Name', customer.name),
+      ),
+    );
+
+    productServices.forEach((productService) => {
+      pushSuggestion(
+        this.createSuggestion(
+          'PRODUCT_SERVICE',
+          'Product/Service Name',
+          productService.name,
+        ),
+      );
+
+      if (productService.hsnSacCode) {
+        pushSuggestion(
+          this.createSuggestion('HSN_SAC', 'HSN/SAC Code', productService.hsnSacCode),
+        );
+      }
+    });
+
+    invoices.forEach((invoice) =>
+      pushSuggestion(
+        this.createSuggestion('INVOICE', 'Invoice Number', invoice.invoiceNumber),
+      ),
+    );
+
+    quotations.forEach((quotation) =>
+      pushSuggestion(
+        this.createSuggestion(
+          'QUOTATION',
+          'Quotation Number',
+          quotation.quotationNumber,
+        ),
+      ),
+    );
+
+    return suggestions.slice(0, 20);
   }
 
   async getLedgerEntryById(ledgerEntryId: string) {
@@ -876,6 +1048,7 @@ export class LedgerService {
       branchName: invoice.supplier.supplierName,
       referenceNumber: invoice.amcInvoices[0]?.amc.amcNumber ?? null,
       totalAmount: this.roundCurrency(invoice.totalAmount),
+      taxAmount: this.roundCurrency(invoice.totalTaxAmount),
       amountDue: this.roundCurrency(invoice.amountDue),
       outstandingAmount: null,
       dueDate: null,
@@ -918,6 +1091,7 @@ export class LedgerService {
       branchName: quotation.supplier.supplierName,
       referenceNumber: null,
       totalAmount: this.roundCurrency(quotation.totalAmount),
+      taxAmount: this.roundCurrency(quotation.totalTaxAmount),
       amountDue: null,
       outstandingAmount: null,
       dueDate: null,
@@ -964,6 +1138,7 @@ export class LedgerService {
       branchName: outstanding.invoice.supplier.supplierName,
       referenceNumber: outstanding.invoice.amcInvoices[0]?.amc.amcNumber ?? null,
       totalAmount: this.roundCurrency(outstanding.totalAmount),
+      taxAmount: this.roundCurrency(outstanding.invoice.totalTaxAmount),
       amountDue: null,
       outstandingAmount: this.roundCurrency(outstanding.outstandingAmount),
       dueDate: outstanding.dueDate,
@@ -1034,6 +1209,117 @@ export class LedgerService {
       updatedAt: entry.updatedAt,
       lineItems: entry.lineItems,
     };
+  }
+
+  private async buildSummary(entries: LedgerEntry[]): Promise<LedgerSummary> {
+    if (entries.length === 0) {
+      return {
+        totalAmount: 0,
+        totalTax: 0,
+        totalServiceCost: 0,
+        totalProductCost: 0,
+      };
+    }
+
+    const totalAmount = this.roundCurrency(
+      entries.reduce((sum, entry) => sum + entry.totalAmount, 0),
+    );
+    const totalTax = this.roundCurrency(
+      entries.reduce((sum, entry) => sum + entry.taxAmount, 0),
+    );
+
+    const lineItems = entries.flatMap((entry) => entry.lineItems);
+    const productServiceTypeMap = await this.loadProductServiceTypeMap(lineItems);
+
+    let totalServiceCost = 0;
+    let totalProductCost = 0;
+
+    lineItems.forEach((lineItem) => {
+      const cost = this.roundCurrency(lineItem.quantity * lineItem.unitPrice);
+      const lookupKey = this.buildProductServiceLookupKey(
+        lineItem.productServiceName,
+        lineItem.hsnSac,
+      );
+      const productServiceType = productServiceTypeMap.get(lookupKey);
+
+      if (productServiceType === ProductServiceType.SERVICE) {
+        totalServiceCost += cost;
+      } else if (productServiceType === ProductServiceType.PRODUCT) {
+        totalProductCost += cost;
+      }
+    });
+
+    return {
+      totalAmount,
+      totalTax,
+      totalServiceCost: this.roundCurrency(totalServiceCost),
+      totalProductCost: this.roundCurrency(totalProductCost),
+    };
+  }
+
+  private async loadProductServiceTypeMap(
+    lineItems: LedgerLineItem[],
+  ): Promise<Map<string, ProductServiceType>> {
+    const names = [...new Set(lineItems.map((item) => item.productServiceName.trim()).filter(Boolean))];
+    const hsnSacCodes = [...new Set(lineItems.map((item) => item.hsnSac.trim()).filter(Boolean))];
+
+    if (names.length === 0 && hsnSacCodes.length === 0) {
+      return new Map<string, ProductServiceType>();
+    }
+
+    const productServices = await this.prismaService.productService.findMany({
+      where: {
+        OR: [
+          ...(names.length
+            ? [
+                {
+                  name: {
+                    in: names,
+                  },
+                },
+              ]
+            : []),
+          ...(hsnSacCodes.length
+            ? [
+                {
+                  hsnSacCode: {
+                    in: hsnSacCodes,
+                  },
+                },
+              ]
+            : []),
+        ],
+      },
+      select: {
+        name: true,
+        hsnSacCode: true,
+        type: true,
+      },
+    });
+
+    const typeMap = new Map<string, ProductServiceType>();
+
+    productServices.forEach((productService) => {
+      typeMap.set(
+        this.buildProductServiceLookupKey(
+          productService.name,
+          productService.hsnSacCode,
+        ),
+        productService.type,
+      );
+
+      typeMap.set(
+        this.buildProductServiceLookupKey(productService.name, ''),
+        productService.type,
+      );
+
+      typeMap.set(
+        this.buildProductServiceLookupKey('', productService.hsnSacCode),
+        productService.type,
+      );
+    });
+
+    return typeMap;
   }
 
   private shouldIncludeInvoices(
@@ -1121,6 +1407,24 @@ export class LedgerService {
       type,
       sourceId,
     };
+  }
+
+  private createSuggestion(
+    category: LedgerSearchSuggestionCategory,
+    label: string,
+    value: string,
+  ): LedgerSearchSuggestion {
+    return {
+      category,
+      label,
+      value,
+      query: value,
+      displayLabel: `${label}: ${value}`,
+    };
+  }
+
+  private buildProductServiceLookupKey(name: string, hsnSacCode: string): string {
+    return `${name.trim().toUpperCase()}::${hsnSacCode.trim().toUpperCase()}`;
   }
 
   private formatLineItemValue(values: string[]): string {

@@ -7,7 +7,7 @@ import {
   Output,
   SimpleChanges,
 } from '@angular/core';
-import { DatePipe } from '@angular/common';
+import { DatePipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
@@ -44,6 +44,7 @@ type AmcDraft = {
   status: AmcStatus;
   lastPaidDate: string;
   nextBillingDate: string;
+  termsAndConditions: string;
   note: string;
 };
 
@@ -52,6 +53,7 @@ type AmcDraft = {
   imports: [
     ButtonModule,
     DatePipe,
+    DecimalPipe,
     DialogModule,
     FormsModule,
     InputNumberModule,
@@ -69,6 +71,7 @@ export class AmcFormDialogComponent implements OnChanges {
   @Input() amc: AmcRecord | null = null;
   @Input() customers: CustomerRecord[] = [];
   @Input() branches: SupplierRecord[] = [];
+  @Input() defaultTermsAndConditions: string | null = null;
 
   @Output() readonly cancel = new EventEmitter<void>();
   @Output() readonly save = new EventEmitter<AmcUpsertPayload>();
@@ -108,9 +111,20 @@ export class AmcFormDialogComponent implements OnChanges {
             status: this.amc.status,
             lastPaidDate: this.amc.lastPaidDate?.slice(0, 10) ?? '',
             nextBillingDate: this.amc.nextBillingDate?.slice(0, 10) ?? '',
+            termsAndConditions: this.amc.termsAndConditions ?? '',
             note: this.amc.note ?? '',
           }
-        : this.emptyDraft();
+        : this.emptyDraft(this.defaultTermsAndConditions);
+    } else if (
+      changes['defaultTermsAndConditions'] &&
+      this.mode === 'create' &&
+      !this.amc &&
+      !this.draft.termsAndConditions.trim()
+    ) {
+      this.draft = {
+        ...this.draft,
+        termsAndConditions: this.defaultTermsAndConditions ?? '',
+      };
     }
   }
 
@@ -151,6 +165,7 @@ export class AmcFormDialogComponent implements OnChanges {
       status: this.draft.status,
       lastPaidDate: this.draft.lastPaidDate || undefined,
       nextBillingDate: this.draft.nextBillingDate || undefined,
+      termsAndConditions: this.draft.termsAndConditions.trim() || undefined,
       note: this.draft.note.trim() || undefined,
     });
   }
@@ -189,11 +204,50 @@ export class AmcFormDialogComponent implements OnChanges {
     return this.mode === 'view';
   }
 
+  protected canCreateInvoiceAction(): boolean {
+    return Boolean(this.amc?.canCreateInvoice);
+  }
+
+  protected invoiceActionHint(): string | null {
+    if (!this.amc) {
+      return null;
+    }
+
+    if (this.amc.status === 'CANCELLED') {
+      return 'Cancelled AMC contracts cannot generate invoices.';
+    }
+
+    if (
+      !this.amc.currentBillingPeriodStartDate ||
+      !this.amc.currentBillingPeriodEndDate
+    ) {
+      return 'All billing periods for this AMC have already been invoiced.';
+    }
+
+    const today = new Date();
+    const periodStartDate = new Date(this.amc.currentBillingPeriodStartDate);
+    const startOfToday = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate(),
+    );
+
+    if (periodStartDate > startOfToday) {
+      return `Next invoice becomes available on ${periodStartDate.toLocaleDateString('en-GB', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      })}.`;
+    }
+
+    return 'An invoice already exists for the current billing period.';
+  }
+
   protected handleHide(): void {
     this.cancel.emit();
   }
 
-  private emptyDraft(): AmcDraft {
+  private emptyDraft(defaultTermsAndConditions?: string | null): AmcDraft {
     const today = new Date().toISOString().slice(0, 10);
 
     return {
@@ -211,6 +265,7 @@ export class AmcFormDialogComponent implements OnChanges {
       status: 'ACTIVE',
       lastPaidDate: '',
       nextBillingDate: today,
+      termsAndConditions: defaultTermsAndConditions ?? '',
       note: '',
     };
   }

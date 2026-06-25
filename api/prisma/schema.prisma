@@ -399,6 +399,7 @@ model Amc {
   status              AmcStatus        @default(ACTIVE)
   lastPaidDate        DateTime?
   nextBillingDate     DateTime?
+  termsAndConditions  String?
   note                String?
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt
@@ -419,18 +420,20 @@ model Amc {
 /// AMC invoice history model. Kept as `AmcInvoice` in Prisma/client code to
 /// avoid breaking existing backend services that already use this generated type.
 model AmcInvoice {
-  id                 String   @id @default(cuid())
-  amcId              String
-  invoiceId          String   @unique
-  billingPeriodStart DateTime
-  billingPeriodEnd   DateTime
-  createdAt          DateTime @default(now())
-  amc                Amc      @relation(fields: [amcId], references: [id], onDelete: Cascade)
-  invoice            Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  id              String   @id @default(cuid())
+  amcId           String
+  invoiceId       String   @unique
+  periodStartDate DateTime @map("billingPeriodStart")
+  periodEndDate   DateTime @map("billingPeriodEnd")
+  amount          Float    @default(0)
+  createdAt       DateTime @default(now())
+  amc             Amc      @relation(fields: [amcId], references: [id], onDelete: Cascade)
+  invoice         Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@index([amcId])
-  @@index([billingPeriodStart])
-  @@index([billingPeriodEnd])
+  @@index([periodStartDate])
+  @@index([periodEndDate])
+  @@unique([amcId, periodStartDate, periodEndDate])
 }
 
 model InvoiceLineItem {

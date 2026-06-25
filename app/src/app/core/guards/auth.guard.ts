@@ -40,6 +40,30 @@ export const adminChildAuthGuard: CanActivateChildFn = (_route, state) => {
   return redirectToLogin(state.url);
 };
 
+export const ledgerAccessGuard: CanActivateFn = (_route, state) => {
+  const authService = inject(AuthService);
+  const router = inject(Router);
+  const uiFeedback = inject(UiFeedbackService);
+
+  if (
+    authService.isAuthenticated() &&
+    authService.hasLedgerAccess(authService.currentUser()?.role)
+  ) {
+    return true;
+  }
+
+  uiFeedback.showPermissionDenied(
+    'Only ADMIN_OWNER and ADMIN users can view the Ledger module.',
+  );
+
+  return router.createUrlTree(['/dashboard'], {
+    queryParams:
+      state.url && state.url !== '/dashboard'
+        ? { deniedFrom: state.url }
+        : undefined,
+  });
+};
+
 export const loginPageGuard: CanActivateFn = () => {
   const authService = inject(AuthService);
   const router = inject(Router);

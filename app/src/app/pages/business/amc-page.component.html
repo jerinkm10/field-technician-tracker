@@ -181,6 +181,14 @@
         <td>
           <strong>{{ billingPeriodLabel(amc.billingPeriod) }}</strong>
           <div class="muted-row">{{ amc.billingPeriodMonths }} month cycle</div>
+          @if (amc.currentBillingPeriodStartDate && amc.currentBillingPeriodEndDate) {
+            <div class="muted-row">
+              Current period:
+              {{ amc.currentBillingPeriodStartDate | date : 'mediumDate' }}
+              -
+              {{ amc.currentBillingPeriodEndDate | date : 'mediumDate' }}
+            </div>
+          }
         </td>
         <td>
           <strong>{{ amc.contractAmount | number : '1.2-2' }}</strong>
@@ -212,15 +220,17 @@
             icon="pi pi-images"
             (click)="openPreview(amc)">
           </button>
-          <button
-            pButton
-            type="button"
-            label="Create Invoice"
-            text
-            icon="pi pi-file-plus"
-            [loading]="activeInvoiceAmcId() === amc.id"
-            (click)="createInvoice(amc)">
-          </button>
+          @if (canCreateInvoice(amc)) {
+            <button
+              pButton
+              type="button"
+              label="Create Invoice"
+              text
+              icon="pi pi-file-plus"
+              [loading]="activeInvoiceAmcId() === amc.id"
+              (click)="createInvoice(amc)">
+            </button>
+          }
           <button
             pButton
             type="button"
@@ -250,6 +260,7 @@
     [amc]="selectedAmc"
     [customers]="customers()"
     [branches]="branches()"
+    [defaultTermsAndConditions]="company()?.amcTermsAndConditions ?? null"
     (cancel)="closeDialog()"
     (save)="saveAmc($event)"
     (preview)="openPreview(selectedAmc)"

@@ -24,6 +24,9 @@ import { CreateAmcDto } from './dto/create-amc.dto';
 import { ListAmcQueryDto } from './dto/list-amc-query.dto';
 import { UpdateAmcDto } from './dto/update-amc.dto';
 
+const DEFAULT_AMC_TERMS =
+  'AMC visits will be scheduled as per the agreed billing cycle. Emergency breakdown support is subject to contract scope.';
+
 const amcSelect = Prisma.validator<Prisma.AmcSelect>()({
   id: true,
   amcNumber: true,
@@ -40,6 +43,7 @@ const amcSelect = Prisma.validator<Prisma.AmcSelect>()({
   status: true,
   lastPaidDate: true,
   nextBillingDate: true,
+  termsAndConditions: true,
   note: true,
   createdAt: true,
   updatedAt: true,
@@ -81,8 +85,9 @@ const amcSelect = Prisma.validator<Prisma.AmcSelect>()({
     select: {
       id: true,
       invoiceId: true,
-      billingPeriodStart: true,
-      billingPeriodEnd: true,
+      periodStartDate: true,
+      periodEndDate: true,
+      amount: true,
       createdAt: true,
       invoice: {
         select: {
@@ -128,7 +133,15 @@ type NormalizedAmcPayload = {
   status: AmcStatus;
   lastPaidDate: Date | null;
   nextBillingDate: Date | null;
+  termsAndConditions: string | null;
   note: string | null;
+};
+
+type BillingCycleState = {
+  periodStartDate: Date | null;
+  periodEndDate: Date | null;
+  existingInvoiceId: string | null;
+  canCreateInvoice: boolean;
 };
 
 @Injectable()
@@ -179,6 +192,12 @@ export class AmcService {
                 },
               },
               {
+                termsAndConditions: {
+                  contains: search,
+                  mode: 'insensitive',
+                },
+              },
+              {
                 branch: {
                   supplierName: {
                     contains: search,
@@ -216,6 +235,7 @@ export class AmcService {
   async createAmc(createAmcDto: CreateAmcDto) {
     const customer = await this.getCustomerOrThrow(createAmcDto.customerId);
     await this.ensureBranchExists(createAmcDto.branchId);
+    const defaultTermsAndConditions = await this.resolveDefaultAmcTerms();
 
     const normalized = this.normalizeCreateInput({
       amcNumber: createAmcDto.amcNumber,
@@ -226,6 +246,8 @@ export class AmcService {
       endDate: createAmcDto.endDate,
       lastPaidDate: createAmcDto.lastPaidDate,
       nextBillingDate: createAmcDto.nextBillingDate,
+      termsAndConditions:
+        createAmcDto.termsAndConditions?.trim() || defaultTermsAndConditions,
       note: createAmcDto.note,
       startDate: createAmcDto.startDate,
       status: createAmcDto.status,
@@ -269,6 +291,10 @@ export class AmcService {
       nextBillingDate:
         updateAmcDto.nextBillingDate ??
         (existingAmc.nextBillingDate ? existingAmc.nextBillingDate.toISOString() : null),
+      termsAndConditions:
+        updateAmcDto.termsAndConditions !== undefined
+          ? updateAmcDto.termsAndConditions
+          : existingAmc.termsAndConditions ?? undefined,
       note:
         updateAmcDto.note !== undefined ? updateAmcDto.note : existingAmc.note ?? undefined,
       startDate: updateAmcDto.startDate ?? existingAmc.startDate.toISOString(),
@@ -382,35 +408,30 @@ export class AmcService {
       );
     }
 
-    const billingPeriodStart = this.toDateOnly(
-      amc.nextBillingDate ?? amc.startDate,
-    );
+    const billingCycle = this.resolveBillingCycleState(amc);
 
-    if (billingPeriodStart > this.toDateOnly(amc.endDate)) {
+    if (!billingCycle.periodStartDate || !billingCycle.periodEndDate) {
       throw new BadRequestException(
         'All AMC billing periods have already been invoiced',
       );
     }
 
-    const tentativePeriodEnd = this.subtractDays(
-      this.addMonths(billingPeriodStart, amc.billingPeriodMonths),
-      1,
-    );
-    const billingPeriodEnd =
-      tentativePeriodEnd > amc.endDate ? this.toDateOnly(amc.endDate) : tentativePeriodEnd;
-
-    const existingInvoiceLink = amc.invoices.find(
-      (invoice) =>
-        invoice.billingPeriodStart.getTime() === billingPeriodStart.getTime() &&
-        invoice.billingPeriodEnd.getTime() === billingPeriodEnd.getTime(),
-    );
-
-    if (existingInvoiceLink) {
+    if (billingCycle.existingInvoiceId) {
       throw new ConflictException(
         'An invoice already exists for the current AMC billing period',
       );
     }
 
+    if (!billingCycle.canCreateInvoice) {
+      throw new BadRequestException(
+        `The next AMC invoice can be created on or after ${this.formatDate(
+          billingCycle.periodStartDate,
+        )}`,
+      );
+    }
+
+    const billingPeriodStart = billingCycle.periodStartDate;
+    const billingPeriodEnd = billingCycle.periodEndDate;
     const billedMonths = this.calculateDurationMonths(
       billingPeriodStart,
       billingPeriodEnd,
@@ -435,116 +456,130 @@ export class AmcService {
     );
     const nextBillingDate =
       nextBillingDateCandidate > amc.endDate ? null : nextBillingDateCandidate;
-    const companySettings = await this.companySettingsService.getCompanySettings();
-    const defaultAmcTerms = companySettings?.amcTermsAndConditions?.trim();
+    const contractTerms =
+      amc.termsAndConditions?.trim() || (await this.resolveDefaultAmcTerms());
     const periodTerms = `AMC billing period ${this.formatDate(billingPeriodStart)} to ${this.formatDate(billingPeriodEnd)}`;
-    const amcTermsAndConditions = defaultAmcTerms
-      ? `${defaultAmcTerms}\n\n${periodTerms}`
-      : periodTerms;
+    const amcTermsAndConditions = [contractTerms, periodTerms]
+      .filter(Boolean)
+      .join('\n\n');
 
-    const result = await this.prismaService.$transaction(async (transaction) => {
-      const invoiceNumber = await this.generateNextInvoiceNumber(
-        InvoiceType.TAX,
-        transaction,
-        invoiceDate,
-      );
-
-      const createdInvoice = await transaction.invoice.create({
-        data: {
-          invoiceType: InvoiceType.TAX,
-          invoiceNumber,
+    try {
+      const result = await this.prismaService.$transaction(async (transaction) => {
+        const invoiceNumber = await this.generateNextInvoiceNumber(
+          InvoiceType.TAX,
+          transaction,
           invoiceDate,
-          supplierId: amc.branchId,
-          customerId: amc.customerId,
-          customerName: amc.customerName,
-          customerAddress: amc.customer.billingAddress ?? amc.customer.address,
-          customerGstin: amc.customer.gstin ?? '',
-          placeOfSupply: amc.customer.placeOfSupply ?? '',
-          notes: amc.note ?? undefined,
-          termsAndConditions: amcTermsAndConditions,
-          totalBeforeTax: periodAmount,
-          totalTaxAmount,
-          roundedOff: 0,
-          totalAmount,
-          amountDue: totalAmount,
-          status: InvoiceStatus.ISSUED,
-          lineItems: {
-            create: [
-              {
-                productServiceName: `AMC - ${amc.customerName}`,
-                description: `AMC coverage for ${this.formatDate(billingPeriodStart)} to ${this.formatDate(billingPeriodEnd)}`,
-                hsnSac: '998719',
-                quantity: 1,
-                unitPrice: periodAmount,
-                cgstAmount,
-                cgstPercentage,
-                sgstAmount,
-                sgstPercentage,
-                lineAmount: totalAmount,
-              },
-            ],
+        );
+
+        const createdInvoice = await transaction.invoice.create({
+          data: {
+            invoiceType: InvoiceType.TAX,
+            invoiceNumber,
+            invoiceDate,
+            supplierId: amc.branchId,
+            customerId: amc.customerId,
+            customerName: amc.customerName,
+            customerAddress: amc.customer.billingAddress ?? amc.customer.address,
+            customerGstin: amc.customer.gstin ?? '',
+            placeOfSupply: amc.customer.placeOfSupply ?? '',
+            notes: amc.note ?? undefined,
+            termsAndConditions: amcTermsAndConditions,
+            totalBeforeTax: periodAmount,
+            totalTaxAmount,
+            roundedOff: 0,
+            totalAmount,
+            amountDue: totalAmount,
+            status: InvoiceStatus.ISSUED,
+            lineItems: {
+              create: [
+                {
+                  productServiceName: `AMC - ${amc.customerName}`,
+                  description: `AMC coverage for ${this.formatDate(billingPeriodStart)} to ${this.formatDate(billingPeriodEnd)}`,
+                  hsnSac: '998719',
+                  quantity: 1,
+                  unitPrice: periodAmount,
+                  cgstAmount,
+                  cgstPercentage,
+                  sgstAmount,
+                  sgstPercentage,
+                  lineAmount: totalAmount,
+                },
+              ],
+            },
           },
-        },
-        select: {
-          id: true,
-          invoiceType: true,
-          invoiceNumber: true,
-          invoiceDate: true,
-          totalAmount: true,
-          amountDue: true,
-          status: true,
-        },
+          select: {
+            id: true,
+            invoiceType: true,
+            invoiceNumber: true,
+            invoiceDate: true,
+            totalAmount: true,
+            amountDue: true,
+            status: true,
+          },
+        });
+
+        await this.outstandingsService.syncOutstandingForInvoice(
+          {
+            amountDue: createdInvoice.amountDue,
+            customerId: amc.customerId,
+            customerName: amc.customerName,
+            id: createdInvoice.id,
+            invoiceDate: createdInvoice.invoiceDate,
+            invoiceNumber: createdInvoice.invoiceNumber,
+            invoiceType: createdInvoice.invoiceType,
+            totalAmount: createdInvoice.totalAmount,
+          },
+          transaction,
+        );
+
+        await transaction.amcInvoice.create({
+          data: {
+            amcId: amc.id,
+            invoiceId: createdInvoice.id,
+            periodStartDate: billingPeriodStart,
+            periodEndDate: billingPeriodEnd,
+            amount: createdInvoice.totalAmount,
+          },
+        });
+
+        const updatedAmc = await transaction.amc.update({
+          where: {
+            id: amc.id,
+          },
+          data: {
+            lastPaidDate: invoiceDate,
+            nextBillingDate,
+            status:
+              nextBillingDate === null && this.toDateOnly(amc.endDate) < invoiceDate
+                ? AmcStatus.EXPIRED
+                : this.resolveStatus(
+                    nextBillingDate ? nextBillingDate.toISOString() : undefined,
+                    amc.endDate.toISOString(),
+                    amc.status,
+                  ),
+          },
+          select: amcSelect,
+        });
+
+        return {
+          amc: this.toApiAmc(updatedAmc),
+          invoice: this.toApiInvoiceSummary(createdInvoice),
+        };
       });
 
-      await this.outstandingsService.syncOutstandingForInvoice(
-        {
-          amountDue: createdInvoice.amountDue,
-          customerId: amc.customerId,
-          customerName: amc.customerName,
-          id: createdInvoice.id,
-          invoiceDate: createdInvoice.invoiceDate,
-          invoiceNumber: createdInvoice.invoiceNumber,
-          invoiceType: createdInvoice.invoiceType,
-          totalAmount: createdInvoice.totalAmount,
-        },
-        transaction,
-      );
+      return result;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException(
+          'An invoice already exists for the current AMC billing period',
+        );
+      }
 
-      await transaction.amcInvoice.create({
-        data: {
-          amcId: amc.id,
-          invoiceId: createdInvoice.id,
-          billingPeriodStart,
-          billingPeriodEnd,
-        },
-      });
-
-      const updatedAmc = await transaction.amc.update({
-        where: {
-          id: amc.id,
-        },
-        data: {
-          lastPaidDate: invoiceDate,
-          nextBillingDate,
-          status:
-            nextBillingDate === null && this.toDateOnly(amc.endDate) < invoiceDate
-              ? AmcStatus.EXPIRED
-              : this.resolveStatus(
-                  nextBillingDate ? nextBillingDate.toISOString() : undefined,
-                  amc.endDate.toISOString(),
-                  amc.status,
-                ),
-        },
-        select: amcSelect,
-      });
-
-      return {
-        amc: this.toApiAmc(updatedAmc),
-        invoice: this.toApiInvoiceSummary(createdInvoice),
-      };
-    });
-
-    return result;
+      throw error;
+    }
   }
 
   async getAmcPdf(amcId: string): Promise<{ amcNumber: string; pdfBuffer: Buffer }> {
@@ -660,17 +695,18 @@ export class AmcService {
     );
 
     cursorY += 240;
+    const contractTerms = this.composeAmcTermsBlock(amc);
 
     document
       .font('Helvetica-Bold')
       .fontSize(12)
       .fillColor(brandColor)
-      .text('Notes / Terms', 40, cursorY);
+      .text('Terms and Conditions', 40, cursorY);
     document
       .font('Helvetica')
       .fontSize(10.5)
       .fillColor('#222222')
-      .text(amc.note?.trim() || 'No additional contract terms provided.', 40, cursorY + 20, {
+      .text(contractTerms, 40, cursorY + 20, {
         width: pageWidth,
         lineGap: 3,
       });
@@ -744,6 +780,7 @@ export class AmcService {
     status?: AmcStatus;
     lastPaidDate?: string | null;
     nextBillingDate?: string | null;
+    termsAndConditions?: string;
     note?: string;
   }): Prisma.AmcUncheckedCreateInput {
     const normalized = this.normalizePayloadFields(input, true);
@@ -763,6 +800,7 @@ export class AmcService {
       status: normalized.status,
       lastPaidDate: normalized.lastPaidDate,
       nextBillingDate: normalized.nextBillingDate,
+      termsAndConditions: normalized.termsAndConditions,
       note: normalized.note,
     };
   }
@@ -780,6 +818,7 @@ export class AmcService {
     status?: AmcStatus;
     lastPaidDate?: string | null;
     nextBillingDate?: string | null;
+    termsAndConditions?: string;
     note?: string;
   }): Prisma.AmcUncheckedUpdateInput {
     return this.normalizePayloadFields(input, false);
@@ -799,6 +838,7 @@ export class AmcService {
       status?: AmcStatus;
       lastPaidDate?: string | null;
       nextBillingDate?: string | null;
+      termsAndConditions?: string;
       note?: string;
     },
     useDefaultNextBillingDate: boolean,
@@ -854,6 +894,7 @@ export class AmcService {
           : input.nextBillingDate
             ? this.toDateOnly(new Date(input.nextBillingDate))
             : null,
+      termsAndConditions: this.normalizeOptionalText(input.termsAndConditions),
       note: input.note?.trim() || null,
     };
   }
@@ -901,6 +942,8 @@ export class AmcService {
   }
 
   private toApiAmc(amc: AmcRecord) {
+    const billingCycle = this.resolveBillingCycleState(amc);
+
     return {
       id: amc.id,
       amcNumber: amc.amcNumber,
@@ -917,6 +960,10 @@ export class AmcService {
       status: amc.status,
       lastPaidDate: amc.lastPaidDate,
       nextBillingDate: amc.nextBillingDate,
+      currentBillingPeriodStartDate: billingCycle.periodStartDate,
+      currentBillingPeriodEndDate: billingCycle.periodEndDate,
+      canCreateInvoice: billingCycle.canCreateInvoice,
+      termsAndConditions: amc.termsAndConditions,
       note: amc.note,
       createdAt: amc.createdAt,
       updatedAt: amc.updatedAt,
@@ -948,8 +995,9 @@ export class AmcService {
         .map((invoice) => ({
           id: invoice.id,
           invoiceId: invoice.invoiceId,
-          billingPeriodStart: invoice.billingPeriodStart,
-          billingPeriodEnd: invoice.billingPeriodEnd,
+          periodStartDate: invoice.periodStartDate,
+          periodEndDate: invoice.periodEndDate,
+          amount: invoice.amount,
           createdAt: invoice.createdAt,
           invoice: this.toApiInvoiceSummary(invoice.invoice),
         })),
@@ -985,6 +1033,46 @@ export class AmcService {
     const totalMonths = yearDiff * 12 + monthDiff;
 
     return totalMonths + (endDate.getDate() >= startDate.getDate() ? 1 : 0);
+  }
+
+  private resolveBillingCycleState(amc: AmcRecord): BillingCycleState {
+    const periodStartDate = this.toDateOnly(amc.nextBillingDate ?? amc.startDate);
+    const contractEndDate = this.toDateOnly(amc.endDate);
+
+    if (periodStartDate > contractEndDate) {
+      return {
+        periodStartDate: null,
+        periodEndDate: null,
+        existingInvoiceId: null,
+        canCreateInvoice: false,
+      };
+    }
+
+    const tentativePeriodEndDate = this.subtractDays(
+      this.addMonths(periodStartDate, amc.billingPeriodMonths),
+      1,
+    );
+    const periodEndDate =
+      tentativePeriodEndDate > contractEndDate
+        ? contractEndDate
+        : tentativePeriodEndDate;
+    const existingInvoice =
+      amc.invoices.find(
+        (invoice) =>
+          invoice.periodStartDate.getTime() === periodStartDate.getTime() &&
+          invoice.periodEndDate.getTime() === periodEndDate.getTime(),
+      ) ?? null;
+    const today = this.toDateOnly(new Date());
+
+    return {
+      periodStartDate,
+      periodEndDate,
+      existingInvoiceId: existingInvoice?.invoiceId ?? null,
+      canCreateInvoice:
+        amc.status !== AmcStatus.CANCELLED &&
+        periodStartDate <= today &&
+        existingInvoice === null,
+    };
   }
 
   private addMonths(date: Date, months: number): Date {
@@ -1145,6 +1233,27 @@ export class AmcService {
 
   private roundCurrency(value: number): number {
     return Math.round(value * 100) / 100;
+  }
+
+  private async resolveDefaultAmcTerms(): Promise<string> {
+    const companySettings = await this.companySettingsService.getCompanySettings();
+    return (
+      companySettings?.amcTermsAndConditions?.trim() || DEFAULT_AMC_TERMS
+    );
+  }
+
+  private composeAmcTermsBlock(amc: AmcRecord): string {
+    const sections = [
+      amc.termsAndConditions?.trim() || DEFAULT_AMC_TERMS,
+      amc.note?.trim() ? `Additional Note: ${amc.note.trim()}` : null,
+    ].filter(Boolean);
+
+    return sections.join('\n\n');
+  }
+
+  private normalizeOptionalText(value?: string | null): string | null {
+    const normalized = value?.trim();
+    return normalized ? normalized : null;
   }
 
   private rethrowUniqueConstraint(error: unknown, message: string): never {

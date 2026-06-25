@@ -326,6 +326,8 @@ async function main() {
         status: AmcStatus.ACTIVE,
         lastPaidDate: new Date('2026-06-22T00:00:00.000Z'),
         nextBillingDate: new Date('2026-09-22T00:00:00.000Z'),
+        termsAndConditions:
+          'AMC visits will be scheduled as per the agreed billing cycle. Emergency breakdown support is subject to contract scope.',
         note: 'Quarterly chiller maintenance for diagnostics and storage wing.',
       },
     }),
@@ -345,6 +347,8 @@ async function main() {
         status: AmcStatus.ACTIVE,
         lastPaidDate: new Date('2026-01-10T00:00:00.000Z'),
         nextBillingDate: new Date('2026-07-01T00:00:00.000Z'),
+        termsAndConditions:
+          'AMC visits will be scheduled as per the agreed billing cycle. Emergency breakdown support is subject to contract scope.',
         note: 'Contract is close to renewal and should be reviewed this month.',
       },
     }),
@@ -364,6 +368,8 @@ async function main() {
         status: AmcStatus.EXPIRED,
         lastPaidDate: new Date('2025-01-01T00:00:00.000Z'),
         nextBillingDate: null,
+        termsAndConditions:
+          'AMC visits will be scheduled as per the agreed billing cycle. Emergency breakdown support is subject to contract scope.',
         note: 'Expired contract retained for historical billing reference.',
       },
     }),
@@ -562,8 +568,9 @@ async function main() {
     data: {
       amcId: amcs[0].id,
       invoiceId: taxInvoice.id,
-      billingPeriodStart: new Date('2026-06-22T00:00:00.000Z'),
-      billingPeriodEnd: new Date('2026-09-21T00:00:00.000Z'),
+      periodStartDate: new Date('2026-06-22T00:00:00.000Z'),
+      periodEndDate: new Date('2026-09-21T00:00:00.000Z'),
+      amount: taxInvoice.totalAmount,
     },
   });
 
