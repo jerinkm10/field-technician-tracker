@@ -121,6 +121,11 @@ export class AdminShellComponent {
           route: '/settings/branch',
           icon: 'pi pi-building',
         },
+        {
+          label: 'Employees',
+          route: '/settings/employees',
+          icon: 'pi pi-users',
+        },
       ],
     },
   ];

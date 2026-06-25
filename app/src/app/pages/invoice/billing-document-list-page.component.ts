@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -9,6 +9,7 @@ import { TagModule } from 'primeng/tag';
 
 import { BillingDocumentsApiService } from '../../core/services/billing-documents-api.service';
 import { CustomersApiService } from '../../core/services/customers-api.service';
+import { UiFeedbackService } from '../../core/services/ui-feedback.service';
 import { DataTableWithActionsComponent } from '../../invoice/components/data-table-with-actions.component';
 import { FilterDropdownComponent } from '../../invoice/components/filter-dropdown.component';
 import {
@@ -44,6 +45,8 @@ type TagSeverity = 'success' | 'warn' | 'info' | 'danger';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BillingDocumentListPageComponent {
+  private readonly uiFeedback = inject(UiFeedbackService);
+
   protected readonly documents = signal<BillingDocumentRecord[]>([]);
   protected readonly customers = signal<CustomerRecord[]>([]);
   protected readonly loading = signal(false);
@@ -167,16 +170,28 @@ export class BillingDocumentListPageComponent {
   }
 
   protected deleteDocument(document: BillingDocumentRecord): void {
-    if (!window.confirm(`Delete ${document.documentTypeLabel.toLowerCase()} "${document.documentNumber}"?`)) {
-      return;
-    }
-
-    this.billingDocumentsApiService.deleteDocument(this.kind, document.id).subscribe({
-      next: () => {
-        this.loadDocuments();
-      },
-      error: () => {
-        this.errorMessage.set('Document delete failed.');
+    this.uiFeedback.confirm({
+      header: `Delete ${document.documentTypeLabel}`,
+      message: `Delete ${document.documentTypeLabel.toLowerCase()} "${document.documentNumber}"?`,
+      acceptLabel: 'Delete',
+      accept: () => {
+        this.billingDocumentsApiService.deleteDocument(this.kind, document.id).subscribe({
+          next: () => {
+            this.loadDocuments();
+            this.uiFeedback.success(
+              `${document.documentTypeLabel} deleted`,
+              `${document.documentNumber} was removed successfully.`,
+            );
+          },
+          error: () => {
+            const message = 'Document delete failed.';
+            this.errorMessage.set(message);
+            this.uiFeedback.error(
+              `Unable to delete ${document.documentTypeLabel.toLowerCase()}`,
+              message,
+            );
+          },
+        });
       },
     });
   }

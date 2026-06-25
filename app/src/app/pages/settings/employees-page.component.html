@@ -1,0 +1,150 @@
+<section class="page">
+  <header class="page-header">
+    <div class="page-heading">
+      <p class="page-eyebrow">Settings</p>
+      <h1 class="page-title">Employees</h1>
+      <p class="page-subtitle">
+        Create staff accounts for admins, office employees, and technicians using username-based access.
+      </p>
+    </div>
+  </header>
+
+  @if (errorMessage()) {
+    <section class="panel state-panel error-panel">
+      <i class="pi pi-exclamation-circle"></i>
+      <div>
+        <h3>Employee action needs attention</h3>
+        <p>{{ errorMessage() }}</p>
+      </div>
+    </section>
+  }
+
+  <section class="panel section-shell">
+    <div class="section-header">
+      <div>
+        <h3>Search and filters</h3>
+        <p>Use backend-driven filters for employee name, username, phone, role, and active status.</p>
+      </div>
+
+      <div class="toolbar-actions">
+        <app-filter-dropdown>
+          <label class="field">
+            <span>Role</span>
+            <p-select
+              [options]="roleOptions"
+              optionLabel="label"
+              optionValue="value"
+              appendTo="body"
+              [(ngModel)]="roleFilter">
+            </p-select>
+          </label>
+
+          <label class="field">
+            <span>Status</span>
+            <p-select
+              [options]="statusOptions"
+              optionLabel="label"
+              optionValue="value"
+              appendTo="body"
+              [(ngModel)]="statusFilter">
+            </p-select>
+          </label>
+
+          <div class="filter-actions">
+            <button pButton type="button" label="Apply" icon="pi pi-filter" (click)="applyFilters()"></button>
+            <button pButton type="button" label="Reset" text (click)="resetFilters()"></button>
+          </div>
+        </app-filter-dropdown>
+
+        <button pButton type="button" label="Refresh" icon="pi pi-refresh" text [loading]="loading()" (click)="loadEmployees()">
+        </button>
+      </div>
+    </div>
+
+    <div class="filters-grid compact-grid">
+      <label class="field">
+        <span>Search</span>
+        <input
+          pInputText
+          [(ngModel)]="searchTerm"
+          placeholder="Search by name, username, email, or phone"
+          (keydown.enter)="applyFilters()" />
+      </label>
+
+      <div class="filter-actions">
+        <button pButton type="button" label="Search" icon="pi pi-search" (click)="applyFilters()"></button>
+        <button pButton type="button" label="Reset" text (click)="resetFilters()"></button>
+      </div>
+    </div>
+  </section>
+
+  <app-data-table-with-actions
+    title="Employee accounts"
+    subtitle="Only ADMIN_OWNER and ADMIN users can create employees from this workspace."
+    createLabel="Create Employee"
+    [showCreateButton]="true"
+    [records]="employees()"
+    [loading]="loading()"
+    [footerLabel]="totalRecords() + ' employee account(s) available.'"
+    [emptyColspan]="8"
+    [page]="page()"
+    [totalPages]="totalPages()"
+    [hasPreviousPage]="hasPreviousPage()"
+    [hasNextPage]="hasNextPage()"
+    (create)="openCreateDialog()"
+    (previousPage)="previousPage()"
+    (nextPage)="nextPage()">
+    <ng-template #header>
+      <tr>
+        <th>Name</th>
+        <th>Username</th>
+        <th>Phone</th>
+        <th>Email</th>
+        <th>Role</th>
+        <th>Status</th>
+        <th>Updated</th>
+        <th></th>
+      </tr>
+    </ng-template>
+
+    <ng-template #body let-employee>
+      <tr>
+        <td>
+          <strong>{{ employee.name }}</strong>
+          <div class="muted-row">
+            @if (employee.technicianProfileId) {
+              Technician profile ready
+            } @else {
+              Staff access
+            }
+          </div>
+        </td>
+        <td>{{ employee.username }}</td>
+        <td>{{ employee.phone }}</td>
+        <td>{{ employee.email || '-' }}</td>
+        <td>
+          <p-tag [value]="employee.role" [severity]="roleSeverity(employee.role)"></p-tag>
+        </td>
+        <td>
+          <p-tag [value]="employee.status" [severity]="statusSeverity(employee.status)"></p-tag>
+        </td>
+        <td>{{ employee.updatedAt | date : 'medium' }}</td>
+        <td class="action-cell">
+          <button pButton type="button" label="View" text icon="pi pi-eye" (click)="openViewDialog(employee)">
+          </button>
+          <button pButton type="button" label="Edit" text icon="pi pi-pencil" (click)="openEditDialog(employee)">
+          </button>
+        </td>
+      </tr>
+    </ng-template>
+  </app-data-table-with-actions>
+
+  <app-employee-form-dialog
+    [visible]="dialogVisible()"
+    [saving]="saving()"
+    [mode]="dialogMode"
+    [employee]="editingEmployee"
+    (cancel)="closeDialog()"
+    (save)="saveEmployee($event)">
+  </app-employee-form-dialog>
+</section>

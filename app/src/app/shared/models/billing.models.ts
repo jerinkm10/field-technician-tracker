@@ -1,3 +1,6 @@
+export type AppUserRole = 'ADMIN_OWNER' | 'ADMIN' | 'EMPLOYEE' | 'TECHNICIAN';
+export type EmployeeRole = Exclude<AppUserRole, 'ADMIN_OWNER'>;
+export type UserStatus = 'ACTIVE' | 'INACTIVE';
 export type SupplierStatus = 'ACTIVE' | 'INACTIVE';
 export type CustomerStatus = 'ACTIVE' | 'INACTIVE';
 export type CompanyStatus = 'ACTIVE' | 'INACTIVE';
@@ -57,6 +60,30 @@ export type SupplierRecord = {
   status: SupplierStatus;
   createdAt: string;
   updatedAt: string;
+};
+
+export type EmployeeRecord = {
+  id: string;
+  name: string;
+  username: string;
+  email: string | null;
+  phone: string;
+  role: EmployeeRole;
+  status: UserStatus;
+  createdAt: string;
+  updatedAt: string;
+  technicianProfileId: string | null;
+  technicianStatus: 'AVAILABLE' | 'ON_JOB' | 'OFFLINE' | null;
+};
+
+export type EmployeeUpsertPayload = {
+  name: string;
+  username: string;
+  email?: string;
+  phone: string;
+  role: EmployeeRole;
+  status: UserStatus;
+  password?: string;
 };
 
 export type SupplierUpsertPayload = {
@@ -501,6 +528,14 @@ export type SupplierListFilters = {
   status?: SupplierStatus;
   gstin?: string;
   phone?: string;
+  page?: number;
+  limit?: number;
+};
+
+export type EmployeeListFilters = {
+  search?: string;
+  role?: EmployeeRole;
+  status?: UserStatus;
   page?: number;
   limit?: number;
 };

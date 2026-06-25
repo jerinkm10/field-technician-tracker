@@ -1,5 +1,5 @@
 export const appSettings = {
-  appName: 'Field Technician Tracker',
+  appName: 'High Cooling Solution',
   apiBaseUrl: 'http://localhost:3007',
   socketUrl: 'http://localhost:3007',
   googleMapsApiKey: 'YOUR_GOOGLE_MAPS_API_KEY'

@@ -1,6 +1,6 @@
-# Field Technician Tracker
+# High Cooling Solution
 
-Field Technician Tracker is a full-stack application for managing field technicians, jobs, live location tracking, reports, and an admin dashboard.
+High Cooling Solution is a full-stack application for managing field technicians, jobs, live location tracking, reports, billing workflows, and an admin dashboard.
 
 ## Stack
 

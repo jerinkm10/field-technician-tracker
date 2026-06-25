@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -13,6 +13,7 @@ import { LeadStatusDialogComponent } from '../../business/components/lead-status
 import { LeadsApiService } from '../../core/services/leads-api.service';
 import { ProductServicesApiService } from '../../core/services/product-services-api.service';
 import { SuppliersApiService } from '../../core/services/suppliers-api.service';
+import { UiFeedbackService } from '../../core/services/ui-feedback.service';
 import { DataTableWithActionsComponent } from '../../invoice/components/data-table-with-actions.component';
 import { FilterDropdownComponent } from '../../invoice/components/filter-dropdown.component';
 import {
@@ -53,6 +54,8 @@ type TagSeverity = 'success' | 'warn' | 'danger' | 'info';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LeadsPageComponent {
+  private readonly uiFeedback = inject(UiFeedbackService);
+
   protected readonly leads = signal<LeadRecord[]>([]);
   protected readonly branches = signal<SupplierRecord[]>([]);
   protected readonly productServices = signal<ProductServiceRecord[]>([]);
@@ -156,6 +159,7 @@ export class LeadsPageComponent {
   }
 
   protected saveLead(payload: LeadUpsertPayload): void {
+    const isEdit = Boolean(this.selectedLead && this.dialogMode === 'edit');
     this.saving.set(true);
 
     const request =
@@ -168,32 +172,43 @@ export class LeadsPageComponent {
         this.saving.set(false);
         this.closeDialog();
         this.loadLeads();
+        this.uiFeedback.success(
+          isEdit ? 'Lead updated' : 'Lead created',
+          `Lead "${payload.leadName}" was saved successfully.`,
+        );
       },
       error: (error) => {
         this.saving.set(false);
-        this.errorMessage.set(
-          this.extractErrorMessage(
-            error,
-            'Lead save failed. Check the branch, product/service, and follow-up date.',
-          ),
+        const message = this.extractErrorMessage(
+          error,
+          'Lead save failed. Check the branch, product/service, and follow-up date.',
         );
+        this.errorMessage.set(message);
+        this.uiFeedback.error('Lead save failed', message);
       },
     });
   }
 
   protected deleteLead(lead: LeadRecord): void {
-    if (!window.confirm(`Delete lead "${lead.leadName}"?`)) {
-      return;
-    }
-
-    this.leadsApiService.deleteLead(lead.id).subscribe({
-      next: () => {
-        this.loadLeads();
-      },
-      error: (error) => {
-        this.errorMessage.set(
-          this.extractErrorMessage(error, 'Lead delete failed.'),
-        );
+    this.uiFeedback.confirm({
+      header: 'Delete Lead',
+      message: `Delete lead "${lead.leadName}"?`,
+      acceptLabel: 'Delete',
+      accept: () => {
+        this.leadsApiService.deleteLead(lead.id).subscribe({
+          next: () => {
+            this.loadLeads();
+            this.uiFeedback.success(
+              'Lead deleted',
+              `Lead "${lead.leadName}" was removed successfully.`,
+            );
+          },
+          error: (error) => {
+            const message = this.extractErrorMessage(error, 'Lead delete failed.');
+            this.errorMessage.set(message);
+            this.uiFeedback.error('Lead delete failed', message);
+          },
+        });
       },
     });
   }
@@ -219,12 +234,16 @@ export class LeadsPageComponent {
         this.saving.set(false);
         this.closeStatusDialog();
         this.loadLeads();
+        this.uiFeedback.success(
+          'Lead status updated',
+          `Lead status changed to ${payload.status.replaceAll('_', ' ')}.`,
+        );
       },
       error: (error) => {
         this.saving.set(false);
-        this.errorMessage.set(
-          this.extractErrorMessage(error, 'Lead status update failed.'),
-        );
+        const message = this.extractErrorMessage(error, 'Lead status update failed.');
+        this.errorMessage.set(message);
+        this.uiFeedback.error('Lead status update failed', message);
       },
     });
   }
@@ -239,16 +258,20 @@ export class LeadsPageComponent {
         this.importLoading.set(false);
         this.importPreview.set(response);
         this.importPreviewVisible.set(true);
+        this.uiFeedback.info(
+          'Lead import preview ready',
+          `${response.summary.validRows} valid row(s) and ${response.summary.invalidRows} invalid row(s) found.`,
+        );
       },
       error: (error) => {
         this.importLoading.set(false);
         this.selectedImportFile = null;
-        this.errorMessage.set(
-          this.extractErrorMessage(
-            error,
-            'Lead import preview failed. Verify the Excel file and try again.',
-          ),
+        const message = this.extractErrorMessage(
+          error,
+          'Lead import preview failed. Verify the Excel file and try again.',
         );
+        this.errorMessage.set(message);
+        this.uiFeedback.error('Lead import preview failed', message);
       },
     });
   }
@@ -278,12 +301,16 @@ export class LeadsPageComponent {
         this.importLoading.set(false);
         this.importPreview.set(response);
         this.loadLeads();
+        this.uiFeedback.success(
+          'Leads imported',
+          `${response.summary.importedRows} lead row(s) were imported successfully.`,
+        );
       },
       error: (error) => {
         this.importLoading.set(false);
-        this.errorMessage.set(
-          this.extractErrorMessage(error, 'Lead import failed.'),
-        );
+        const message = this.extractErrorMessage(error, 'Lead import failed.');
+        this.errorMessage.set(message);
+        this.uiFeedback.error('Lead import failed', message);
       },
     });
   }
@@ -303,9 +330,15 @@ export class LeadsPageComponent {
         link.download = 'lead-import-demo.xlsx';
         link.click();
         window.setTimeout(() => window.URL.revokeObjectURL(url), 2000);
+        this.uiFeedback.success(
+          'Demo Excel downloaded',
+          'The lead import demo spreadsheet is ready.',
+        );
       },
       error: () => {
-        this.errorMessage.set('Demo Excel download failed.');
+        const message = 'Demo Excel download failed.';
+        this.errorMessage.set(message);
+        this.uiFeedback.error('Demo Excel download failed', message);
       },
     });
   }

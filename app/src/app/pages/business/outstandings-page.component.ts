@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -9,6 +9,7 @@ import { TagModule } from 'primeng/tag';
 import { OutstandingFormDialogComponent } from '../../business/components/outstanding-form-dialog.component';
 import { CustomersApiService } from '../../core/services/customers-api.service';
 import { OutstandingsApiService } from '../../core/services/outstandings-api.service';
+import { UiFeedbackService } from '../../core/services/ui-feedback.service';
 import { DataTableWithActionsComponent } from '../../invoice/components/data-table-with-actions.component';
 import { FilterDropdownComponent } from '../../invoice/components/filter-dropdown.component';
 import {
@@ -45,6 +46,8 @@ type TagSeverity = 'success' | 'warn' | 'danger' | 'info';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class OutstandingsPageComponent {
+  private readonly uiFeedback = inject(UiFeedbackService);
+
   protected readonly outstandings = signal<OutstandingRecord[]>([]);
   protected readonly customers = signal<CustomerRecord[]>([]);
   protected readonly loading = signal(false);
@@ -161,6 +164,7 @@ export class OutstandingsPageComponent {
       return;
     }
 
+    const invoiceNumber = this.selectedOutstanding.invoiceNumber;
     this.saving.set(true);
 
     this.outstandingsApiService
@@ -170,29 +174,42 @@ export class OutstandingsPageComponent {
           this.saving.set(false);
           this.closeDialog();
           this.loadOutstandings();
+          this.uiFeedback.success(
+            'Outstanding updated',
+            `Outstanding for invoice "${invoiceNumber}" was updated.`,
+          );
         },
         error: () => {
           this.saving.set(false);
-          this.errorMessage.set(
-            'Outstanding update failed. Verify the amounts, due date, and note.',
-          );
+          const message =
+            'Outstanding update failed. Verify the amounts, due date, and note.';
+          this.errorMessage.set(message);
+          this.uiFeedback.error('Outstanding update failed', message);
         },
       });
   }
 
   protected deleteOutstanding(outstanding: OutstandingRecord): void {
-    if (!window.confirm(`Delete outstanding for invoice "${outstanding.invoiceNumber}"?`)) {
-      return;
-    }
-
-    this.outstandingsApiService.deleteOutstanding(outstanding.id).subscribe({
-      next: () => {
-        this.loadOutstandings();
-      },
-      error: () => {
-        this.errorMessage.set(
-          'Outstanding delete failed. Try again after refreshing the list.',
-        );
+    this.uiFeedback.confirm({
+      header: 'Delete Outstanding',
+      message: `Delete outstanding for invoice "${outstanding.invoiceNumber}"?`,
+      acceptLabel: 'Delete',
+      accept: () => {
+        this.outstandingsApiService.deleteOutstanding(outstanding.id).subscribe({
+          next: () => {
+            this.loadOutstandings();
+            this.uiFeedback.success(
+              'Outstanding deleted',
+              `Outstanding for "${outstanding.invoiceNumber}" was removed.`,
+            );
+          },
+          error: () => {
+            const message =
+              'Outstanding delete failed. Try again after refreshing the list.';
+            this.errorMessage.set(message);
+            this.uiFeedback.error('Outstanding delete failed', message);
+          },
+        });
       },
     });
   }

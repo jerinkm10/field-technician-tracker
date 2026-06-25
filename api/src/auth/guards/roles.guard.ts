@@ -30,6 +30,14 @@ export class RolesGuard implements CanActivate {
       throw new UnauthorizedException('Authentication is required');
     }
 
-    return requiredRoles.includes(user.role);
+    return requiredRoles.some((role) => this.hasRequiredRole(user.role, role));
+  }
+
+  private hasRequiredRole(currentRole: Role, requiredRole: Role): boolean {
+    if (currentRole === requiredRole) {
+      return true;
+    }
+
+    return currentRole === Role.ADMIN_OWNER && requiredRole === Role.ADMIN;
   }
 }

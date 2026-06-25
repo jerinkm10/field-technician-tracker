@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -7,6 +7,7 @@ import { SelectModule } from 'primeng/select';
 import { TagModule } from 'primeng/tag';
 
 import { InvoiceInputFieldsApiService } from '../../core/services/invoice-input-fields-api.service';
+import { UiFeedbackService } from '../../core/services/ui-feedback.service';
 import { DataTableWithActionsComponent } from '../../invoice/components/data-table-with-actions.component';
 import { FilterDropdownComponent } from '../../invoice/components/filter-dropdown.component';
 import { InvoiceInputFieldDialogComponent } from '../../invoice/components/invoice-input-field-dialog.component';
@@ -39,6 +40,8 @@ type Option = {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InvoiceInputFieldsPageComponent {
+  private readonly uiFeedback = inject(UiFeedbackService);
+
   protected readonly fields = signal<InvoiceInputFieldRecord[]>([]);
   protected readonly loading = signal(false);
   protected readonly saving = signal(false);
@@ -147,27 +150,41 @@ export class InvoiceInputFieldsPageComponent {
         this.saving.set(false);
         this.dialogVisible.set(false);
         this.loadFields();
+        this.uiFeedback.success(
+          this.editingField ? 'Input field updated' : 'Input field created',
+          `Input field "${payload.label}" was saved successfully.`,
+        );
       },
       error: () => {
         this.saving.set(false);
-        this.errorMessage.set(
-          'Invoice input field save failed. Field key must remain unique.',
-        );
+        const message =
+          'Invoice input field save failed. Field key must remain unique.';
+        this.errorMessage.set(message);
+        this.uiFeedback.error('Input field save failed', message);
       },
     });
   }
 
   protected deleteField(field: InvoiceInputFieldRecord): void {
-    if (!window.confirm(`Delete input field "${field.label}"?`)) {
-      return;
-    }
-
-    this.invoiceInputFieldsApiService.deleteInvoiceInputField(field.id).subscribe({
-      next: () => {
-        this.loadFields();
-      },
-      error: () => {
-        this.errorMessage.set('Invoice input field delete failed.');
+    this.uiFeedback.confirm({
+      header: 'Delete Input Field',
+      message: `Delete input field "${field.label}"?`,
+      acceptLabel: 'Delete',
+      accept: () => {
+        this.invoiceInputFieldsApiService.deleteInvoiceInputField(field.id).subscribe({
+          next: () => {
+            this.loadFields();
+            this.uiFeedback.success(
+              'Input field deleted',
+              `Input field "${field.label}" was removed successfully.`,
+            );
+          },
+          error: () => {
+            const message = 'Invoice input field delete failed.';
+            this.errorMessage.set(message);
+            this.uiFeedback.error('Input field delete failed', message);
+          },
+        });
       },
     });
   }

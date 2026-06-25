@@ -1,22 +1,478 @@
-import { Injectable } from '@nestjs/common';
+import { hash } from 'bcryptjs';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import {
+  Prisma,
+  Role,
+  TechnicianStatus,
+  UserStatus,
+} from '@prisma/client';
+import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
+import { createPaginationMeta, normalizePagination } from '../common/utils/pagination.util';
 import { PrismaService } from '../prisma/prisma.service';
+import { CreateEmployeeDto } from './dto/create-employee.dto';
+import { ListEmployeesQueryDto } from './dto/list-employees-query.dto';
+import { UpdateEmployeeDto } from './dto/update-employee.dto';
+
+const authUserSelect = Prisma.validator<Prisma.UserSelect>()({
+  id: true,
+  name: true,
+  username: true,
+  email: true,
+  phone: true,
+  password: true,
+  role: true,
+  status: true,
+});
+
+const employeeSelect = Prisma.validator<Prisma.UserSelect>()({
+  id: true,
+  name: true,
+  username: true,
+  email: true,
+  phone: true,
+  role: true,
+  status: true,
+  createdAt: true,
+  updatedAt: true,
+  technician: {
+    select: {
+      id: true,
+      status: true,
+    },
+  },
+});
+
+type EmployeeRecord = Prisma.UserGetPayload<{
+  select: typeof employeeSelect;
+}>;
 
 @Injectable()
 export class UsersService {
   constructor(private readonly prismaService: PrismaService) {}
 
-  async findByEmailForAuth(email: string) {
-    return this.prismaService.user.findUnique({
+  async findByUsernameOrEmailForAuth(params: {
+    username?: string;
+    email?: string;
+  }) {
+    const filters: Prisma.UserWhereInput[] = [];
+
+    if (params.username) {
+      filters.push({
+        username: {
+          equals: params.username,
+          mode: 'insensitive',
+        },
+      });
+    }
+
+    if (params.email) {
+      filters.push({
+        email: {
+          equals: params.email,
+          mode: 'insensitive',
+        },
+      });
+    }
+
+    if (filters.length === 0) {
+      return null;
+    }
+
+    return this.prismaService.user.findFirst({
       where: {
-        email,
+        OR: filters,
+      },
+      select: authUserSelect,
+    });
+  }
+
+  async listEmployees(query: ListEmployeesQueryDto) {
+    const { page, limit, skip } = normalizePagination(query.page, query.limit);
+    const search = query.search?.trim();
+
+    const where: Prisma.UserWhereInput = {
+      role: {
+        not: Role.ADMIN_OWNER,
+      },
+      ...(query.role ? { role: query.role } : {}),
+      ...(query.status ? { status: query.status } : {}),
+      ...(search
+        ? {
+            OR: [
+              {
+                name: {
+                  contains: search,
+                  mode: 'insensitive',
+                },
+              },
+              {
+                username: {
+                  contains: search,
+                  mode: 'insensitive',
+                },
+              },
+              {
+                email: {
+                  contains: search,
+                  mode: 'insensitive',
+                },
+              },
+              {
+                phone: {
+                  contains: search,
+                  mode: 'insensitive',
+                },
+              },
+            ],
+          }
+        : {}),
+    };
+
+    const [total, users] = await Promise.all([
+      this.prismaService.user.count({ where }),
+      this.prismaService.user.findMany({
+        where,
+        orderBy: [{ role: 'asc' }, { name: 'asc' }],
+        skip,
+        take: limit,
+        select: employeeSelect,
+      }),
+    ]);
+
+    return {
+      data: users.map((user) => this.toApiEmployee(user)),
+      meta: createPaginationMeta(total, page, limit),
+    };
+  }
+
+  async getEmployeeById(userId: string) {
+    return this.toApiEmployee(await this.getEmployeeOrThrow(userId));
+  }
+
+  async createEmployee(
+    createEmployeeDto: CreateEmployeeDto,
+    currentUser: JwtPayload,
+  ) {
+    await this.assertEmployeeRole(createEmployeeDto.role, currentUser);
+    await this.ensureUniqueUserFields({
+      username: createEmployeeDto.username,
+      email: createEmployeeDto.email,
+      phone: createEmployeeDto.phone,
+    });
+
+    const passwordHash = await hash(createEmployeeDto.password, 10);
+
+    try {
+      return await this.prismaService.$transaction(async (transaction) => {
+        const createdUser = await transaction.user.create({
+          data: {
+            name: createEmployeeDto.name.trim(),
+            username: createEmployeeDto.username.trim(),
+            email: this.normalizeOptionalString(createEmployeeDto.email),
+            phone: createEmployeeDto.phone.trim(),
+            password: passwordHash,
+            role: createEmployeeDto.role,
+            status: createEmployeeDto.status ?? UserStatus.ACTIVE,
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        await this.syncTechnicianProfile(transaction, {
+          userId: createdUser.id,
+          role: createEmployeeDto.role,
+          phone: createEmployeeDto.phone.trim(),
+          status: createEmployeeDto.status ?? UserStatus.ACTIVE,
+          existingTechnicianId: null,
+        });
+
+        return this.toApiEmployee(
+          await this.getEmployeeOrThrow(createdUser.id, transaction),
+        );
+      });
+    } catch (error) {
+      this.rethrowUniqueConstraint(error);
+    }
+  }
+
+  async updateEmployee(
+    userId: string,
+    updateEmployeeDto: UpdateEmployeeDto,
+    currentUser: JwtPayload,
+  ) {
+    const existingUser = await this.getEmployeeOrThrow(userId);
+
+    const nextRole = updateEmployeeDto.role ?? existingUser.role;
+    const nextStatus = updateEmployeeDto.status ?? existingUser.status;
+    const nextUsername = updateEmployeeDto.username?.trim() ?? existingUser.username;
+    const nextEmail =
+      updateEmployeeDto.email !== undefined
+        ? this.normalizeOptionalString(updateEmployeeDto.email)
+        : existingUser.email;
+    const nextPhone = updateEmployeeDto.phone?.trim() ?? existingUser.phone;
+
+    await this.assertEmployeeRole(nextRole, currentUser);
+    await this.ensureUniqueUserFields(
+      {
+        username: nextUsername,
+        email: nextEmail,
+        phone: nextPhone,
+      },
+      userId,
+    );
+
+    const passwordHash = updateEmployeeDto.password
+      ? await hash(updateEmployeeDto.password, 10)
+      : undefined;
+
+    try {
+      return await this.prismaService.$transaction(async (transaction) => {
+        await transaction.user.update({
+          where: {
+            id: userId,
+          },
+          data: {
+            name: updateEmployeeDto.name?.trim(),
+            username: updateEmployeeDto.username?.trim(),
+            email:
+              updateEmployeeDto.email !== undefined
+                ? this.normalizeOptionalString(updateEmployeeDto.email)
+                : undefined,
+            phone: updateEmployeeDto.phone?.trim(),
+            password: passwordHash,
+            role: updateEmployeeDto.role,
+            status: updateEmployeeDto.status,
+          },
+        });
+
+        await this.syncTechnicianProfile(transaction, {
+          userId,
+          role: nextRole,
+          phone: nextPhone,
+          status: nextStatus,
+          existingTechnicianId: existingUser.technician?.id ?? null,
+        });
+
+        return this.toApiEmployee(await this.getEmployeeOrThrow(userId, transaction));
+      });
+    } catch (error) {
+      this.rethrowUniqueConstraint(error);
+    }
+  }
+
+  private async getEmployeeOrThrow(
+    userId: string,
+    transaction: Prisma.TransactionClient | PrismaService = this.prismaService,
+  ): Promise<EmployeeRecord> {
+    const user = await transaction.user.findFirst({
+      where: {
+        id: userId,
+        role: {
+          not: Role.ADMIN_OWNER,
+        },
+      },
+      select: employeeSelect,
+    });
+
+    if (!user) {
+      throw new NotFoundException('Employee not found');
+    }
+
+    return user;
+  }
+
+  private async ensureUniqueUserFields(
+    values: {
+      username: string;
+      email: string | null | undefined;
+      phone: string;
+    },
+    excludeUserId?: string,
+  ): Promise<void> {
+    const conflicts = await this.prismaService.user.findFirst({
+      where: {
+        ...(excludeUserId
+          ? {
+              id: {
+                not: excludeUserId,
+              },
+            }
+          : {}),
+        OR: [
+          {
+            username: {
+              equals: values.username.trim(),
+              mode: 'insensitive',
+            },
+          },
+          {
+            phone: values.phone.trim(),
+          },
+          ...(values.email
+            ? [
+                {
+                  email: {
+                    equals: values.email.trim().toLowerCase(),
+                    mode: 'insensitive' as const,
+                  },
+                },
+              ]
+            : []),
+        ],
       },
       select: {
         id: true,
-        name: true,
+        username: true,
         email: true,
-        password: true,
-        role: true,
+        phone: true,
       },
     });
+
+    if (!conflicts) {
+      return;
+    }
+
+    if (conflicts.username.toLowerCase() === values.username.trim().toLowerCase()) {
+      throw new ConflictException('Username must be unique');
+    }
+
+    if (conflicts.phone === values.phone.trim()) {
+      throw new ConflictException('Phone number must be unique');
+    }
+
+    if (
+      values.email &&
+      conflicts.email &&
+      conflicts.email.toLowerCase() === values.email.trim().toLowerCase()
+    ) {
+      throw new ConflictException('Email address must be unique');
+    }
+
+    throw new ConflictException('Employee details must be unique');
+  }
+
+  private async assertEmployeeRole(
+    role: Role,
+    currentUser: JwtPayload,
+  ): Promise<void> {
+    if (role === Role.ADMIN_OWNER) {
+      throw new ConflictException(
+        'Admin owner accounts are seeded separately and cannot be created from Employees',
+      );
+    }
+  }
+
+  private async syncTechnicianProfile(
+    transaction: Prisma.TransactionClient,
+    params: {
+      userId: string;
+      role: Role;
+      phone: string;
+      status: UserStatus;
+      existingTechnicianId: string | null;
+    },
+  ): Promise<void> {
+    if (params.role === Role.TECHNICIAN) {
+      if (params.existingTechnicianId) {
+        await transaction.technician.update({
+          where: {
+            id: params.existingTechnicianId,
+          },
+          data: {
+            phone: params.phone,
+            ...(params.status === UserStatus.INACTIVE
+              ? {
+                  status: TechnicianStatus.OFFLINE,
+                }
+              : {}),
+          },
+        });
+        return;
+      }
+
+      await transaction.technician.create({
+        data: {
+          userId: params.userId,
+          phone: params.phone,
+          status: TechnicianStatus.OFFLINE,
+        },
+      });
+      return;
+    }
+
+    if (!params.existingTechnicianId) {
+      return;
+    }
+
+    const [jobCount, visitCount, locationCount] = await Promise.all([
+      transaction.job.count({
+        where: {
+          technicianId: params.existingTechnicianId,
+        },
+      }),
+      transaction.jobVisit.count({
+        where: {
+          technicianId: params.existingTechnicianId,
+        },
+      }),
+      transaction.locationLog.count({
+        where: {
+          technicianId: params.existingTechnicianId,
+        },
+      }),
+    ]);
+
+    if (jobCount > 0 || visitCount > 0 || locationCount > 0) {
+      throw new ConflictException(
+        'Technician users with jobs or location history cannot be converted to another role',
+      );
+    }
+
+    await transaction.technician.delete({
+      where: {
+        id: params.existingTechnicianId,
+      },
+    });
+  }
+
+  private toApiEmployee(user: EmployeeRecord) {
+    return {
+      id: user.id,
+      name: user.name,
+      username: user.username,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      status: user.status,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+      technicianProfileId: user.technician?.id ?? null,
+      technicianStatus: user.technician?.status ?? null,
+    };
+  }
+
+  private normalizeOptionalString(value?: string | null): string | null {
+    const normalized = value?.trim();
+    if (!normalized) {
+      return null;
+    }
+
+    return normalized.toLowerCase();
+  }
+
+  private rethrowUniqueConstraint(error: unknown): never {
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    ) {
+      throw new ConflictException('Username, email, and phone number must be unique');
+    }
+
+    throw error;
   }
 }

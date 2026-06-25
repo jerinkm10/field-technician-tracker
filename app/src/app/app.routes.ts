@@ -336,6 +336,46 @@ export const routes: Routes = [
               pageMode: 'edit'
             }
           },
+          {
+            path: 'employees',
+            loadComponent: () =>
+              import('./pages/settings/employees-page.component').then(
+                (module) => module.EmployeesPageComponent
+              ),
+            data: {
+              pageMode: 'list'
+            }
+          },
+          {
+            path: 'employees/create',
+            loadComponent: () =>
+              import('./pages/settings/employees-page.component').then(
+                (module) => module.EmployeesPageComponent
+              ),
+            data: {
+              pageMode: 'create'
+            }
+          },
+          {
+            path: 'employees/:id/view',
+            loadComponent: () =>
+              import('./pages/settings/employees-page.component').then(
+                (module) => module.EmployeesPageComponent
+              ),
+            data: {
+              pageMode: 'view'
+            }
+          },
+          {
+            path: 'employees/:id/edit',
+            loadComponent: () =>
+              import('./pages/settings/employees-page.component').then(
+                (module) => module.EmployeesPageComponent
+              ),
+            data: {
+              pageMode: 'edit'
+            }
+          },
         ]
       }
     ]

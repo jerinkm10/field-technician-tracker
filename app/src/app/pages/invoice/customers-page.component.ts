@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -7,6 +7,7 @@ import { SelectModule } from 'primeng/select';
 import { TagModule } from 'primeng/tag';
 
 import { CustomersApiService } from '../../core/services/customers-api.service';
+import { UiFeedbackService } from '../../core/services/ui-feedback.service';
 import { CustomerFormDialogComponent } from '../../invoice/components/customer-form-dialog.component';
 import { DataTableWithActionsComponent } from '../../invoice/components/data-table-with-actions.component';
 import { FilterDropdownComponent } from '../../invoice/components/filter-dropdown.component';
@@ -42,6 +43,8 @@ type TagSeverity = 'success' | 'warn';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class InvoiceCustomersPageComponent {
+  private readonly uiFeedback = inject(UiFeedbackService);
+
   protected readonly customers = signal<CustomerRecord[]>([]);
   protected readonly loading = signal(false);
   protected readonly saving = signal(false);
@@ -135,29 +138,42 @@ export class InvoiceCustomersPageComponent {
         this.saving.set(false);
         this.dialogVisible.set(false);
         this.loadCustomers();
+        this.uiFeedback.success(
+          this.editingCustomer ? 'Customer updated' : 'Customer created',
+          `Customer "${payload.customerName}" was saved successfully.`,
+        );
       },
       error: () => {
         this.saving.set(false);
-        this.errorMessage.set(
-          'Customer save failed. Verify GSTIN uniqueness and required address fields.',
-        );
+        const message =
+          'Customer save failed. Verify GSTIN uniqueness and required address fields.';
+        this.errorMessage.set(message);
+        this.uiFeedback.error('Customer save failed', message);
       },
     });
   }
 
   protected deleteCustomer(customer: CustomerRecord): void {
-    if (!window.confirm(`Delete customer "${customer.customerName}"?`)) {
-      return;
-    }
-
-    this.customersApiService.deleteCustomer(customer.id).subscribe({
-      next: () => {
-        this.loadCustomers();
-      },
-      error: () => {
-        this.errorMessage.set(
-          'Customer delete failed. Customers linked to jobs, invoices, or quotations cannot be removed.',
-        );
+    this.uiFeedback.confirm({
+      header: 'Delete Customer',
+      message: `Delete customer "${customer.customerName}"?`,
+      acceptLabel: 'Delete',
+      accept: () => {
+        this.customersApiService.deleteCustomer(customer.id).subscribe({
+          next: () => {
+            this.loadCustomers();
+            this.uiFeedback.success(
+              'Customer deleted',
+              `Customer "${customer.customerName}" was removed.`,
+            );
+          },
+          error: () => {
+            const message =
+              'Customer delete failed. Customers linked to jobs, invoices, or quotations cannot be removed.';
+            this.errorMessage.set(message);
+            this.uiFeedback.error('Customer delete failed', message);
+          },
+        });
       },
     });
   }

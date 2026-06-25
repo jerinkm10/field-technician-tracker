@@ -133,6 +133,38 @@ a {
   grid-template-columns: minmax(0, 1.6fr) minmax(280px, 0.9fr);
 }
 
+.p-datatable .p-datatable-tbody > tr > td.action-cell,
+.p-datatable .p-datatable-thead > tr > th.action-cell,
+.p-datatable .p-datatable-tfoot > tr > td.action-cell {
+  vertical-align: middle;
+}
+
+.action-cell {
+  vertical-align: middle;
+}
+
+.action-cell:is(td, th) {
+  display: table-cell !important;
+  white-space: nowrap;
+}
+
+.p-datatable .p-datatable-tbody > tr > td.action-cell {
+  display: table-cell !important;
+  min-width: 12rem;
+  white-space: nowrap;
+}
+
+.action-cell > button[pButton],
+.p-datatable .p-datatable-tbody > tr > td.action-cell > button[pButton] {
+  margin: 0 0.4rem 0 0;
+  vertical-align: middle;
+}
+
+.action-cell > button[pButton]:last-child,
+.p-datatable .p-datatable-tbody > tr > td.action-cell > button[pButton]:last-child {
+  margin-right: 0;
+}
+
 @media (max-width: 960px) {
   .page-header,
   .two-column-layout {

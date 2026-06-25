@@ -4,17 +4,20 @@ import { Router } from '@angular/router';
 import { Observable } from 'rxjs';
 
 import { appSettings } from '../config/app.settings';
+import { AppUserRole } from '../../shared/models/billing.models';
 import { RealtimeService } from './realtime.service';
 
 export type AuthenticatedUser = {
   id: string;
   name: string;
-  email: string;
-  role: 'ADMIN' | 'TECHNICIAN';
+  username: string;
+  email: string | null;
+  role: AppUserRole;
 };
 
 export type LoginRequest = {
-  email: string;
+  username?: string;
+  email?: string;
   password: string;
 };
 
@@ -26,8 +29,9 @@ export type LoginResponse = {
 type JwtPayload = {
   sub?: string;
   name?: string;
-  email?: string;
-  role?: 'ADMIN' | 'TECHNICIAN';
+  username?: string;
+  email?: string | null;
+  role?: AppUserRole;
   exp?: number;
 };
 
@@ -51,11 +55,15 @@ export class AuthService {
     () => Boolean(this.accessTokenState()) && Boolean(this.currentUserState()),
   );
   readonly isAdmin = computed(
-    () => this.isAuthenticated() && this.currentUserState()?.role === 'ADMIN',
+    () => this.isAuthenticated() && this.hasDashboardAccess(this.currentUserState()?.role),
   );
 
   login(payload: LoginRequest): Observable<LoginResponse> {
     return this.httpClient.post<LoginResponse>(`${appSettings.apiBaseUrl}/auth/login`, payload);
+  }
+
+  hasDashboardAccess(role: AppUserRole | null | undefined): boolean {
+    return role === 'ADMIN' || role === 'ADMIN_OWNER';
   }
 
   startSession(response: LoginResponse): void {
@@ -109,14 +117,15 @@ export class AuthService {
     }
 
     const payload = this.decodeJwtPayload(this.readAccessToken());
-    if (!payload?.sub || !payload.name || !payload.email || !payload.role) {
+    if (!payload?.sub || !payload.name || !payload.username || !payload.role) {
       return null;
     }
 
     return {
       id: payload.sub,
       name: payload.name,
-      email: payload.email,
+      username: payload.username,
+      email: payload.email ?? null,
       role: payload.role,
     };
   }

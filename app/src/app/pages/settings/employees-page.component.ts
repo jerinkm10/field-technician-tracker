@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
@@ -7,46 +8,52 @@ import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
 import { TagModule } from 'primeng/tag';
 
-import {
-  SupplierListFilters,
-  SupplierRecord,
-  SupplierStatus,
-  SupplierUpsertPayload,
-} from '../../shared/models/billing.models';
-import { SuppliersApiService } from '../../core/services/suppliers-api.service';
+import { EmployeesApiService } from '../../core/services/employees-api.service';
 import { UiFeedbackService } from '../../core/services/ui-feedback.service';
+import {
+  EmployeeListFilters,
+  EmployeeRecord,
+  EmployeeRole,
+  EmployeeUpsertPayload,
+  UserStatus,
+} from '../../shared/models/billing.models';
 import { DataTableWithActionsComponent } from '../../invoice/components/data-table-with-actions.component';
 import { FilterDropdownComponent } from '../../invoice/components/filter-dropdown.component';
-import { SupplierFormDialogComponent } from '../../invoice/components/supplier-form-dialog.component';
+import { EmployeeFormDialogComponent } from '../../settings/components/employee-form-dialog.component';
+
+type RoleOption = {
+  label: string;
+  value: EmployeeRole | '';
+};
 
 type StatusOption = {
   label: string;
-  value: SupplierStatus | '';
+  value: UserStatus | '';
 };
 
-type TagSeverity = 'success' | 'warn';
+type TagSeverity = 'success' | 'info' | 'warn';
 
 @Component({
-  selector: 'app-invoice-suppliers-page',
+  selector: 'app-employees-page',
   imports: [
     ButtonModule,
     DataTableWithActionsComponent,
     DatePipe,
+    EmployeeFormDialogComponent,
     FilterDropdownComponent,
     FormsModule,
     InputTextModule,
     SelectModule,
-    SupplierFormDialogComponent,
     TagModule,
   ],
-  templateUrl: './suppliers-page.component.html',
-  styleUrl: './suppliers-page.component.scss',
+  templateUrl: './employees-page.component.html',
+  styleUrl: './employees-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class InvoiceSuppliersPageComponent {
+export class EmployeesPageComponent {
   private readonly uiFeedback = inject(UiFeedbackService);
 
-  protected readonly suppliers = signal<SupplierRecord[]>([]);
+  protected readonly employees = signal<EmployeeRecord[]>([]);
   protected readonly loading = signal(false);
   protected readonly saving = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
@@ -57,6 +64,13 @@ export class InvoiceSuppliersPageComponent {
   protected readonly hasNextPage = signal(false);
   protected readonly totalRecords = signal(0);
 
+  protected readonly roleOptions: RoleOption[] = [
+    { label: 'All roles', value: '' },
+    { label: 'Admin', value: 'ADMIN' },
+    { label: 'Employee', value: 'EMPLOYEE' },
+    { label: 'Technician', value: 'TECHNICIAN' },
+  ];
+
   protected readonly statusOptions: StatusOption[] = [
     { label: 'All statuses', value: '' },
     { label: 'Active', value: 'ACTIVE' },
@@ -64,15 +78,14 @@ export class InvoiceSuppliersPageComponent {
   ];
 
   protected searchTerm = '';
-  protected statusFilter: SupplierStatus | '' = '';
-  protected gstinFilter = '';
-  protected phoneFilter = '';
-  protected editingSupplier: SupplierRecord | null = null;
+  protected roleFilter: EmployeeRole | '' = '';
+  protected statusFilter: UserStatus | '' = '';
+  protected editingEmployee: EmployeeRecord | null = null;
   protected dialogMode: 'create' | 'edit' | 'view' = 'create';
   protected readonly pageMode: 'list' | 'create' | 'edit' | 'view';
 
   constructor(
-    private readonly suppliersApiService: SuppliersApiService,
+    private readonly employeesApiService: EmployeesApiService,
     private readonly route: ActivatedRoute,
     private readonly router: Router,
   ) {
@@ -82,26 +95,25 @@ export class InvoiceSuppliersPageComponent {
         | 'create'
         | 'edit'
         | 'view') ?? 'list';
-    this.loadSuppliers();
+    this.loadEmployees();
     this.handleRouteState();
   }
 
-  protected loadSuppliers(): void {
+  protected loadEmployees(): void {
     this.loading.set(true);
     this.errorMessage.set(null);
 
-    const filters: SupplierListFilters = {
+    const filters: EmployeeListFilters = {
       search: this.searchTerm.trim() || undefined,
+      role: this.roleFilter || undefined,
       status: this.statusFilter || undefined,
-      gstin: this.gstinFilter.trim() || undefined,
-      phone: this.phoneFilter.trim() || undefined,
       page: this.page(),
       limit: 10,
     };
 
-    this.suppliersApiService.getSuppliersPage(filters).subscribe({
+    this.employeesApiService.getEmployeesPage(filters).subscribe({
       next: (response) => {
-        this.suppliers.set(response.data);
+        this.employees.set(response.data);
         this.totalRecords.set(response.meta.total);
         this.totalPages.set(response.meta.totalPages);
         this.hasPreviousPage.set(response.meta.hasPreviousPage);
@@ -111,100 +123,87 @@ export class InvoiceSuppliersPageComponent {
       error: () => {
         this.loading.set(false);
         this.errorMessage.set(
-          'Unable to load branches. Make sure the backend is running and the database is migrated.',
+          'Unable to load employees. Make sure the backend is running and the latest migration has been applied.',
         );
       },
     });
   }
 
   protected openCreateDialog(): void {
-    void this.router.navigate(['/settings/branch/create']);
+    void this.router.navigate(['/settings/employees/create']);
   }
 
-  protected openViewDialog(supplier: SupplierRecord): void {
-    void this.router.navigate(['/settings/branch', supplier.id, 'view']);
+  protected openViewDialog(employee: EmployeeRecord): void {
+    void this.router.navigate(['/settings/employees', employee.id, 'view']);
   }
 
-  protected openEditDialog(supplier: SupplierRecord): void {
-    void this.router.navigate(['/settings/branch', supplier.id, 'edit']);
+  protected openEditDialog(employee: EmployeeRecord): void {
+    void this.router.navigate(['/settings/employees', employee.id, 'edit']);
   }
 
   protected closeDialog(): void {
     this.dialogVisible.set(false);
-    this.editingSupplier = null;
+    this.editingEmployee = null;
     this.dialogMode = 'create';
-    void this.router.navigate(['/settings/branch']);
+    void this.router.navigate(['/settings/employees']);
   }
 
-  protected saveSupplier(payload: SupplierUpsertPayload): void {
-    const isEdit = Boolean(this.editingSupplier);
+  protected saveEmployee(payload: EmployeeUpsertPayload): void {
+    const isEdit = Boolean(this.editingEmployee);
     this.saving.set(true);
 
-    const request = this.editingSupplier
-      ? this.suppliersApiService.updateSupplier(this.editingSupplier.id, payload)
-      : this.suppliersApiService.createSupplier(payload);
+    const request = this.editingEmployee
+      ? this.employeesApiService.updateEmployee(this.editingEmployee.id, payload)
+      : this.employeesApiService.createEmployee(payload);
 
     request.subscribe({
       next: () => {
         this.saving.set(false);
-        this.loadSuppliers();
+        this.loadEmployees();
         this.closeDialog();
         this.uiFeedback.success(
-          isEdit ? 'Branch updated' : 'Branch created',
-          `Branch "${payload.supplierName}" was saved successfully.`,
+          isEdit ? 'Employee updated' : 'Employee created',
+          `Employee "${payload.name}" was saved successfully.`,
         );
       },
-      error: () => {
+      error: (error: HttpErrorResponse) => {
         this.saving.set(false);
-        const message =
-          'Branch save failed. GSTIN must be unique and all fields are required.';
+        const message = this.extractErrorMessage(
+          error,
+          'Employee save failed. Username, phone number, and email must stay unique.',
+        );
         this.errorMessage.set(message);
-        this.uiFeedback.error('Branch save failed', message);
+        this.uiFeedback.error('Employee save failed', message);
       },
     });
   }
 
-  protected deleteSupplier(supplier: SupplierRecord): void {
-    this.uiFeedback.confirm({
-      header: 'Delete Branch',
-      message: `Delete branch "${supplier.supplierName}"?`,
-      acceptLabel: 'Delete',
-      accept: () => {
-        this.suppliersApiService.deleteSupplier(supplier.id).subscribe({
-          next: () => {
-            this.loadSuppliers();
-            this.uiFeedback.success(
-              'Branch deleted',
-              `Branch "${supplier.supplierName}" was removed.`,
-            );
-          },
-          error: () => {
-            const message =
-              'Branch delete failed. Branches linked to invoices must stay in the master list.';
-            this.errorMessage.set(message);
-            this.uiFeedback.error('Branch delete failed', message);
-          },
-        });
-      },
-    });
+  protected roleSeverity(role: EmployeeRole): TagSeverity {
+    switch (role) {
+      case 'ADMIN':
+        return 'info';
+      case 'TECHNICIAN':
+        return 'success';
+      default:
+        return 'warn';
+    }
   }
 
-  protected statusSeverity(status: SupplierStatus): TagSeverity {
+  protected statusSeverity(status: UserStatus): TagSeverity {
     return status === 'ACTIVE' ? 'success' : 'warn';
   }
 
   protected applyFilters(): void {
     this.page.set(1);
-    this.loadSuppliers();
+    this.loadEmployees();
   }
 
   protected resetFilters(): void {
     this.searchTerm = '';
+    this.roleFilter = '';
     this.statusFilter = '';
-    this.gstinFilter = '';
-    this.phoneFilter = '';
     this.page.set(1);
-    this.loadSuppliers();
+    this.loadEmployees();
   }
 
   protected previousPage(): void {
@@ -213,7 +212,7 @@ export class InvoiceSuppliersPageComponent {
     }
 
     this.page.update((value) => value - 1);
-    this.loadSuppliers();
+    this.loadEmployees();
   }
 
   protected nextPage(): void {
@@ -222,34 +221,45 @@ export class InvoiceSuppliersPageComponent {
     }
 
     this.page.update((value) => value + 1);
-    this.loadSuppliers();
+    this.loadEmployees();
   }
 
   private handleRouteState(): void {
-    const supplierId = this.route.snapshot.paramMap.get('id');
+    const employeeId = this.route.snapshot.paramMap.get('id');
 
     if (this.pageMode === 'create') {
       this.dialogMode = 'create';
-      this.editingSupplier = null;
+      this.editingEmployee = null;
       this.dialogVisible.set(true);
       return;
     }
 
-    if (!supplierId) {
+    if (!employeeId) {
       this.dialogVisible.set(false);
       return;
     }
 
-    this.suppliersApiService.getSupplier(supplierId).subscribe({
-      next: (supplier) => {
-        this.editingSupplier = supplier;
+    this.employeesApiService.getEmployee(employeeId).subscribe({
+      next: (employee) => {
+        this.editingEmployee = employee;
         this.dialogMode = this.pageMode === 'view' ? 'view' : 'edit';
         this.dialogVisible.set(true);
       },
       error: () => {
-        this.errorMessage.set('Unable to load the selected branch.');
-        void this.router.navigate(['/settings/branch']);
+        this.errorMessage.set('Unable to load the selected employee.');
+        void this.router.navigate(['/settings/employees']);
       },
     });
+  }
+
+  private extractErrorMessage(
+    error: HttpErrorResponse,
+    fallbackMessage: string,
+  ): string {
+    if (typeof error.error?.message === 'string') {
+      return error.error.message;
+    }
+
+    return fallbackMessage;
   }
 }

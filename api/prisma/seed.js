@@ -16,12 +16,15 @@ const {
   QuotationStatus,
   AmcBillingPeriod,
   AmcStatus,
+  UserStatus,
 } = require('@prisma/client');
 
 const prisma = new PrismaClient();
 
 async function main() {
   const passwordHash = await bcrypt.hash('password', 10);
+  const adminOwnerTcrPasswordHash = await bcrypt.hash('highCooling4692@@', 10);
+  const adminOwnerPalPasswordHash = await bcrypt.hash('highCooling4917@@', 10);
 
   await prisma.invoiceLineItem.deleteMany();
   await prisma.quotationLineItem.deleteMany();
@@ -45,12 +48,52 @@ async function main() {
   await prisma.customer.deleteMany();
   await prisma.user.deleteMany();
 
+  await Promise.all([
+    prisma.user.create({
+      data: {
+        name: 'High Cooling TCR Owner',
+        username: 'HighCoolingTCR',
+        email: null,
+        phone: '+91-9000001001',
+        password: adminOwnerTcrPasswordHash,
+        role: Role.ADMIN_OWNER,
+        status: UserStatus.ACTIVE,
+      },
+    }),
+    prisma.user.create({
+      data: {
+        name: 'High Cooling PAL Owner',
+        username: 'HighCoolingPAL',
+        email: null,
+        phone: '+91-9000001002',
+        password: adminOwnerPalPasswordHash,
+        role: Role.ADMIN_OWNER,
+        status: UserStatus.ACTIVE,
+      },
+    }),
+  ]);
+
   const adminUser = await prisma.user.create({
     data: {
       name: 'System Admin',
+      username: 'systemadmin',
       email: 'admin@example.com',
+      phone: '+91-9000001003',
       password: passwordHash,
       role: Role.ADMIN,
+      status: UserStatus.ACTIVE,
+    },
+  });
+
+  await prisma.user.create({
+    data: {
+      name: 'Office Coordinator',
+      username: 'officecoord',
+      email: 'office@example.com',
+      phone: '+91-9000001004',
+      password: passwordHash,
+      role: Role.EMPLOYEE,
+      status: UserStatus.ACTIVE,
     },
   });
 
@@ -58,17 +101,23 @@ async function main() {
     prisma.user.create({
       data: {
         name: 'Rahul Verma',
+        username: 'techrahul',
         email: 'tech@example.com',
+        phone: '+91-9876543210',
         password: passwordHash,
         role: Role.TECHNICIAN,
+        status: UserStatus.ACTIVE,
       },
     }),
     prisma.user.create({
       data: {
         name: 'Anita Das',
+        username: 'techanita',
         email: 'anita@example.com',
+        phone: '+91-9988776655',
         password: passwordHash,
         role: Role.TECHNICIAN,
+        status: UserStatus.ACTIVE,
       },
     }),
   ]);
@@ -373,7 +422,7 @@ async function main() {
 
   await prisma.company.create({
     data: {
-      companyName: 'Field Technician Tracker Services',
+      companyName: 'High Cooling Solution',
       phone: '+91-8044556677',
       email: 'billing@fieldtechniciantracker.example.com',
       gstin: '29AABCF4321K1Z8',
@@ -662,8 +711,9 @@ async function main() {
   });
 
   console.log('Seed completed');
-  console.log(`Admin user: ${adminUser.email}`);
-  console.log('Sample login password for seeded users: password');
+  console.log(`Admin dashboard sample user: ${adminUser.username}`);
+  console.log('Seeded admin owner usernames: HighCoolingTCR, HighCoolingPAL');
+  console.log('Sample employee and technician usernames: officecoord, techrahul, techanita');
 }
 
 main()

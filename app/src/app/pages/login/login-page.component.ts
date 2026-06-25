@@ -7,7 +7,9 @@ import { CardModule } from 'primeng/card';
 import { InputTextModule } from 'primeng/inputtext';
 import { TagModule } from 'primeng/tag';
 
+import { appSettings } from '../../core/config/app.settings';
 import { AuthService } from '../../core/services/auth.service';
+import { UiFeedbackService } from '../../core/services/ui-feedback.service';
 
 @Component({
   selector: 'app-login-page',
@@ -20,9 +22,11 @@ export class LoginPageComponent {
   private readonly router = inject(Router);
   private readonly activatedRoute = inject(ActivatedRoute);
   private readonly authService = inject(AuthService);
+  private readonly uiFeedback = inject(UiFeedbackService);
 
-  protected email = 'admin@example.com';
-  protected password = 'password';
+  protected readonly appName = appSettings.appName;
+  protected username = '';
+  protected password = '';
   protected readonly loading = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
 
@@ -36,17 +40,18 @@ export class LoginPageComponent {
 
     this.authService
       .login({
-        email: this.email.trim(),
+        username: this.username.trim(),
         password: this.password,
       })
       .subscribe({
         next: async (response) => {
-          if (response.user.role !== 'ADMIN') {
+          if (!this.authService.hasDashboardAccess(response.user.role)) {
             this.loading.set(false);
             this.authService.logout({ navigate: false });
-            this.errorMessage.set(
-              'This dashboard only supports ADMIN accounts. Use admin@example.com with password "password".',
-            );
+            const message =
+              'This dashboard currently supports ADMIN_OWNER and ADMIN accounts only.';
+            this.errorMessage.set(message);
+            this.uiFeedback.showPermissionDenied(message);
             return;
           }
 
@@ -60,11 +65,14 @@ export class LoginPageComponent {
         },
         error: (error: HttpErrorResponse) => {
           this.loading.set(false);
-          this.errorMessage.set(
+          const apiMessage =
+            typeof error.error?.message === 'string' ? error.error.message : null;
+          const message =
             error.status === 401
-              ? 'Invalid email or password.'
-              : 'Unable to sign in right now. Make sure the API is running on port 3007.',
-          );
+              ? (apiMessage ?? 'Invalid username or password.')
+              : 'Unable to sign in right now. Make sure the API is running on port 3007.';
+          this.errorMessage.set(message);
+          this.uiFeedback.error('Sign-in failed', message);
         },
       });
   }

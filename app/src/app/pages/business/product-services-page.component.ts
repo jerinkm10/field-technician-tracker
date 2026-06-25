@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -7,6 +7,7 @@ import { SelectModule } from 'primeng/select';
 import { TagModule } from 'primeng/tag';
 
 import { ProductServicesApiService } from '../../core/services/product-services-api.service';
+import { UiFeedbackService } from '../../core/services/ui-feedback.service';
 import { ProductServiceFormDialogComponent } from '../../business/components/product-service-form-dialog.component';
 import { DataTableWithActionsComponent } from '../../invoice/components/data-table-with-actions.component';
 import { FilterDropdownComponent } from '../../invoice/components/filter-dropdown.component';
@@ -42,6 +43,8 @@ type TagSeverity = 'success' | 'warn' | 'info';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ProductServicesPageComponent {
+  private readonly uiFeedback = inject(UiFeedbackService);
+
   protected readonly productServices = signal<ProductServiceRecord[]>([]);
   protected readonly loading = signal(false);
   protected readonly saving = signal(false);
@@ -130,6 +133,9 @@ export class ProductServicesPageComponent {
   }
 
   protected saveProductService(payload: ProductServiceUpsertPayload): void {
+    const isEdit = Boolean(
+      this.selectedProductService && this.dialogMode === 'edit',
+    );
     this.saving.set(true);
 
     const request = this.selectedProductService && this.dialogMode === 'edit'
@@ -144,29 +150,42 @@ export class ProductServicesPageComponent {
         this.saving.set(false);
         this.closeDialog();
         this.loadProductServices();
+        this.uiFeedback.success(
+          isEdit ? 'Product or service updated' : 'Product or service created',
+          `Record "${payload.name}" was saved successfully.`,
+        );
       },
       error: () => {
         this.saving.set(false);
-        this.errorMessage.set(
-          'Product and service save failed. Check the details and try again.',
-        );
+        const message =
+          'Product and service save failed. Check the details and try again.';
+        this.errorMessage.set(message);
+        this.uiFeedback.error('Product and service save failed', message);
       },
     });
   }
 
   protected deleteProductService(productService: ProductServiceRecord): void {
-    if (!window.confirm(`Delete "${productService.name}"?`)) {
-      return;
-    }
-
-    this.productServicesApiService.deleteProductService(productService.id).subscribe({
-      next: () => {
-        this.loadProductServices();
-      },
-      error: () => {
-        this.errorMessage.set(
-          'Product and service delete failed. Try again after refreshing the list.',
-        );
+    this.uiFeedback.confirm({
+      header: 'Delete Product or Service',
+      message: `Delete "${productService.name}"?`,
+      acceptLabel: 'Delete',
+      accept: () => {
+        this.productServicesApiService.deleteProductService(productService.id).subscribe({
+          next: () => {
+            this.loadProductServices();
+            this.uiFeedback.success(
+              'Product or service deleted',
+              `"${productService.name}" was removed successfully.`,
+            );
+          },
+          error: () => {
+            const message =
+              'Product and service delete failed. Try again after refreshing the list.';
+            this.errorMessage.set(message);
+            this.uiFeedback.error('Product and service delete failed', message);
+          },
+        });
       },
     });
   }

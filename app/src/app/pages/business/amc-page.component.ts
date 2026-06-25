@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -12,6 +12,7 @@ import { AmcApiService } from '../../core/services/amc-api.service';
 import { CompanySettingsApiService } from '../../core/services/company-settings-api.service';
 import { CustomersApiService } from '../../core/services/customers-api.service';
 import { SuppliersApiService } from '../../core/services/suppliers-api.service';
+import { UiFeedbackService } from '../../core/services/ui-feedback.service';
 import { DataTableWithActionsComponent } from '../../invoice/components/data-table-with-actions.component';
 import { FilterDropdownComponent } from '../../invoice/components/filter-dropdown.component';
 import {
@@ -52,6 +53,8 @@ type TagSeverity = 'success' | 'warn' | 'danger' | 'info';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class AmcPageComponent {
+  private readonly uiFeedback = inject(UiFeedbackService);
+
   protected readonly amcs = signal<AmcRecord[]>([]);
   protected readonly customers = signal<CustomerRecord[]>([]);
   protected readonly branches = signal<SupplierRecord[]>([]);
@@ -175,6 +178,7 @@ export class AmcPageComponent {
   }
 
   protected saveAmc(payload: AmcUpsertPayload): void {
+    const isEdit = this.dialogMode === 'edit';
     this.saving.set(true);
 
     const request =
@@ -189,57 +193,78 @@ export class AmcPageComponent {
         this.selectedAmc = amc;
         this.loadSummary();
         this.loadAmcs();
+        this.uiFeedback.success(
+          isEdit ? 'AMC updated' : 'AMC created',
+          `AMC "${amc.amcNumber}" was saved successfully.`,
+        );
       },
       error: (error) => {
         this.saving.set(false);
-        this.errorMessage.set(
+        const message =
           error?.error?.message ||
-            'AMC save failed. Check the contract number, dates, and billing period.',
-        );
+          'AMC save failed. Check the contract number, dates, and billing period.';
+        this.errorMessage.set(message);
+        this.uiFeedback.error('AMC save failed', message);
       },
     });
   }
 
   protected deleteAmc(amc: AmcRecord): void {
-    if (!window.confirm(`Delete AMC "${amc.amcNumber}"?`)) {
-      return;
-    }
-
-    this.amcApiService.deleteAmc(amc.id).subscribe({
-      next: () => {
-        this.loadSummary();
-        this.loadAmcs();
-      },
-      error: (error) => {
-        this.errorMessage.set(
-          error?.error?.message ||
-            'AMC delete failed. Linked invoice history may need to be removed first.',
-        );
+    this.uiFeedback.confirm({
+      header: 'Delete AMC',
+      message: `Delete AMC "${amc.amcNumber}"?`,
+      acceptLabel: 'Delete',
+      accept: () => {
+        this.amcApiService.deleteAmc(amc.id).subscribe({
+          next: () => {
+            this.loadSummary();
+            this.loadAmcs();
+            this.uiFeedback.success(
+              'AMC deleted',
+              `AMC "${amc.amcNumber}" was removed successfully.`,
+            );
+          },
+          error: (error) => {
+            const message =
+              error?.error?.message ||
+              'AMC delete failed. Linked invoice history may need to be removed first.';
+            this.errorMessage.set(message);
+            this.uiFeedback.error('AMC delete failed', message);
+          },
+        });
       },
     });
   }
 
   protected createInvoice(amc: AmcRecord): void {
-    if (!window.confirm(`Create invoice for AMC "${amc.amcNumber}"?`)) {
-      return;
-    }
+    this.uiFeedback.confirm({
+      header: 'Create AMC Invoice',
+      message: `Create invoice for AMC "${amc.amcNumber}"?`,
+      acceptLabel: 'Create Invoice',
+      acceptButtonStyleClass: 'p-button-primary',
+      accept: () => {
+        this.activeInvoiceAmcId.set(amc.id);
 
-    this.activeInvoiceAmcId.set(amc.id);
-
-    this.amcApiService.createInvoice(amc.id).subscribe({
-      next: (response) => {
-        this.activeInvoiceAmcId.set(null);
-        this.selectedAmc = response.amc;
-        this.loadSummary();
-        this.loadAmcs();
-        window.alert(`Invoice ${response.invoice.invoiceNumber} created successfully.`);
-      },
-      error: (error) => {
-        this.activeInvoiceAmcId.set(null);
-        this.errorMessage.set(
-          error?.error?.message ||
-            'AMC invoice creation failed. Verify the billing cycle and contract dates.',
-        );
+        this.amcApiService.createInvoice(amc.id).subscribe({
+          next: (response) => {
+            this.activeInvoiceAmcId.set(null);
+            this.selectedAmc = response.amc;
+            this.loadSummary();
+            this.loadAmcs();
+            this.uiFeedback.success(
+              'AMC invoice created',
+              `Invoice ${response.invoice.invoiceNumber} was created successfully.`,
+            );
+          },
+          error: (error) => {
+            this.activeInvoiceAmcId.set(null);
+            const message =
+              error?.error?.message ||
+              'AMC invoice creation failed. Verify the billing cycle and contract dates.';
+            this.errorMessage.set(message);
+            this.uiFeedback.error('AMC invoice creation failed', message);
+          },
+        });
       },
     });
   }
@@ -253,9 +278,15 @@ export class AmcPageComponent {
         link.download = `${amc.amcNumber}.pdf`;
         link.click();
         window.setTimeout(() => window.URL.revokeObjectURL(url), 2000);
+        this.uiFeedback.success(
+          'AMC PDF downloaded',
+          `${amc.amcNumber}.pdf is ready.`,
+        );
       },
       error: () => {
-        this.errorMessage.set('AMC PDF download failed.');
+        const message = 'AMC PDF download failed.';
+        this.errorMessage.set(message);
+        this.uiFeedback.error('AMC PDF download failed', message);
       },
     });
   }

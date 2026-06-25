@@ -1,10 +1,10 @@
 <section class="login-page">
   <div class="login-story">
-    <p class="story-overline">Field Operations</p>
-    <h1>Keep dispatch, technicians, jobs, and live movement in one calm workspace.</h1>
+    <p class="story-overline">{{ appName }}</p>
+    <h1>Keep cooling operations, billing, contracts, and field teams in one calm workspace.</h1>
     <p>
-      This admin dashboard scaffold gives you a dedicated login page, routed sections, a reusable
-      shell, and a live-map ready surface for the next implementation steps.
+      High Cooling Solution brings dispatch, live tracking, invoicing, AMC follow-up, and admin
+      workflows into one connected dashboard.
     </p>
 
     <div class="story-tags">
@@ -30,13 +30,18 @@
   </div>
 
   <p-card class="login-card">
-    <ng-template #title>Admin Login</ng-template>
-    <ng-template #subtitle>Enter credentials to access the tracking dashboard.</ng-template>
+    <ng-template #title>{{ appName }} Admin</ng-template>
+    <ng-template #subtitle>Enter your username and password to access the operations dashboard.</ng-template>
 
     <div class="login-form">
       <label class="field">
-        <span>Email Address</span>
-        <input pInputText [(ngModel)]="email" type="email" name="email" placeholder="admin@example.com" />
+        <span>Username</span>
+        <input
+          pInputText
+          [(ngModel)]="username"
+          type="text"
+          name="username"
+          placeholder="HighCoolingTCR" />
       </label>
 
       <label class="field">
@@ -55,7 +60,7 @@
         [label]="loading() ? 'Signing In...' : 'Sign In'"
         icon="pi pi-arrow-right"
         iconPos="right"
-        [disabled]="loading() || !email || !password"
+        [disabled]="loading() || !username || !password"
         (click)="login()">
       </button>
 
@@ -64,7 +69,7 @@
       }
 
       <p class="login-hint">
-        Seeded admin login: <strong>admin@example.com</strong> / <strong>password</strong>
+        Seeded admin owner usernames: <strong>HighCoolingTCR</strong> and <strong>HighCoolingPAL</strong>
       </p>
     </div>
   </p-card>

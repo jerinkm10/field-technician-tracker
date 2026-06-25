@@ -32,6 +32,7 @@ import {
   SuppliersApiService,
   SupplierUpsertPayload,
 } from '../../core/services/suppliers-api.service';
+import { UiFeedbackService } from '../../core/services/ui-feedback.service';
 import { SupplierFormDialogComponent } from './supplier-form-dialog.component';
 
 type EditableInvoiceLineItem = InvoiceLineItemPayload & {
@@ -80,6 +81,7 @@ export class InvoiceWorkspaceComponent implements OnInit, OnChanges {
   private readonly invoicesApiService = inject(InvoicesApiService);
   private readonly suppliersApiService = inject(SuppliersApiService);
   private readonly changeDetectorRef = inject(ChangeDetectorRef);
+  private readonly uiFeedback = inject(UiFeedbackService);
 
   protected readonly invoices = signal<InvoiceRecord[]>([]);
   protected readonly supplierSuggestions = signal<SupplierRecord[]>([]);
@@ -231,13 +233,17 @@ export class InvoiceWorkspaceComponent implements OnInit, OnChanges {
         this.selectedSupplier = supplier;
         this.supplierSearchValue = supplier;
         this.draft.supplierId = supplier.id;
+        this.uiFeedback.success(
+          'Supplier created',
+          `Supplier "${payload.supplierName}" was created and selected.`,
+        );
         this.changeDetectorRef.markForCheck();
       },
       error: () => {
         this.savingSupplier.set(false);
-        this.errorMessage.set(
-          'Supplier creation failed. Check the details and try again.',
-        );
+        const message = 'Supplier creation failed. Check the details and try again.';
+        this.errorMessage.set(message);
+        this.uiFeedback.error('Supplier creation failed', message);
         this.changeDetectorRef.markForCheck();
       },
     });
@@ -323,6 +329,7 @@ export class InvoiceWorkspaceComponent implements OnInit, OnChanges {
     }
 
     const payload = this.buildPayload(validLineItems);
+    const isEdit = Boolean(this.editingInvoiceId);
     this.saving.set(true);
     this.errorMessage.set(null);
 
@@ -335,12 +342,17 @@ export class InvoiceWorkspaceComponent implements OnInit, OnChanges {
         this.saving.set(false);
         this.invoices.update((current) => this.sortInvoices(this.upsertInvoice(current, invoice)));
         this.editInvoice(invoice);
+        this.uiFeedback.success(
+          isEdit ? 'Invoice updated' : 'Invoice created',
+          `Invoice "${invoice.invoiceNumber}" was saved successfully.`,
+        );
       },
       error: () => {
         this.saving.set(false);
-        this.errorMessage.set(
-          'Invoice save failed. Make sure the invoice number is unique and the supplier exists.',
-        );
+        const message =
+          'Invoice save failed. Make sure the invoice number is unique and the supplier exists.';
+        this.errorMessage.set(message);
+        this.uiFeedback.error('Invoice save failed', message);
         this.changeDetectorRef.markForCheck();
       },
     });
@@ -351,24 +363,33 @@ export class InvoiceWorkspaceComponent implements OnInit, OnChanges {
       return;
     }
 
-    if (!window.confirm('Delete this invoice?')) {
-      return;
-    }
+    this.uiFeedback.confirm({
+      header: 'Delete Invoice',
+      message: 'Delete this invoice?',
+      acceptLabel: 'Delete',
+      accept: () => {
+        this.deleting.set(true);
 
-    this.deleting.set(true);
-
-    this.invoicesApiService.deleteInvoice(this.editingInvoiceId).subscribe({
-      next: (invoice) => {
-        this.deleting.set(false);
-        this.invoices.update((current) =>
-          current.filter((currentInvoice) => currentInvoice.id !== invoice.id),
-        );
-        this.startNewInvoice();
-      },
-      error: () => {
-        this.deleting.set(false);
-        this.errorMessage.set('Invoice delete failed.');
-        this.changeDetectorRef.markForCheck();
+        this.invoicesApiService.deleteInvoice(this.editingInvoiceId!).subscribe({
+          next: (invoice) => {
+            this.deleting.set(false);
+            this.invoices.update((current) =>
+              current.filter((currentInvoice) => currentInvoice.id !== invoice.id),
+            );
+            this.startNewInvoice();
+            this.uiFeedback.success(
+              'Invoice deleted',
+              `Invoice "${invoice.invoiceNumber}" was removed successfully.`,
+            );
+          },
+          error: () => {
+            this.deleting.set(false);
+            const message = 'Invoice delete failed.';
+            this.errorMessage.set(message);
+            this.uiFeedback.error('Invoice delete failed', message);
+            this.changeDetectorRef.markForCheck();
+          },
+        });
       },
     });
   }

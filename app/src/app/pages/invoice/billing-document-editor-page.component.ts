@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -11,6 +11,7 @@ import { BillingDocumentsApiService } from '../../core/services/billing-document
 import { CompanySettingsApiService } from '../../core/services/company-settings-api.service';
 import { CustomersApiService } from '../../core/services/customers-api.service';
 import { SuppliersApiService } from '../../core/services/suppliers-api.service';
+import { UiFeedbackService } from '../../core/services/ui-feedback.service';
 import { CustomerAutocompleteComponent } from '../../invoice/components/customer-autocomplete.component';
 import { CustomerFormDialogComponent } from '../../invoice/components/customer-form-dialog.component';
 import { InvoiceLineItemsComponent } from '../../invoice/components/invoice-line-items.component';
@@ -57,6 +58,8 @@ type StatusOption = {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class BillingDocumentEditorPageComponent {
+  private readonly uiFeedback = inject(UiFeedbackService);
+
   protected readonly loading = signal(false);
   protected readonly saving = signal(false);
   protected readonly downloading = signal(false);
@@ -166,9 +169,15 @@ export class BillingDocumentEditorPageComponent {
         this.selectedSupplier.set(supplier);
         this.draft.supplierId = supplier.id;
         this.supplierDialogVisible.set(false);
+        this.uiFeedback.success(
+          'Branch created',
+          `Branch "${payload.supplierName}" was created and selected.`,
+        );
       },
       error: () => {
-        this.errorMessage.set('Branch creation failed. Check the details and try again.');
+        const message = 'Branch creation failed. Check the details and try again.';
+        this.errorMessage.set(message);
+        this.uiFeedback.error('Branch creation failed', message);
       },
     });
   }
@@ -178,9 +187,15 @@ export class BillingDocumentEditorPageComponent {
       next: (customer) => {
         this.applyCustomerSelection(customer);
         this.customerDialogVisible.set(false);
+        this.uiFeedback.success(
+          'Customer created',
+          `Customer "${payload.customerName}" was created and selected.`,
+        );
       },
       error: () => {
-        this.errorMessage.set('Customer creation failed. Check the details and try again.');
+        const message = 'Customer creation failed. Check the details and try again.';
+        this.errorMessage.set(message);
+        this.uiFeedback.error('Customer creation failed', message);
       },
     });
   }
@@ -236,12 +251,17 @@ export class BillingDocumentEditorPageComponent {
         this.saving.set(false);
         this.applyDocument(document);
         this.router.navigate(['/invoice', this.kind, document.id, 'edit']);
+        this.uiFeedback.success(
+          this.documentId ? 'Document updated' : 'Document created',
+          `${document.documentNumber} was saved successfully.`,
+        );
       },
       error: () => {
         this.saving.set(false);
-        this.errorMessage.set(
-          'Document save failed. Verify the unique number, branch, customer, and line item data.',
-        );
+        const message =
+          'Document save failed. Verify the unique number, branch, customer, and line item data.';
+        this.errorMessage.set(message);
+        this.uiFeedback.error('Document save failed', message);
       },
     });
   }
@@ -277,10 +297,16 @@ export class BillingDocumentEditorPageComponent {
         link.download = filename;
         link.click();
         window.setTimeout(() => window.URL.revokeObjectURL(url), 2000);
+        this.uiFeedback.success(
+          'PDF downloaded',
+          `${filename} is ready.`,
+        );
       },
       error: () => {
         this.downloading.set(false);
-        this.errorMessage.set('PDF download failed.');
+        const message = 'PDF download failed.';
+        this.errorMessage.set(message);
+        this.uiFeedback.error('PDF download failed', message);
       },
     });
   }
