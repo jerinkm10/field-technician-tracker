@@ -10,6 +10,7 @@ import { TagModule } from 'primeng/tag';
 
 import { LeadFormDialogComponent } from '../../business/components/lead-form-dialog.component';
 import { LeadStatusDialogComponent } from '../../business/components/lead-status-dialog.component';
+import { EmployeesApiService } from '../../core/services/employees-api.service';
 import { LeadsApiService } from '../../core/services/leads-api.service';
 import { ProductServicesApiService } from '../../core/services/product-services-api.service';
 import { SuppliersApiService } from '../../core/services/suppliers-api.service';
@@ -17,7 +18,9 @@ import { UiFeedbackService } from '../../core/services/ui-feedback.service';
 import { DataTableWithActionsComponent } from '../../invoice/components/data-table-with-actions.component';
 import { FilterDropdownComponent } from '../../invoice/components/filter-dropdown.component';
 import {
+  EmployeeRecord,
   LeadImportPreviewResponse,
+  LeadPerformanceResponse,
   LeadRecord,
   LeadStatus,
   LeadStatusUpdatePayload,
@@ -58,10 +61,13 @@ export class LeadsPageComponent {
 
   protected readonly leads = signal<LeadRecord[]>([]);
   protected readonly branches = signal<SupplierRecord[]>([]);
+  protected readonly employees = signal<EmployeeRecord[]>([]);
   protected readonly productServices = signal<ProductServiceRecord[]>([]);
+  protected readonly leadPerformance = signal<LeadPerformanceResponse | null>(null);
   protected readonly loading = signal(false);
   protected readonly saving = signal(false);
   protected readonly importLoading = signal(false);
+  protected readonly performanceLoading = signal(false);
   protected readonly dialogVisible = signal(false);
   protected readonly statusDialogVisible = signal(false);
   protected readonly importPreviewVisible = signal(false);
@@ -86,6 +92,7 @@ export class LeadsPageComponent {
   protected searchTerm = '';
   protected statusFilter: LeadStatus | '' = '';
   protected branchIdFilter = '';
+  protected assignedEmployeeIdFilter = '';
   protected fromDate = '';
   protected toDate = '';
   protected selectedLead: LeadRecord | null = null;
@@ -94,11 +101,13 @@ export class LeadsPageComponent {
   protected selectedImportFile: File | null = null;
 
   constructor(
+    private readonly employeesApiService: EmployeesApiService,
     private readonly leadsApiService: LeadsApiService,
     private readonly suppliersApiService: SuppliersApiService,
     private readonly productServicesApiService: ProductServicesApiService,
   ) {
     this.loadBranches();
+    this.loadEmployees();
     this.loadProductServices();
     this.loadLeads();
   }
@@ -112,6 +121,7 @@ export class LeadsPageComponent {
         search: this.searchTerm.trim() || undefined,
         status: this.statusFilter || undefined,
         branchId: this.branchIdFilter || undefined,
+        assignedToEmployeeId: this.assignedEmployeeIdFilter || undefined,
         fromDate: this.fromDate || undefined,
         toDate: this.toDate || undefined,
         page: this.page(),
@@ -136,6 +146,8 @@ export class LeadsPageComponent {
           );
         },
       });
+
+    this.loadLeadPerformance();
   }
 
   protected openCreateDialog(): void {
@@ -352,6 +364,7 @@ export class LeadsPageComponent {
     this.searchTerm = '';
     this.statusFilter = '';
     this.branchIdFilter = '';
+    this.assignedEmployeeIdFilter = '';
     this.fromDate = '';
     this.toDate = '';
     this.page.set(1);
@@ -401,6 +414,52 @@ export class LeadsPageComponent {
     ];
   }
 
+  protected employeeFilterOptions(): Option<string>[] {
+    return [
+      { label: 'All employees', value: '' },
+      ...this.employees().map((employee) => ({
+        label: `${employee.name} (${employee.username})`,
+        value: employee.id,
+      })),
+    ];
+  }
+
+  protected performanceSummaryCards(): Array<{
+    label: string;
+    value: string;
+    note: string;
+  }> {
+    const summary = this.leadPerformance()?.summary;
+
+    return [
+      {
+        label: 'Total Leads Assigned',
+        value: String(summary?.totalLeadsAssigned ?? 0),
+        note: 'Assigned lead records in the current filter scope',
+      },
+      {
+        label: 'Converted Leads',
+        value: String(summary?.convertedLeads ?? 0),
+        note: 'Leads successfully converted',
+      },
+      {
+        label: 'Lost Leads',
+        value: String(summary?.lostLeads ?? 0),
+        note: 'Leads marked as lost',
+      },
+      {
+        label: 'Follow-ups Due',
+        value: String(summary?.followUpsDue ?? 0),
+        note: 'Assigned leads needing action today or earlier',
+      },
+      {
+        label: 'Conversion %',
+        value: `${(summary?.conversionPercentage ?? 0).toFixed(2)}%`,
+        note: 'Converted leads divided by total assigned leads',
+      },
+    ];
+  }
+
   protected footerLabel(): string {
     return `Showing ${this.leads().length} lead(s) from ${this.totalRecords()} total`;
   }
@@ -418,6 +477,24 @@ export class LeadsPageComponent {
       });
   }
 
+  private loadEmployees(): void {
+    this.employeesApiService
+      .getEmployeesPage({ status: 'ACTIVE', page: 1, limit: 200 })
+      .subscribe({
+        next: (response) => {
+          this.employees.set(
+            response.data.filter(
+              (employee) =>
+                employee.role === 'ADMIN' || employee.role === 'EMPLOYEE',
+            ),
+          );
+        },
+        error: () => {
+          this.employees.set([]);
+        },
+      });
+  }
+
   private loadProductServices(): void {
     this.productServicesApiService
       .getProductServicesPage({ status: 'ACTIVE', page: 1, limit: 200 })
@@ -426,7 +503,31 @@ export class LeadsPageComponent {
           this.productServices.set(response.data);
         },
         error: () => {
-          this.productServices.set([]);
+        this.productServices.set([]);
+      },
+    });
+  }
+
+  private loadLeadPerformance(): void {
+    this.performanceLoading.set(true);
+
+    this.leadsApiService
+      .getLeadPerformance({
+        search: this.searchTerm.trim() || undefined,
+        status: this.statusFilter || undefined,
+        branchId: this.branchIdFilter || undefined,
+        assignedToEmployeeId: this.assignedEmployeeIdFilter || undefined,
+        fromDate: this.fromDate || undefined,
+        toDate: this.toDate || undefined,
+      })
+      .subscribe({
+        next: (response) => {
+          this.leadPerformance.set(response);
+          this.performanceLoading.set(false);
+        },
+        error: () => {
+          this.leadPerformance.set(null);
+          this.performanceLoading.set(false);
         },
       });
   }

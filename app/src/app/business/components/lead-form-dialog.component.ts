@@ -3,20 +3,25 @@ import {
   Component,
   EventEmitter,
   Input,
+  inject,
   OnChanges,
   Output,
   SimpleChanges,
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { AutoCompleteModule } from 'primeng/autocomplete';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
 import { TagModule } from 'primeng/tag';
 
+import { LeadsApiService } from '../../core/services/leads-api.service';
 import {
+  EmployeeRecord,
   LeadRecord,
+  LeadSuggestionRecord,
   LeadStatus,
   LeadUpsertPayload,
   ProductServiceRecord,
@@ -33,6 +38,7 @@ type TagSeverity = 'success' | 'info' | 'warn' | 'danger';
 @Component({
   selector: 'app-lead-form-dialog',
   imports: [
+    AutoCompleteModule,
     ButtonModule,
     DatePipe,
     DialogModule,
@@ -46,12 +52,15 @@ type TagSeverity = 'success' | 'info' | 'warn' | 'danger';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LeadFormDialogComponent implements OnChanges {
+  private readonly leadsApiService = inject(LeadsApiService);
+
   @Input() visible = false;
   @Input() saving = false;
   @Input() mode: 'create' | 'edit' | 'view' = 'create';
   @Input() lead: LeadRecord | null = null;
   @Input() branches: SupplierRecord[] = [];
   @Input() productServices: ProductServiceRecord[] = [];
+  @Input() employees: EmployeeRecord[] = [];
 
   @Output() readonly cancel = new EventEmitter<void>();
   @Output() readonly save = new EventEmitter<LeadUpsertPayload>();
@@ -66,6 +75,8 @@ export class LeadFormDialogComponent implements OnChanges {
   ];
 
   protected draft: LeadUpsertPayload = this.emptyDraft();
+  protected leadNameValue: string | LeadSuggestionRecord = '';
+  protected leadSuggestions: LeadSuggestionRecord[] = [];
 
   ngOnChanges(changes: SimpleChanges): void {
     if (
@@ -83,11 +94,14 @@ export class LeadFormDialogComponent implements OnChanges {
             branchId: this.lead.branchId,
             source: this.lead.source,
             interestedProductServiceId: this.lead.interestedProductServiceId,
+            assignedToEmployeeId: this.lead.assignedToEmployeeId,
             status: this.lead.status,
             note: this.lead.note ?? undefined,
             nextFollowUpDate: this.toDateInput(this.lead.nextFollowUpDate),
           }
         : this.emptyDraft();
+      this.leadNameValue = this.draft.leadName;
+      this.leadSuggestions = [];
     }
   }
 
@@ -105,6 +119,9 @@ export class LeadFormDialogComponent implements OnChanges {
       branchId: this.draft.branchId,
       source: this.draft.source.trim(),
       interestedProductServiceId: this.draft.interestedProductServiceId,
+      assignedToEmployeeId: this.normalizeOptionalString(
+        this.draft.assignedToEmployeeId ?? undefined,
+      ) ?? null,
       status: this.draft.status,
       note: this.normalizeOptionalString(this.draft.note),
       nextFollowUpDate: this.normalizeOptionalString(this.draft.nextFollowUpDate),
@@ -166,6 +183,87 @@ export class LeadFormDialogComponent implements OnChanges {
     }
   }
 
+  protected searchLeadSuggestions(event: { query: string }): void {
+    const query = event.query.trim();
+
+    if (query.length < 2) {
+      this.leadSuggestions = [];
+      return;
+    }
+
+    this.leadsApiService.getLeadSuggestions(query).subscribe({
+      next: (suggestions) => {
+        this.leadSuggestions = suggestions;
+      },
+      error: () => {
+        this.leadSuggestions = [];
+      },
+    });
+  }
+
+  protected handleLeadNameValueChange(
+    value: string | LeadSuggestionRecord | null,
+  ): void {
+    if (typeof value === 'string') {
+      this.draft.leadName = value;
+      return;
+    }
+
+    if (!value) {
+      this.draft.leadName = '';
+      return;
+    }
+
+    this.draft.leadName = value.leadName;
+  }
+
+  protected applyLeadSuggestion(suggestion: LeadSuggestionRecord): void {
+    this.leadNameValue = suggestion;
+    this.draft.leadName = suggestion.leadName;
+
+    if (!this.draft.customerName.trim()) {
+      this.draft.customerName = suggestion.customerName;
+    }
+
+    if (!this.draft.phone.trim()) {
+      this.draft.phone = suggestion.phone;
+    }
+
+    if (!this.normalizeOptionalString(this.draft.email) && suggestion.email) {
+      this.draft.email = suggestion.email;
+    }
+
+    if (!this.draft.location.trim()) {
+      this.draft.location = suggestion.location;
+    }
+
+    if (!this.draft.branchId) {
+      this.draft.branchId = suggestion.branchId;
+    }
+
+    if (!this.draft.source.trim()) {
+      this.draft.source = suggestion.source;
+    }
+
+    if (!this.draft.interestedProductServiceId) {
+      this.draft.interestedProductServiceId = suggestion.interestedProductServiceId;
+    }
+
+    if (!this.draft.assignedToEmployeeId && suggestion.assignedToEmployeeId) {
+      this.draft.assignedToEmployeeId = suggestion.assignedToEmployeeId;
+    }
+  }
+
+  protected employeeOptions(): Option<string>[] {
+    return [
+      { label: 'Unassigned', value: '' },
+      ...this.employees.map((employee) => ({
+        label: `${employee.name} (${employee.username})`,
+        value: employee.id,
+      })),
+    ];
+  }
+
   private emptyDraft(): LeadUpsertPayload {
     return {
       leadName: '',
@@ -176,6 +274,7 @@ export class LeadFormDialogComponent implements OnChanges {
       branchId: '',
       source: '',
       interestedProductServiceId: '',
+      assignedToEmployeeId: '',
       status: 'NEW',
       note: '',
       nextFollowUpDate: '',

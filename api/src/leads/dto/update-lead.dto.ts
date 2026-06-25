@@ -41,6 +41,10 @@ export class UpdateLeadDto {
   interestedProductServiceId?: string;
 
   @IsOptional()
+  @IsString()
+  assignedToEmployeeId?: string;
+
+  @IsOptional()
   @IsEnum(LeadStatus)
   status?: LeadStatus;
 

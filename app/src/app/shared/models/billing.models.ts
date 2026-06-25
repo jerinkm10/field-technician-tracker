@@ -401,6 +401,45 @@ export type LeadStatusHistoryRecord = {
   createdAt: string;
 };
 
+export type LeadSuggestionRecord = {
+  id: string;
+  leadName: string;
+  customerName: string;
+  phone: string;
+  email: string | null;
+  location: string;
+  branchId: string;
+  branchName: string;
+  source: string;
+  interestedProductServiceId: string;
+  assignedToEmployeeId: string | null;
+  interestedProductService: Pick<ProductServiceRecord, 'id' | 'name'>;
+};
+
+export type LeadPerformanceRecord = {
+  employeeId: string;
+  employeeName: string;
+  username: string;
+  role: Extract<AppUserRole, 'ADMIN' | 'EMPLOYEE'>;
+  status: UserStatus;
+  totalLeadsAssigned: number;
+  convertedLeads: number;
+  lostLeads: number;
+  followUpsDue: number;
+  conversionPercentage: number;
+};
+
+export type LeadPerformanceResponse = {
+  summary: {
+    totalLeadsAssigned: number;
+    convertedLeads: number;
+    lostLeads: number;
+    followUpsDue: number;
+    conversionPercentage: number;
+  };
+  employees: LeadPerformanceRecord[];
+};
+
 export type LeadRecord = {
   id: string;
   leadName: string;
@@ -412,6 +451,7 @@ export type LeadRecord = {
   branchName: string;
   source: string;
   interestedProductServiceId: string;
+  assignedToEmployeeId: string | null;
   status: LeadStatus;
   note: string | null;
   nextFollowUpDate: string | null;
@@ -422,6 +462,10 @@ export type LeadRecord = {
     ProductServiceRecord,
     'id' | 'name' | 'type' | 'hsnSacCode' | 'status'
   >;
+  assignedToEmployee: Pick<
+    EmployeeRecord,
+    'id' | 'name' | 'username' | 'email' | 'phone' | 'role' | 'status'
+  > | null;
   notes?: LeadNoteRecord[];
   statusHistory?: LeadStatusHistoryRecord[];
 };
@@ -435,6 +479,7 @@ export type LeadUpsertPayload = {
   branchId: string;
   source: string;
   interestedProductServiceId: string;
+  assignedToEmployeeId?: string | null;
   status: LeadStatus;
   note?: string;
   nextFollowUpDate?: string;
@@ -680,6 +725,7 @@ export type LeadListFilters = {
   search?: string;
   status?: LeadStatus;
   branchId?: string;
+  assignedToEmployeeId?: string;
   fromDate?: string;
   toDate?: string;
   page?: number;

@@ -21,6 +21,10 @@ export class ListLeadsQueryDto extends PaginationQueryDto {
   branchId?: string;
 
   @IsOptional()
+  @IsString()
+  assignedToEmployeeId?: string;
+
+  @IsOptional()
   @IsDateString()
   fromDate?: string;
 

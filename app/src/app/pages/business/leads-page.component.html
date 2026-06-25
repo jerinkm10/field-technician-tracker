@@ -48,7 +48,7 @@
       <input
         pInputText
         [(ngModel)]="searchTerm"
-        placeholder="Lead, customer, phone, branch, source, or product/service" />
+        placeholder="Lead, customer, phone, branch, employee, source, or product/service" />
     </label>
 
     <div class="filter-actions">
@@ -72,6 +72,17 @@
             optionValue="value"
             appendTo="body"
             [(ngModel)]="branchIdFilter">
+          </p-select>
+        </label>
+
+        <label class="popover-field">
+          <span>Assigned Employee</span>
+          <p-select
+            [options]="employeeFilterOptions()"
+            optionLabel="label"
+            optionValue="value"
+            appendTo="body"
+            [(ngModel)]="assignedEmployeeIdFilter">
           </p-select>
         </label>
 
@@ -111,6 +122,62 @@
     </div>
   </section>
 
+  <section class="panel section-shell performance-shell">
+    <div class="section-heading">
+      <div>
+        <p class="page-eyebrow">Lead Performance</p>
+        <h2>Employee Monitoring</h2>
+        <p>
+          Review assigned leads, conversions, losses, and follow-ups due for each employee.
+        </p>
+      </div>
+    </div>
+
+    <div class="performance-summary">
+      @for (card of performanceSummaryCards(); track card.label) {
+        <article class="summary-card">
+          <strong>{{ card.value }}</strong>
+          <span>{{ card.label }}</span>
+          <small>{{ card.note }}</small>
+        </article>
+      }
+    </div>
+
+    <p-table
+      [value]="leadPerformance()?.employees ?? []"
+      responsiveLayout="scroll"
+      [loading]="performanceLoading()">
+      <ng-template #header>
+        <tr>
+          <th>Employee</th>
+          <th>Role</th>
+          <th>Total Leads</th>
+          <th>Converted</th>
+          <th>Lost</th>
+          <th>Follow-ups Due</th>
+          <th>Conversion %</th>
+        </tr>
+      </ng-template>
+
+      <ng-template #body let-employee>
+        <tr>
+          <td>
+            <div class="table-title-cell">
+              <strong>{{ employee.employeeName }}</strong>
+              <span>{{ employee.username }}</span>
+            </div>
+          </td>
+          <td>{{ employee.role.replaceAll('_', ' ') }}</td>
+          <td>{{ employee.totalLeadsAssigned }}</td>
+          <td>{{ employee.convertedLeads }}</td>
+          <td>{{ employee.lostLeads }}</td>
+          <td>{{ employee.followUpsDue }}</td>
+          <td>{{ employee.conversionPercentage.toFixed(2) }}%</td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </section>
+
   <app-data-table-with-actions
     title="Lead Pipeline"
     subtitle="Manage lead records, quick status updates, and import validation from one place."
@@ -119,7 +186,7 @@
     [records]="leads()"
     [loading]="loading()"
     [footerLabel]="footerLabel()"
-    [emptyColspan]="8"
+    [emptyColspan]="9"
     [page]="page()"
     [totalPages]="totalPages()"
     [hasPreviousPage]="hasPreviousPage()"
@@ -132,6 +199,7 @@
         <th>Lead</th>
         <th>Customer</th>
         <th>Branch</th>
+        <th>Assigned Employee</th>
         <th>Interested Product / Service</th>
         <th>Source</th>
         <th>Status</th>
@@ -158,6 +226,16 @@
           </div>
         </td>
         <td>{{ lead.branchName }}</td>
+        <td>
+          @if (lead.assignedToEmployee) {
+            <div class="table-title-cell">
+              <strong>{{ lead.assignedToEmployee.name }}</strong>
+              <span>{{ lead.assignedToEmployee.username }}</span>
+            </div>
+          } @else {
+            <span class="muted-text">Unassigned</span>
+          }
+        </td>
         <td>
           <div class="table-title-cell">
             <strong>{{ lead.interestedProductService.name }}</strong>
@@ -204,6 +282,7 @@
   [mode]="dialogMode"
   [lead]="selectedLead"
   [branches]="branches()"
+  [employees]="employees()"
   [productServices]="productServices()"
   (cancel)="closeDialog()"
   (save)="saveLead($event)">

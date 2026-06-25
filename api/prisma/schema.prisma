@@ -123,6 +123,7 @@ model User {
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   technician        Technician?
+  assignedLeads     Lead[]             @relation("LeadAssignedEmployee")
   leadNotes         LeadNote[]
   leadStatusHistory LeadStatusHistory[]
 
@@ -529,6 +530,7 @@ model Lead {
   branchName                 String
   source                     String
   interestedProductServiceId String
+  assignedToEmployeeId       String?
   status                     LeadStatus        @default(NEW)
   note                       String?
   nextFollowUpDate           DateTime?
@@ -536,6 +538,7 @@ model Lead {
   updatedAt                  DateTime          @updatedAt
   branch                     Supplier          @relation(fields: [branchId], references: [id], onDelete: Restrict)
   interestedProductService   ProductService    @relation(fields: [interestedProductServiceId], references: [id], onDelete: Restrict)
+  assignedToEmployee         User?             @relation("LeadAssignedEmployee", fields: [assignedToEmployeeId], references: [id], onDelete: SetNull)
   notes                      LeadNote[]
   statusHistory              LeadStatusHistory[]
 
@@ -544,6 +547,7 @@ model Lead {
   @@index([phone])
   @@index([email])
   @@index([branchId])
+  @@index([assignedToEmployeeId])
   @@index([status])
   @@index([createdAt])
   @@index([nextFollowUpDate])

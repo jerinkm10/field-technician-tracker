@@ -39,6 +39,16 @@ export class LeadsController {
     return this.leadsService.listLeads(query);
   }
 
+  @Get('suggestions')
+  async listLeadSuggestions(@Query('query') query?: string) {
+    return this.leadsService.listLeadSuggestions(query);
+  }
+
+  @Get('performance')
+  async getLeadPerformance(@Query() query: ListLeadsQueryDto) {
+    return this.leadsService.getLeadPerformance(query);
+  }
+
   @Get('demo-excel')
   async downloadDemoExcel(
     @Res({ passthrough: true }) response: Response,

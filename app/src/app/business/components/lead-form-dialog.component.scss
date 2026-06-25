@@ -21,6 +21,16 @@
   color: var(--ftt-muted);
 }
 
+.autocomplete-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.autocomplete-item span {
+  color: var(--ftt-muted);
+}
+
 .field textarea {
   min-height: 7rem;
   resize: vertical;

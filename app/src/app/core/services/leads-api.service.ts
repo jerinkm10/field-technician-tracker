@@ -7,7 +7,9 @@ import {
   LeadImportPreviewResponse,
   LeadListFilters,
   LeadNoteRecord,
+  LeadPerformanceResponse,
   LeadRecord,
+  LeadSuggestionRecord,
   LeadStatusUpdatePayload,
   LeadUpsertPayload,
   PaginatedResponse,
@@ -30,6 +32,23 @@ export class LeadsApiService {
 
   getLead(leadId: string): Observable<LeadRecord> {
     return this.httpClient.get<LeadRecord>(`${this.endpoint}/${leadId}`);
+  }
+
+  getLeadSuggestions(query: string): Observable<LeadSuggestionRecord[]> {
+    return this.httpClient.get<LeadSuggestionRecord[]>(`${this.endpoint}/suggestions`, {
+      params: new HttpParams().set('query', query),
+    });
+  }
+
+  getLeadPerformance(
+    filters: LeadListFilters = {},
+  ): Observable<LeadPerformanceResponse> {
+    return this.httpClient.get<LeadPerformanceResponse>(
+      `${this.endpoint}/performance`,
+      {
+        params: this.buildParams(filters),
+      },
+    );
   }
 
   createLead(payload: LeadUpsertPayload): Observable<LeadRecord> {

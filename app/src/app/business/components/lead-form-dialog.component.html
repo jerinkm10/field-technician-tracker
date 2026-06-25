@@ -13,7 +13,24 @@
     <div class="field-grid">
       <label class="field">
         <span>Lead Name</span>
-        <input pInputText [(ngModel)]="draft.leadName" [disabled]="isReadOnly()" />
+        <p-autoComplete
+          [ngModel]="leadNameValue"
+          [suggestions]="leadSuggestions"
+          optionLabel="leadName"
+          [forceSelection]="false"
+          [disabled]="isReadOnly()"
+          [inputStyle]="{ width: '100%' }"
+          appendTo="body"
+          (completeMethod)="searchLeadSuggestions($event)"
+          (ngModelChange)="handleLeadNameValueChange($event)"
+          (onSelect)="applyLeadSuggestion($event.value)">
+          <ng-template let-suggestion #item>
+            <div class="autocomplete-item">
+              <strong>{{ suggestion.leadName }}</strong>
+              <span>{{ suggestion.customerName }} | {{ suggestion.phone }}</span>
+            </div>
+          </ng-template>
+        </p-autoComplete>
       </label>
 
       <label class="field">
@@ -63,6 +80,19 @@
           appendTo="body"
           placeholder="Select product or service"
           [(ngModel)]="draft.interestedProductServiceId"
+          [disabled]="isReadOnly()">
+        </p-select>
+      </label>
+
+      <label class="field">
+        <span>Assigned Employee</span>
+        <p-select
+          [options]="employeeOptions()"
+          optionLabel="label"
+          optionValue="value"
+          appendTo="body"
+          placeholder="Select employee"
+          [(ngModel)]="draft.assignedToEmployeeId"
           [disabled]="isReadOnly()">
         </p-select>
       </label>

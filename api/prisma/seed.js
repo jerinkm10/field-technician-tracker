@@ -85,7 +85,7 @@ async function main() {
     },
   });
 
-  await prisma.user.create({
+  const officeCoordinator = await prisma.user.create({
     data: {
       name: 'Office Coordinator',
       username: 'officecoord',
@@ -662,6 +662,7 @@ async function main() {
         interestedProductServiceId: productServices.find(
           (record) => record.name === 'Annual Maintenance Contract',
         ).id,
+        assignedToEmployeeId: officeCoordinator.id,
         status: 'NEW',
         note: 'Requested a callback for annual maintenance options.',
         nextFollowUpDate: new Date('2026-06-30T00:00:00.000Z'),
@@ -680,6 +681,7 @@ async function main() {
         interestedProductServiceId: productServices.find(
           (record) => record.name === 'Chiller Control Assembly',
         ).id,
+        assignedToEmployeeId: adminUser.id,
         status: 'CONTACTED',
         note: 'Requested commercial quote for retrofit scope.',
         nextFollowUpDate: new Date('2026-06-26T00:00:00.000Z'),
