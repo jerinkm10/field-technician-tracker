@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
@@ -164,40 +165,71 @@ export class QuotationsService {
     return this.getQuotationOrThrow(quotationId);
   }
 
+  async getNextQuotationNumber(documentDate?: string) {
+    const normalizedDate = this.normalizeDocumentDate(documentDate);
+
+    return {
+      documentNumber: await this.generateNextQuotationNumber(
+        this.prismaService,
+        normalizedDate,
+      ),
+    };
+  }
+
   async createQuotation(createQuotationDto: CreateQuotationDto) {
     await this.ensureSupplierExists(createQuotationDto.supplierId);
     await this.ensureCustomerExists(createQuotationDto.customerId);
 
-    try {
-      return await this.prismaService.quotation.create({
-        data: {
-          quotationNumber: createQuotationDto.quotationNumber,
-          quotationDate: new Date(createQuotationDto.quotationDate),
-          validUntil: new Date(createQuotationDto.validUntil),
-          supplierId: createQuotationDto.supplierId,
-          customerId: createQuotationDto.customerId,
-          customerName: createQuotationDto.customerName,
-          customerAddress: createQuotationDto.customerAddress,
-          customerGstin: createQuotationDto.customerGstin,
-          placeOfSupply: createQuotationDto.placeOfSupply,
-          notes: createQuotationDto.notes,
-          termsAndConditions: createQuotationDto.termsAndConditions,
-          totalBeforeTax: createQuotationDto.totalBeforeTax,
-          totalTaxAmount: createQuotationDto.totalTaxAmount,
-          roundedOff: createQuotationDto.roundedOff,
-          totalAmount: createQuotationDto.totalAmount,
-          status: createQuotationDto.status ?? QuotationStatus.DRAFT,
-          lineItems: {
-            create: createQuotationDto.lineItems.map((item) =>
-              this.toLineItemCreateInput(item),
+    const company = await this.companySettingsService.getCompanySettings();
+    const quotationDate = this.normalizeDocumentDate(
+      createQuotationDto.quotationDate,
+    );
+    const termsAndConditions =
+      createQuotationDto.termsAndConditions?.trim() ||
+      company?.quotationTermsAndConditions ||
+      null;
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        return await this.prismaService.quotation.create({
+          data: {
+            quotationNumber: await this.generateNextQuotationNumber(
+              this.prismaService,
+              quotationDate,
             ),
+            quotationDate,
+            validUntil: new Date(createQuotationDto.validUntil),
+            supplierId: createQuotationDto.supplierId,
+            customerId: createQuotationDto.customerId,
+            customerName: createQuotationDto.customerName,
+            customerAddress: createQuotationDto.customerAddress,
+            customerGstin: createQuotationDto.customerGstin,
+            placeOfSupply: createQuotationDto.placeOfSupply,
+            notes: createQuotationDto.notes,
+            termsAndConditions,
+            totalBeforeTax: createQuotationDto.totalBeforeTax,
+            totalTaxAmount: createQuotationDto.totalTaxAmount,
+            roundedOff: createQuotationDto.roundedOff,
+            totalAmount: createQuotationDto.totalAmount,
+            status: createQuotationDto.status ?? QuotationStatus.DRAFT,
+            lineItems: {
+              create: createQuotationDto.lineItems.map((item) =>
+                this.toLineItemCreateInput(item),
+              ),
+            },
           },
-        },
-        select: quotationSelect,
-      });
-    } catch (error) {
-      this.rethrowUniqueConstraint(error, 'Quotation number must be unique');
+          select: quotationSelect,
+        });
+      } catch (error) {
+        if (this.isUniqueConstraintError(error) && attempt < 2) {
+          continue;
+        }
+
+        this.rethrowUniqueConstraint(error, 'Quotation number must be unique');
+      }
     }
+
+    throw new ConflictException('Unable to generate the next quotation number');
   }
 
   async updateQuotation(
@@ -218,9 +250,8 @@ export class QuotationsService {
       return await this.prismaService.quotation.update({
         where: { id: quotationId },
         data: {
-          quotationNumber: updateQuotationDto.quotationNumber,
           quotationDate: updateQuotationDto.quotationDate
-            ? new Date(updateQuotationDto.quotationDate)
+            ? this.normalizeDocumentDate(updateQuotationDto.quotationDate)
             : undefined,
           validUntil: updateQuotationDto.validUntil
             ? new Date(updateQuotationDto.validUntil)
@@ -326,15 +357,59 @@ export class QuotationsService {
     };
   }
 
+  private normalizeDocumentDate(documentDate?: string | null): Date {
+    const rawValue = documentDate?.trim();
+    const parsedDate = rawValue ? new Date(rawValue) : new Date();
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      throw new BadRequestException('Invalid quotation date');
+    }
+
+    return parsedDate;
+  }
+
+  private async generateNextQuotationNumber(
+    prisma: Prisma.TransactionClient | PrismaService,
+    quotationDate: Date,
+  ): Promise<string> {
+    const year = quotationDate.getFullYear();
+    const prefix = `QUOTATION-${year}-`;
+    const existingQuotations = await prisma.quotation.findMany({
+      where: {
+        quotationNumber: {
+          startsWith: prefix,
+        },
+      },
+      select: {
+        quotationNumber: true,
+      },
+    });
+
+    const nextSequence =
+      existingQuotations.reduce((maxSequence, quotation) => {
+        const lastToken = quotation.quotationNumber.split('-').at(-1) ?? '0';
+        const parsedSequence = Number.parseInt(lastToken, 10);
+        return Number.isNaN(parsedSequence)
+          ? maxSequence
+          : Math.max(maxSequence, parsedSequence);
+      }, 0) + 1;
+
+    return `${prefix}${String(nextSequence).padStart(3, '0')}`;
+  }
+
   private rethrowUniqueConstraint(error: unknown, message: string): never {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2002'
-    ) {
+    if (this.isUniqueConstraintError(error)) {
       throw new ConflictException(message);
     }
 
     throw error;
+  }
+
+  private isUniqueConstraintError(error: unknown): boolean {
+    return (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    );
   }
 
   private toPdfData(

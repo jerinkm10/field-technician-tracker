@@ -34,6 +34,11 @@ export class ProformaInvoicesController {
     return this.proformaInvoicesService.listProformaInvoices(query);
   }
 
+  @Get('next-number')
+  async getNextProformaInvoiceNumber(@Query('documentDate') documentDate?: string) {
+    return this.proformaInvoicesService.getNextProformaInvoiceNumber(documentDate);
+  }
+
   @Get(':id')
   async getProformaInvoice(@Param('id') invoiceId: string) {
     return this.proformaInvoicesService.getProformaInvoice(invoiceId);

@@ -1,9 +1,10 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InvoiceStatus, Prisma } from '@prisma/client';
+import { InvoiceStatus, InvoiceType, Prisma } from '@prisma/client';
 import { BillingDocumentPdfData, BillingDocumentsService } from '../billing-documents/billing-documents.service';
 import { CompanySettingsService } from '../company-settings/company-settings.service';
 import { createPaginationMeta, normalizePagination } from '../common/utils/pagination.util';
@@ -178,61 +179,98 @@ export class InvoicesService {
     return invoice;
   }
 
+  async getNextInvoiceNumber(
+    invoiceType: 'PROFORMA' | 'TAX',
+    documentDate?: string,
+  ) {
+    const normalizedDate = this.normalizeDocumentDate(documentDate);
+
+    return {
+      documentNumber: await this.generateNextInvoiceNumber(
+        invoiceType,
+        this.prismaService,
+        normalizedDate,
+      ),
+    };
+  }
+
   async createInvoice(
     createInvoiceDto: CreateInvoiceDto,
   ): Promise<InvoiceRecord> {
     await this.ensureSupplierExists(createInvoiceDto.supplierId);
     await this.ensureCustomerExists(createInvoiceDto.customerId);
 
-    try {
-      return await this.prismaService.$transaction(async (transaction) => {
-        const invoice = await transaction.invoice.create({
-          data: {
-            invoiceType: createInvoiceDto.invoiceType,
-            invoiceNumber: createInvoiceDto.invoiceNumber,
-            invoiceDate: new Date(createInvoiceDto.invoiceDate),
-            supplierId: createInvoiceDto.supplierId,
-            customerId: createInvoiceDto.customerId,
-            customerName: createInvoiceDto.customerName,
-            customerAddress: createInvoiceDto.customerAddress,
-            customerGstin: createInvoiceDto.customerGstin,
-            placeOfSupply: createInvoiceDto.placeOfSupply,
-            notes: createInvoiceDto.notes,
-            termsAndConditions: createInvoiceDto.termsAndConditions,
-            totalBeforeTax: createInvoiceDto.totalBeforeTax,
-            totalTaxAmount: createInvoiceDto.totalTaxAmount,
-            roundedOff: createInvoiceDto.roundedOff,
-            totalAmount: createInvoiceDto.totalAmount,
-            amountDue: createInvoiceDto.amountDue,
-            status: createInvoiceDto.status ?? InvoiceStatus.DRAFT,
-            lineItems: {
-              create: createInvoiceDto.lineItems.map((item) =>
-                this.toLineItemCreateInput(item),
-              ),
+    const company = await this.companySettingsService.getCompanySettings();
+    const invoiceDate = this.normalizeDocumentDate(createInvoiceDto.invoiceDate);
+    const termsAndConditions = this.resolveDefaultTerms(
+      createInvoiceDto.invoiceType,
+      createInvoiceDto.termsAndConditions,
+      company,
+    );
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        return await this.prismaService.$transaction(async (transaction) => {
+          const invoiceNumber = await this.generateNextInvoiceNumber(
+            createInvoiceDto.invoiceType,
+            transaction,
+            invoiceDate,
+          );
+
+          const invoice = await transaction.invoice.create({
+            data: {
+              invoiceType: createInvoiceDto.invoiceType,
+              invoiceNumber,
+              invoiceDate,
+              supplierId: createInvoiceDto.supplierId,
+              customerId: createInvoiceDto.customerId,
+              customerName: createInvoiceDto.customerName,
+              customerAddress: createInvoiceDto.customerAddress,
+              customerGstin: createInvoiceDto.customerGstin,
+              placeOfSupply: createInvoiceDto.placeOfSupply,
+              notes: createInvoiceDto.notes,
+              termsAndConditions,
+              totalBeforeTax: createInvoiceDto.totalBeforeTax,
+              totalTaxAmount: createInvoiceDto.totalTaxAmount,
+              roundedOff: createInvoiceDto.roundedOff,
+              totalAmount: createInvoiceDto.totalAmount,
+              amountDue: createInvoiceDto.amountDue,
+              status: createInvoiceDto.status ?? InvoiceStatus.DRAFT,
+              lineItems: {
+                create: createInvoiceDto.lineItems.map((item) =>
+                  this.toLineItemCreateInput(item),
+                ),
+              },
             },
-          },
-          select: invoiceSelect,
+            select: invoiceSelect,
+          });
+
+          await this.outstandingsService.syncOutstandingForInvoice(
+            {
+              amountDue: invoice.amountDue,
+              customerId: invoice.customerId,
+              customerName: invoice.customerName,
+              id: invoice.id,
+              invoiceDate: invoice.invoiceDate,
+              invoiceNumber: invoice.invoiceNumber,
+              invoiceType: invoice.invoiceType,
+              totalAmount: invoice.totalAmount,
+            },
+            transaction,
+          );
+
+          return invoice;
         });
+      } catch (error) {
+        if (this.isUniqueConstraintError(error) && attempt < 2) {
+          continue;
+        }
 
-        await this.outstandingsService.syncOutstandingForInvoice(
-          {
-            amountDue: invoice.amountDue,
-            customerId: invoice.customerId,
-            customerName: invoice.customerName,
-            id: invoice.id,
-            invoiceDate: invoice.invoiceDate,
-            invoiceNumber: invoice.invoiceNumber,
-            invoiceType: invoice.invoiceType,
-            totalAmount: invoice.totalAmount,
-          },
-          transaction,
-        );
-
-        return invoice;
-      });
-    } catch (error) {
-      this.rethrowUniqueConstraint(error, 'Invoice number must be unique');
+        this.rethrowUniqueConstraint(error, 'Invoice number must be unique');
+      }
     }
+
+    throw new ConflictException('Unable to generate the next invoice number');
   }
 
   async updateInvoice(
@@ -257,9 +295,8 @@ export class InvoicesService {
           },
           data: {
             invoiceType: updateInvoiceDto.invoiceType,
-            invoiceNumber: updateInvoiceDto.invoiceNumber,
             invoiceDate: updateInvoiceDto.invoiceDate
-              ? new Date(updateInvoiceDto.invoiceDate)
+              ? this.normalizeDocumentDate(updateInvoiceDto.invoiceDate)
               : undefined,
             supplierId: updateInvoiceDto.supplierId,
             customerId: updateInvoiceDto.customerId,
@@ -393,6 +430,67 @@ export class InvoicesService {
     }
   }
 
+  private resolveDefaultTerms(
+    invoiceType: InvoiceType,
+    providedTerms: string | null | undefined,
+    company: Awaited<ReturnType<CompanySettingsService['getCompanySettings']>>,
+  ): string | null {
+    const normalizedTerms = providedTerms?.trim();
+    if (normalizedTerms) {
+      return normalizedTerms;
+    }
+
+    if (!company) {
+      return null;
+    }
+
+    return invoiceType === InvoiceType.PROFORMA
+      ? company.proformaTermsAndConditions
+      : company.invoiceTermsAndConditions;
+  }
+
+  private normalizeDocumentDate(documentDate?: string | null): Date {
+    const rawValue = documentDate?.trim();
+    const parsedDate = rawValue ? new Date(rawValue) : new Date();
+
+    if (Number.isNaN(parsedDate.getTime())) {
+      throw new BadRequestException('Invalid invoice date');
+    }
+
+    return parsedDate;
+  }
+
+  private async generateNextInvoiceNumber(
+    invoiceType: InvoiceType,
+    prisma: Prisma.TransactionClient | PrismaService,
+    invoiceDate: Date,
+  ): Promise<string> {
+    const year = invoiceDate.getFullYear();
+    const prefix = `${invoiceType === InvoiceType.TAX ? 'TAX' : 'PROFORMA'}-${year}-`;
+    const existingInvoices = await prisma.invoice.findMany({
+      where: {
+        invoiceType,
+        invoiceNumber: {
+          startsWith: prefix,
+        },
+      },
+      select: {
+        invoiceNumber: true,
+      },
+    });
+
+    const nextSequence =
+      existingInvoices.reduce((maxSequence, invoice) => {
+        const lastToken = invoice.invoiceNumber.split('-').at(-1) ?? '0';
+        const parsedSequence = Number.parseInt(lastToken, 10);
+        return Number.isNaN(parsedSequence)
+          ? maxSequence
+          : Math.max(maxSequence, parsedSequence);
+      }, 0) + 1;
+
+    return `${prefix}${String(nextSequence).padStart(3, '0')}`;
+  }
+
   private toPdfData(
     invoice: InvoiceRecord,
     company: Awaited<ReturnType<CompanySettingsService['getCompanyBranding']>>,
@@ -454,13 +552,17 @@ export class InvoicesService {
   }
 
   private rethrowUniqueConstraint(error: unknown, message: string): never {
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === 'P2002'
-    ) {
+    if (this.isUniqueConstraintError(error)) {
       throw new ConflictException(message);
     }
 
     throw error;
+  }
+
+  private isUniqueConstraintError(error: unknown): boolean {
+    return (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === 'P2002'
+    );
   }
 }

@@ -30,6 +30,10 @@ const companySelect = Prisma.validator<Prisma.CompanySelect>()({
   logoAttachment: true,
   signatureAttachment: true,
   sealAttachment: true,
+  invoiceTermsAndConditions: true,
+  proformaTermsAndConditions: true,
+  quotationTermsAndConditions: true,
+  amcTermsAndConditions: true,
   status: true,
   createdAt: true,
   updatedAt: true,
@@ -96,6 +100,21 @@ export class CompanySettingsService {
         logoAttachment: createCompanySettingsDto.logoAttachment,
         signatureAttachment: createCompanySettingsDto.signatureAttachment,
         sealAttachment: createCompanySettingsDto.sealAttachment,
+        invoiceTermsAndConditions:
+          this.normalizeOptionalText(
+            createCompanySettingsDto.invoiceTermsAndConditions,
+          ),
+        proformaTermsAndConditions:
+          this.normalizeOptionalText(
+            createCompanySettingsDto.proformaTermsAndConditions,
+          ),
+        quotationTermsAndConditions:
+          this.normalizeOptionalText(
+            createCompanySettingsDto.quotationTermsAndConditions,
+          ),
+        amcTermsAndConditions: this.normalizeOptionalText(
+          createCompanySettingsDto.amcTermsAndConditions,
+        ),
         status: createCompanySettingsDto.status ?? CompanyStatus.ACTIVE,
       },
       select: companySelect,
@@ -128,6 +147,30 @@ export class CompanySettingsService {
         logoAttachment: updateCompanySettingsDto.logoAttachment,
         signatureAttachment: updateCompanySettingsDto.signatureAttachment,
         sealAttachment: updateCompanySettingsDto.sealAttachment,
+        invoiceTermsAndConditions:
+          updateCompanySettingsDto.invoiceTermsAndConditions !== undefined
+            ? this.normalizeOptionalText(
+                updateCompanySettingsDto.invoiceTermsAndConditions,
+              )
+            : undefined,
+        proformaTermsAndConditions:
+          updateCompanySettingsDto.proformaTermsAndConditions !== undefined
+            ? this.normalizeOptionalText(
+                updateCompanySettingsDto.proformaTermsAndConditions,
+              )
+            : undefined,
+        quotationTermsAndConditions:
+          updateCompanySettingsDto.quotationTermsAndConditions !== undefined
+            ? this.normalizeOptionalText(
+                updateCompanySettingsDto.quotationTermsAndConditions,
+              )
+            : undefined,
+        amcTermsAndConditions:
+          updateCompanySettingsDto.amcTermsAndConditions !== undefined
+            ? this.normalizeOptionalText(
+                updateCompanySettingsDto.amcTermsAndConditions,
+              )
+            : undefined,
         status: updateCompanySettingsDto.status,
       },
       select: companySelect,
@@ -214,5 +257,10 @@ export class CompanySettingsService {
     if (!company) {
       throw new NotFoundException('Company settings not found');
     }
+  }
+
+  private normalizeOptionalText(value?: string | null): string | null {
+    const normalized = value?.trim();
+    return normalized ? normalized : null;
   }
 }

@@ -4,7 +4,7 @@
       <p class="page-eyebrow">Settings</p>
       <h1 class="page-title">Company settings</h1>
       <p class="page-subtitle">
-        Manage the issuing company profile, invoice branding assets, bank details, and signature used by previews and PDF downloads.
+        Manage the issuing company profile, default billing terms, branding assets, bank details, and signature used by previews and PDF downloads.
       </p>
     </div>
 
@@ -113,6 +113,37 @@
       <label class="field">
         <span>IFSC Code</span>
         <input pInputText [(ngModel)]="draft.ifscCode" />
+      </label>
+    </div>
+  </section>
+
+  <section class="panel section-shell">
+    <div class="section-header">
+      <div>
+        <h3>Default Terms & Conditions</h3>
+        <p>These defaults are loaded into new documents and can still be edited before saving each document.</p>
+      </div>
+    </div>
+
+    <div class="form-grid">
+      <label class="field field-span-2">
+        <span>Tax Invoice Terms & Conditions</span>
+        <textarea [(ngModel)]="draft.invoiceTermsAndConditions" rows="4"></textarea>
+      </label>
+
+      <label class="field field-span-2">
+        <span>Proforma Invoice Terms & Conditions</span>
+        <textarea [(ngModel)]="draft.proformaTermsAndConditions" rows="4"></textarea>
+      </label>
+
+      <label class="field field-span-2">
+        <span>Quotation Terms & Conditions</span>
+        <textarea [(ngModel)]="draft.quotationTermsAndConditions" rows="4"></textarea>
+      </label>
+
+      <label class="field field-span-2">
+        <span>AMC Terms & Conditions</span>
+        <textarea [(ngModel)]="draft.amcTermsAndConditions" rows="4"></textarea>
       </label>
     </div>
   </section>

@@ -13,8 +13,9 @@ import {
 import { QuotationLineItemDto } from './quotation-line-item.dto';
 
 export class CreateQuotationDto {
+  @IsOptional()
   @IsString()
-  quotationNumber!: string;
+  quotationNumber?: string;
 
   @IsDateString()
   quotationDate!: string;

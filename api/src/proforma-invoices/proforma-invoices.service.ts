@@ -19,6 +19,10 @@ export class ProformaInvoicesService {
     return this.invoicesService.getInvoiceByIdAndType(invoiceId, 'PROFORMA');
   }
 
+  async getNextProformaInvoiceNumber(documentDate?: string) {
+    return this.invoicesService.getNextInvoiceNumber('PROFORMA', documentDate);
+  }
+
   async createProformaInvoice(createInvoiceDto: CreateInvoiceDto) {
     return this.invoicesService.createInvoice({
       ...createInvoiceDto,

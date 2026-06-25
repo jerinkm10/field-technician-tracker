@@ -19,6 +19,10 @@ export class TaxInvoicesService {
     return this.invoicesService.getInvoiceByIdAndType(invoiceId, 'TAX');
   }
 
+  async getNextTaxInvoiceNumber(documentDate?: string) {
+    return this.invoicesService.getNextInvoiceNumber('TAX', documentDate);
+  }
+
   async createTaxInvoice(createInvoiceDto: CreateInvoiceDto) {
     return this.invoicesService.createInvoice({
       ...createInvoiceDto,

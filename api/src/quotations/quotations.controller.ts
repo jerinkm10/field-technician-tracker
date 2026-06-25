@@ -32,6 +32,11 @@ export class QuotationsController {
     return this.quotationsService.listQuotations(query);
   }
 
+  @Get('next-number')
+  async getNextQuotationNumber(@Query('documentDate') documentDate?: string) {
+    return this.quotationsService.getNextQuotationNumber(documentDate);
+  }
+
   @Get(':id')
   async getQuotation(@Param('id') quotationId: string) {
     return this.quotationsService.getQuotationById(quotationId);

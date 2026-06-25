@@ -32,6 +32,11 @@ export class TaxInvoicesController {
     return this.taxInvoicesService.listTaxInvoices(query);
   }
 
+  @Get('next-number')
+  async getNextTaxInvoiceNumber(@Query('documentDate') documentDate?: string) {
+    return this.taxInvoicesService.getNextTaxInvoiceNumber(documentDate);
+  }
+
   @Get(':id')
   async getTaxInvoice(@Param('id') invoiceId: string) {
     return this.taxInvoicesService.getTaxInvoice(invoiceId);

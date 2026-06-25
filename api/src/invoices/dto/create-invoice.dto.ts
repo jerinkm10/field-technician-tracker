@@ -16,8 +16,9 @@ export class CreateInvoiceDto {
   @IsEnum(InvoiceType)
   invoiceType!: InvoiceType;
 
+  @IsOptional()
   @IsString()
-  invoiceNumber!: string;
+  invoiceNumber?: string;
 
   @IsDateString()
   invoiceDate!: string;

@@ -435,6 +435,12 @@ export class AmcService {
     );
     const nextBillingDate =
       nextBillingDateCandidate > amc.endDate ? null : nextBillingDateCandidate;
+    const companySettings = await this.companySettingsService.getCompanySettings();
+    const defaultAmcTerms = companySettings?.amcTermsAndConditions?.trim();
+    const periodTerms = `AMC billing period ${this.formatDate(billingPeriodStart)} to ${this.formatDate(billingPeriodEnd)}`;
+    const amcTermsAndConditions = defaultAmcTerms
+      ? `${defaultAmcTerms}\n\n${periodTerms}`
+      : periodTerms;
 
     const result = await this.prismaService.$transaction(async (transaction) => {
       const invoiceNumber = await this.generateNextInvoiceNumber(
@@ -455,7 +461,7 @@ export class AmcService {
           customerGstin: amc.customer.gstin ?? '',
           placeOfSupply: amc.customer.placeOfSupply ?? '',
           notes: amc.note ?? undefined,
-          termsAndConditions: `AMC billing period ${this.formatDate(billingPeriodStart)} to ${this.formatDate(billingPeriodEnd)}`,
+          termsAndConditions: amcTermsAndConditions,
           totalBeforeTax: periodAmount,
           totalTaxAmount,
           roundedOff: 0,

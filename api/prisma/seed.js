@@ -435,6 +435,14 @@ async function main() {
       accountNumber: '9182736455001',
       ifscCode: 'UTIB0001020',
       sealAttachment: null,
+      invoiceTermsAndConditions:
+        'Payment is due within 7 days from invoice date. Kindly mention the invoice number in bank transfer remarks.',
+      proformaTermsAndConditions:
+        'This proforma is issued for customer approval only. Work will be scheduled after confirmation and advance receipt where applicable.',
+      quotationTermsAndConditions:
+        'Quotation is valid for 15 days from the issue date. Taxes and delivery terms apply as mentioned in the document.',
+      amcTermsAndConditions:
+        'AMC visits will be scheduled as per the agreed billing cycle. Emergency breakdown support is subject to contract scope.',
       status: CompanyStatus.ACTIVE,
     },
   });
@@ -442,7 +450,7 @@ async function main() {
   const proformaInvoice = await prisma.invoice.create({
     data: {
       invoiceType: InvoiceType.PROFORMA,
-      invoiceNumber: 'PF-2026-001',
+      invoiceNumber: 'PROFORMA-2026-001',
       invoiceDate: new Date('2026-06-22T00:00:00.000Z'),
       supplierId: suppliers[0].id,
       customerId: customers[0].id,
@@ -561,7 +569,7 @@ async function main() {
 
   await prisma.quotation.create({
     data: {
-      quotationNumber: 'QT-2026-001',
+      quotationNumber: 'QUOTATION-2026-001',
       quotationDate: new Date('2026-06-23T00:00:00.000Z'),
       validUntil: new Date('2026-07-07T00:00:00.000Z'),
       supplierId: suppliers[0].id,

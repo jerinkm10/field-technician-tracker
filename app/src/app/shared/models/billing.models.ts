@@ -146,6 +146,10 @@ export type CompanyRecord = {
   logoAttachment: string | null;
   signatureAttachment: string | null;
   sealAttachment: string | null;
+  invoiceTermsAndConditions: string | null;
+  proformaTermsAndConditions: string | null;
+  quotationTermsAndConditions: string | null;
+  amcTermsAndConditions: string | null;
   status: CompanyStatus;
   createdAt: string;
   updatedAt: string;
@@ -167,7 +171,15 @@ export type CompanyUpsertPayload = {
   logoAttachment?: string | null;
   signatureAttachment?: string | null;
   sealAttachment?: string | null;
+  invoiceTermsAndConditions?: string | null;
+  proformaTermsAndConditions?: string | null;
+  quotationTermsAndConditions?: string | null;
+  amcTermsAndConditions?: string | null;
   status: CompanyStatus;
+};
+
+export type DocumentNumberSuggestion = {
+  documentNumber: string;
 };
 
 export type ProductServiceRecord = {

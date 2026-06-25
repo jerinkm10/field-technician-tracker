@@ -59,6 +59,7 @@ type StatusOption = {
 })
 export class BillingDocumentEditorPageComponent {
   private readonly uiFeedback = inject(UiFeedbackService);
+  private nextNumberRequestId = 0;
 
   protected readonly loading = signal(false);
   protected readonly saving = signal(false);
@@ -94,6 +95,8 @@ export class BillingDocumentEditorPageComponent {
 
     if (this.documentId) {
       this.loadDocument(this.documentId);
+    } else {
+      this.loadGeneratedDocumentNumber();
     }
   }
 
@@ -209,6 +212,14 @@ export class BillingDocumentEditorPageComponent {
     this.recalculateTotals();
   }
 
+  protected handleDocumentDateChange(): void {
+    if (this.documentId) {
+      return;
+    }
+
+    this.loadGeneratedDocumentNumber();
+  }
+
   protected saveDocument(): void {
     if (this.isReadOnly()) {
       return;
@@ -259,7 +270,7 @@ export class BillingDocumentEditorPageComponent {
       error: () => {
         this.saving.set(false);
         const message =
-          'Document save failed. Verify the unique number, branch, customer, and line item data.';
+          'Document save failed. Verify the branch, customer, date, and line item data.';
         this.errorMessage.set(message);
         this.uiFeedback.error('Document save failed', message);
       },
@@ -370,11 +381,45 @@ export class BillingDocumentEditorPageComponent {
     this.companySettingsApiService.getCompanySettings().subscribe({
       next: (company) => {
         this.company.set(company);
+
+        if (!this.documentId && !this.draft.termsAndConditions?.trim()) {
+          this.draft.termsAndConditions = this.resolveDefaultTerms(company);
+        }
       },
       error: () => {
         this.company.set(null);
       },
     });
+  }
+
+  private loadGeneratedDocumentNumber(): void {
+    const requestId = ++this.nextNumberRequestId;
+
+    this.billingDocumentsApiService
+      .getNextDocumentNumber(this.kind, this.draft.documentDate)
+      .subscribe({
+        next: (response) => {
+          if (requestId !== this.nextNumberRequestId) {
+            return;
+          }
+
+          this.draft.documentNumber = response.documentNumber;
+
+          if (
+            this.errorMessage() ===
+            'Unable to load the next document number right now. The API will still generate it when you save.'
+          ) {
+            this.errorMessage.set(null);
+          }
+        },
+        error: () => {
+          if (!this.draft.documentNumber.trim()) {
+            this.errorMessage.set(
+              'Unable to load the next document number right now. The API will still generate it when you save.',
+            );
+          }
+        },
+      });
   }
 
   private applyDocument(document: BillingDocumentRecord): void {
@@ -447,6 +492,21 @@ export class BillingDocumentEditorPageComponent {
         },
       ],
     };
+  }
+
+  private resolveDefaultTerms(company: CompanyRecord | null): string {
+    if (!company) {
+      return '';
+    }
+
+    switch (this.kind) {
+      case 'tax':
+        return company.invoiceTermsAndConditions ?? '';
+      case 'quotation':
+        return company.quotationTermsAndConditions ?? '';
+      default:
+        return company.proformaTermsAndConditions ?? '';
+    }
   }
 
   private recalculateTotals(): void {

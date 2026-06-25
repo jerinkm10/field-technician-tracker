@@ -33,12 +33,17 @@
     <div class="editor-grid">
       <label class="field">
         <span>{{ kind === 'quotation' ? 'Quotation Number' : 'Invoice Number' }}</span>
-        <input pInputText [(ngModel)]="draft.documentNumber" [disabled]="isReadOnly()" />
+        <input pInputText [(ngModel)]="draft.documentNumber" [readonly]="true" />
+        <small class="helper-text">Generated automatically from the selected document date.</small>
       </label>
 
       <label class="field">
         <span>{{ kind === 'quotation' ? 'Quotation Date' : 'Invoice Date' }}</span>
-        <input type="date" [(ngModel)]="draft.documentDate" [disabled]="isReadOnly()" />
+        <input
+          type="date"
+          [(ngModel)]="draft.documentDate"
+          [disabled]="isReadOnly()"
+          (ngModelChange)="handleDocumentDateChange()" />
       </label>
 
       @if (isQuotation()) {

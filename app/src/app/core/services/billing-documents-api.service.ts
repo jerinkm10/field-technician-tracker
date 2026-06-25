@@ -9,6 +9,7 @@ import {
   BillingDocumentStatus,
   BillingDocumentUpsertPayload,
   BillingLineItemRecord,
+  DocumentNumberSuggestion,
   DocumentKind,
   PaginatedResponse,
   SupplierRecord,
@@ -133,6 +134,22 @@ export class BillingDocumentsApiService {
         `${this.endpointFor(kind)}/${documentId}`,
       )
       .pipe(map((response) => this.toDocumentRecord(kind, response)));
+  }
+
+  getNextDocumentNumber(
+    kind: DocumentKind,
+    documentDate?: string,
+  ): Observable<DocumentNumberSuggestion> {
+    let params = new HttpParams();
+
+    if (documentDate?.trim()) {
+      params = params.set('documentDate', documentDate.trim());
+    }
+
+    return this.httpClient.get<DocumentNumberSuggestion>(
+      `${this.endpointFor(kind)}/next-number`,
+      { params },
+    );
   }
 
   createDocument(

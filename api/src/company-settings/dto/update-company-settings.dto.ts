@@ -63,6 +63,22 @@ export class UpdateCompanySettingsDto {
   sealAttachment?: string;
 
   @IsOptional()
+  @IsString()
+  invoiceTermsAndConditions?: string;
+
+  @IsOptional()
+  @IsString()
+  proformaTermsAndConditions?: string;
+
+  @IsOptional()
+  @IsString()
+  quotationTermsAndConditions?: string;
+
+  @IsOptional()
+  @IsString()
+  amcTermsAndConditions?: string;
+
+  @IsOptional()
   @IsEnum(CompanyStatus)
   status?: CompanyStatus;
 }

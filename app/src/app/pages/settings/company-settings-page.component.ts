@@ -93,6 +93,13 @@ export class CompanySettingsPageComponent {
       logoAttachment: this.draft.logoAttachment ?? null,
       signatureAttachment: this.draft.signatureAttachment ?? null,
       sealAttachment: this.draft.sealAttachment ?? null,
+      invoiceTermsAndConditions:
+        this.draft.invoiceTermsAndConditions?.trim() || null,
+      proformaTermsAndConditions:
+        this.draft.proformaTermsAndConditions?.trim() || null,
+      quotationTermsAndConditions:
+        this.draft.quotationTermsAndConditions?.trim() || null,
+      amcTermsAndConditions: this.draft.amcTermsAndConditions?.trim() || null,
       status: this.draft.status,
     };
 
@@ -224,6 +231,10 @@ export class CompanySettingsPageComponent {
       logoAttachment: company.logoAttachment,
       signatureAttachment: company.signatureAttachment,
       sealAttachment: company.sealAttachment,
+      invoiceTermsAndConditions: company.invoiceTermsAndConditions ?? '',
+      proformaTermsAndConditions: company.proformaTermsAndConditions ?? '',
+      quotationTermsAndConditions: company.quotationTermsAndConditions ?? '',
+      amcTermsAndConditions: company.amcTermsAndConditions ?? '',
       status: company.status,
     };
   }
@@ -245,6 +256,10 @@ export class CompanySettingsPageComponent {
       logoAttachment: null,
       signatureAttachment: null,
       sealAttachment: null,
+      invoiceTermsAndConditions: '',
+      proformaTermsAndConditions: '',
+      quotationTermsAndConditions: '',
+      amcTermsAndConditions: '',
       status: 'ACTIVE',
     };
   }
