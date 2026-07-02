@@ -1,22 +1,38 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
-import { CurrencyPipe, DatePipe } from '@angular/common';
+import {
+  CurrencyPipe,
+  DatePipe,
+  DecimalPipe,
+} from '@angular/common';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  computed,
+  inject,
+  signal,
+} from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { TagModule } from 'primeng/tag';
 
+import { AuthService } from '../../core/services/auth.service';
 import { DashboardApiService } from '../../core/services/dashboard-api.service';
 import { RealtimeService } from '../../core/services/realtime.service';
 import {
   AmcStatus,
+  ComplaintStatus,
   DashboardAmcPaymentDueAlert,
   DashboardAmcExpiringAlert,
   DashboardBusinessSummaryResponse,
+  DashboardEmployeeSummaryResponse,
   DashboardLeadFollowUpAlert,
   DashboardOutstandingAlert,
+  DashboardPerformanceResponse,
+  EmployeeTaskRecord,
   LeadStatus,
+  TaskStatus,
 } from '../../shared/models/billing.models';
 
-type TagSeverity = 'success' | 'info' | 'warn' | 'danger';
+type TagSeverity = 'success' | 'info' | 'warn' | 'danger' | 'secondary';
 
 type DashboardMetric = {
   readonly label: string;
@@ -27,39 +43,38 @@ type DashboardMetric = {
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [ButtonModule, CurrencyPipe, DatePipe, RouterLink, TagModule],
+  imports: [ButtonModule, CurrencyPipe, DatePipe, DecimalPipe, RouterLink, TagModule],
   templateUrl: './dashboard-page.component.html',
   styleUrl: './dashboard-page.component.scss',
-  changeDetection: ChangeDetectionStrategy.OnPush
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DashboardPageComponent {
   protected readonly realtime = inject(RealtimeService);
+  protected readonly authService = inject(AuthService);
   private readonly dashboardApiService = inject(DashboardApiService);
   private readonly currencyFormatter = new Intl.NumberFormat('en-IN', {
     style: 'currency',
     currency: 'INR',
     maximumFractionDigits: 2,
   });
-  protected readonly summary = signal<DashboardBusinessSummaryResponse | null>(null);
+
+  protected readonly businessSummary = signal<DashboardBusinessSummaryResponse | null>(null);
+  protected readonly employeeSummary = signal<DashboardEmployeeSummaryResponse | null>(null);
+  protected readonly performance = signal<DashboardPerformanceResponse | null>(null);
   protected readonly errorMessage = signal<string | null>(null);
 
-  protected readonly metrics = signal<readonly DashboardMetric[]>([
-    {
-      label: 'Total Outstanding',
-      value: '...',
-      note: 'Loading business summary',
-      severity: 'info',
-    },
-    {
-      label: 'Overdue Outstanding',
-      value: '...',
-      note: 'Loading overdue payments',
-      severity: 'info',
-    },
-  ]);
+  protected readonly metrics = computed(() => {
+    return this.authService.isAdmin()
+      ? this.buildAdminMetrics()
+      : this.buildEmployeeMetrics();
+  });
 
   constructor() {
-    this.loadBusinessSummary();
+    this.loadDashboard();
+  }
+
+  protected isAdminView(): boolean {
+    return this.authService.isAdmin();
   }
 
   protected socketSeverity(): TagSeverity {
@@ -89,6 +104,34 @@ export class DashboardPageComponent {
         return 'success';
       default:
         return 'danger';
+    }
+  }
+
+  protected complaintStatusSeverity(status: ComplaintStatus): TagSeverity {
+    switch (status) {
+      case 'PENDING':
+        return 'warn';
+      case 'ASSIGNED':
+      case 'IN_PROGRESS':
+        return 'info';
+      case 'CONVERTED_TO_JOB':
+      case 'CLOSED':
+        return 'success';
+      default:
+        return 'danger';
+    }
+  }
+
+  protected taskStatusSeverity(status: TaskStatus): TagSeverity {
+    switch (status) {
+      case 'COMPLETED':
+        return 'success';
+      case 'OVERDUE':
+        return 'danger';
+      case 'IN_PROGRESS':
+        return 'info';
+      default:
+        return 'warn';
     }
   }
 
@@ -136,94 +179,187 @@ export class DashboardPageComponent {
     return `${item.daysUntilExpiry} day(s) left`;
   }
 
-  protected loadBusinessSummary(): void {
+  protected taskLabel(task: EmployeeTaskRecord): string {
+    return task.customer ? `${task.title} | ${task.customer.name}` : task.title;
+  }
+
+  protected chartWidth(value: number, maxValue: number): string {
+    if (maxValue <= 0) {
+      return '0%';
+    }
+
+    return `${Math.max(8, Math.round((value / maxValue) * 100))}%`;
+  }
+
+  protected maxChartValue(values: Array<{ value: number }>): number {
+    return values.reduce((max, item) => Math.max(max, item.value), 0);
+  }
+
+  protected adminPendingComplaints() {
+    return this.businessSummary()?.alerts.pendingComplaints ?? [];
+  }
+
+  protected adminOverdueOutstandingAlerts(): DashboardOutstandingAlert[] {
+    return this.businessSummary()?.alerts.overdueOutstanding ?? [];
+  }
+
+  protected adminAmcExpiringAlerts(): DashboardAmcExpiringAlert[] {
+    return this.businessSummary()?.alerts.amcExpiringWithin30Days ?? [];
+  }
+
+  protected adminAmcPaymentDueAlerts(): DashboardAmcPaymentDueAlert[] {
+    return this.businessSummary()?.alerts.amcPaymentDue ?? [];
+  }
+
+  protected adminLeadFollowUpAlerts(): DashboardLeadFollowUpAlert[] {
+    return this.businessSummary()?.alerts.leadsNeedingFollowUp ?? [];
+  }
+
+  private loadDashboard(): void {
     this.errorMessage.set(null);
 
+    if (this.authService.isAdmin()) {
+      this.loadAdminDashboard();
+      return;
+    }
+
+    this.loadEmployeeDashboard();
+  }
+
+  private loadAdminDashboard(): void {
     this.dashboardApiService.getBusinessSummary().subscribe({
       next: (summary) => {
-        this.summary.set(summary);
-        this.metrics.set([
-          {
-            label: 'Total Outstanding',
-            value: this.currencyFormatter.format(summary.summary.totalOutstandingAmount),
-            note: `${summary.summary.totalOutstandingCount} invoice(s) still open`,
-            severity: summary.summary.totalOutstandingCount > 0 ? 'info' : 'success',
-          },
-          {
-            label: 'Overdue Outstanding',
-            value: this.currencyFormatter.format(summary.summary.overdueOutstandingAmount),
-            note: `${summary.summary.overdueOutstandingCount} payment(s) overdue`,
-            severity: summary.summary.overdueOutstandingCount > 0 ? 'danger' : 'success',
-          },
-          {
-            label: 'Active AMC',
-            value: String(summary.summary.activeAmcCount),
-            note: 'Contracts currently active across customers and branches',
-            severity: 'success',
-          },
-          {
-            label: 'AMC Expiring Within 30 Days',
-            value: String(summary.summary.amcExpiringWithin30DaysCount),
-            note: 'Renewal watchlist requiring near-term attention',
-            severity: summary.summary.amcExpiringWithin30DaysCount > 0 ? 'warn' : 'success',
-          },
-          {
-            label: 'Expired AMC',
-            value: String(summary.summary.expiredAmcCount),
-            note: 'Contracts that need closure or renewal follow-up',
-            severity: summary.summary.expiredAmcCount > 0 ? 'danger' : 'success',
-          },
-          {
-            label: 'Leads This Month',
-            value: String(summary.summary.leadsThisMonthCount),
-            note: 'New leads created in the current calendar month',
-            severity: 'info',
-          },
-          {
-            label: 'Follow-ups Due Today',
-            value: String(summary.summary.followUpsDueTodayCount),
-            note:
-              summary.summary.overdueFollowUpsCount > 0
-                ? `${summary.summary.overdueFollowUpsCount} follow-up(s) already overdue`
-                : 'No overdue lead follow-ups right now',
-            severity:
-              summary.summary.followUpsDueTodayCount > 0 ||
-              summary.summary.overdueFollowUpsCount > 0
-                ? 'warn'
-                : 'success',
-          },
-        ]);
+        this.businessSummary.set(summary);
       },
       error: () => {
-        this.summary.set(null);
+        this.businessSummary.set(null);
         this.errorMessage.set(
-          'Business dashboard summary is unavailable. Make sure the backend is running and you are logged in as an admin.',
+          'Business dashboard summary is unavailable. Make sure the backend is running and migrated.',
         );
-        this.metrics.set([
-          {
-            label: 'Business Summary',
-            value: '-',
-            note: 'Dashboard summary is unavailable until the backend responds',
-            severity: 'warn',
-          },
-        ]);
+      },
+    });
+
+    this.dashboardApiService.getPerformance().subscribe({
+      next: (performance) => {
+        this.performance.set(performance);
+      },
+      error: () => {
+        this.performance.set(null);
       },
     });
   }
 
-  protected overdueOutstandingAlerts(): DashboardOutstandingAlert[] {
-    return this.summary()?.alerts.overdueOutstanding ?? [];
+  private loadEmployeeDashboard(): void {
+    this.dashboardApiService.getEmployeeSummary().subscribe({
+      next: (summary) => {
+        this.employeeSummary.set(summary);
+      },
+      error: () => {
+        this.employeeSummary.set(null);
+        this.errorMessage.set(
+          'Employee dashboard summary is unavailable. Make sure the backend is running and migrated.',
+        );
+      },
+    });
   }
 
-  protected amcExpiringAlerts(): DashboardAmcExpiringAlert[] {
-    return this.summary()?.alerts.amcExpiringWithin30Days ?? [];
+  private buildAdminMetrics(): readonly DashboardMetric[] {
+    const summary = this.businessSummary()?.summary;
+    if (!summary) {
+      return [
+        {
+          label: 'Business Summary',
+          value: '...',
+          note: 'Loading dashboard metrics',
+          severity: 'info',
+        },
+      ];
+    }
+
+    return [
+      {
+        label: 'Pending Complaints',
+        value: String(summary.pendingComplaintsCount),
+        note: `${summary.pendingComplaintsAssignedCount} complaint(s) already assigned`,
+        severity: summary.pendingComplaintsCount > 0 ? 'warn' : 'success',
+      },
+      {
+        label: 'Outstanding Amount',
+        value: this.currencyFormatter.format(summary.totalOutstandingAmount),
+        note: `${summary.totalOutstandingCount} invoice(s) remain open`,
+        severity: summary.totalOutstandingCount > 0 ? 'info' : 'success',
+      },
+      {
+        label: "Today's Jobs",
+        value: String(summary.todayJobsCount),
+        note: 'Scheduled jobs visible to the field team today',
+        severity: summary.todayJobsCount > 0 ? 'info' : 'secondary',
+      },
+      {
+        label: 'AMC Expiring',
+        value: String(summary.amcExpiringWithin30DaysCount),
+        note: `${summary.overdueAmcPaymentCount} AMC payment(s) already overdue`,
+        severity: summary.amcExpiringWithin30DaysCount > 0 ? 'warn' : 'success',
+      },
+      {
+        label: 'Lead Conversion',
+        value: `${summary.leadConversionPercentage.toFixed(2)}%`,
+        note: `${summary.leadsConvertedThisMonthCount}/${summary.leadsThisMonthCount} leads converted this month`,
+        severity: summary.leadConversionPercentage > 0 ? 'success' : 'secondary',
+      },
+      {
+        label: 'Technician Availability',
+        value: `${summary.technicianAvailability.available} Available`,
+        note: `${summary.technicianAvailability.onJob} on job | ${summary.technicianAvailability.offline} offline`,
+        severity: summary.technicianAvailability.available > 0 ? 'success' : 'warn',
+      },
+    ];
   }
 
-  protected amcPaymentDueAlerts(): DashboardAmcPaymentDueAlert[] {
-    return this.summary()?.alerts.amcPaymentDue ?? [];
-  }
+  private buildEmployeeMetrics(): readonly DashboardMetric[] {
+    const summary = this.employeeSummary()?.summary;
+    if (!summary) {
+      return [
+        {
+          label: 'Employee Summary',
+          value: '...',
+          note: 'Loading assigned work summary',
+          severity: 'info',
+        },
+      ];
+    }
 
-  protected leadFollowUpAlerts(): DashboardLeadFollowUpAlert[] {
-    return this.summary()?.alerts.leadsNeedingFollowUp ?? [];
+    return [
+      {
+        label: "Today's Tasks",
+        value: String(summary.todayTasks),
+        note: `${summary.overdueTasks} overdue task(s) need attention`,
+        severity: summary.todayTasks > 0 || summary.overdueTasks > 0 ? 'warn' : 'success',
+      },
+      {
+        label: "Today's Follow-ups",
+        value: String(summary.todayFollowUps),
+        note: `${summary.assignedLeads} assigned leads are in your queue`,
+        severity: summary.todayFollowUps > 0 ? 'info' : 'secondary',
+      },
+      {
+        label: 'Outstanding Collection',
+        value: String(summary.outstandingCollectionTasks),
+        note: 'Collection follow-up tasks synced from receivables',
+        severity: summary.outstandingCollectionTasks > 0 ? 'warn' : 'success',
+      },
+      {
+        label: 'Assigned Leads',
+        value: String(summary.assignedLeads),
+        note: 'Active sales follow-ups assigned to you',
+        severity: summary.assignedLeads > 0 ? 'info' : 'secondary',
+      },
+      {
+        label: 'Pending Complaints',
+        value: String(summary.pendingComplaintsAssigned),
+        note: `${summary.completedTasks} completed task(s) in your history`,
+        severity: summary.pendingComplaintsAssigned > 0 ? 'warn' : 'success',
+      },
+    ];
   }
 }

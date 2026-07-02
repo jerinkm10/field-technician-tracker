@@ -169,7 +169,7 @@
     [modal]="true"
     [closable]="!historyLoading()"
     [dismissableMask]="false"
-    [closeOnEscape]="false"
+    [closeOnEscape]="!historyLoading()"
     [draggable]="false"
     [resizable]="false"
     [style]="{ width: 'min(96vw, 78rem)' }"

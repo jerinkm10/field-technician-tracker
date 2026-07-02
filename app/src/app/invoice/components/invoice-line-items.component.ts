@@ -10,7 +10,10 @@ import {
   inject,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { ProductServiceFormDialogComponent } from '../../business/components/product-service-form-dialog.component';
 import { ProductServiceAutocompleteComponent } from '../../business/components/product-service-autocomplete.component';
+import { ProductServicesApiService } from '../../core/services/product-services-api.service';
+import { UiFeedbackService } from '../../core/services/ui-feedback.service';
 import { ButtonModule } from 'primeng/button';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
@@ -19,6 +22,7 @@ import { TableModule } from 'primeng/table';
 import {
   BillingLineItemPayload,
   ProductServiceRecord,
+  ProductServiceUpsertPayload,
 } from '../../shared/models/billing.models';
 
 @Component({
@@ -28,6 +32,7 @@ import {
     FormsModule,
     InputNumberModule,
     InputTextModule,
+    ProductServiceFormDialogComponent,
     ProductServiceAutocompleteComponent,
     TableModule,
   ],
@@ -42,8 +47,15 @@ export class InvoiceLineItemsComponent implements OnChanges {
   @Output() readonly lineItemsChange = new EventEmitter<BillingLineItemPayload[]>();
 
   private readonly changeDetectorRef = inject(ChangeDetectorRef);
+  private readonly productServicesApiService = inject(ProductServicesApiService);
+  private readonly uiFeedback = inject(UiFeedbackService);
 
   protected workingLineItems: BillingLineItemPayload[] = [];
+  protected productServiceDialogVisible = false;
+  protected savingProductService = false;
+  protected productServiceDialogSeed: Partial<ProductServiceUpsertPayload> | null = null;
+
+  private pendingProductServiceRowIndex: number | null = null;
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['lineItems']) {
@@ -126,6 +138,73 @@ export class InvoiceLineItemsComponent implements OnChanges {
     lineItem.sgstPercentage = splitTaxPercentage;
 
     this.recalculateLine(index);
+  }
+
+  protected openProductServiceDialog(index: number): void {
+    if (this.readonly) {
+      return;
+    }
+
+    const lineItem = this.workingLineItems[index];
+    this.pendingProductServiceRowIndex = index;
+    this.productServiceDialogSeed = {
+      name: lineItem.productServiceName.trim(),
+      description: lineItem.description.trim(),
+      hsnSacCode: lineItem.hsnSac.trim(),
+      defaultRate: this.valueOrZero(lineItem.unitPrice),
+      taxPercentage: this.roundCurrency(
+        this.valueOrZero(lineItem.cgstPercentage) +
+          this.valueOrZero(lineItem.sgstPercentage),
+      ),
+    };
+    this.productServiceDialogVisible = true;
+    this.changeDetectorRef.markForCheck();
+  }
+
+  protected closeProductServiceDialog(): void {
+    this.productServiceDialogVisible = false;
+    this.savingProductService = false;
+    this.productServiceDialogSeed = null;
+    this.pendingProductServiceRowIndex = null;
+    this.changeDetectorRef.markForCheck();
+  }
+
+  protected createProductService(payload: ProductServiceUpsertPayload): void {
+    const rowIndex = this.pendingProductServiceRowIndex;
+    if (rowIndex === null) {
+      return;
+    }
+
+    this.savingProductService = true;
+    this.changeDetectorRef.markForCheck();
+
+    this.productServicesApiService.createProductService(payload).subscribe({
+      next: (productService) => {
+        this.savingProductService = false;
+        this.productServiceDialogVisible = false;
+        this.productServiceDialogSeed = null;
+        this.pendingProductServiceRowIndex = null;
+
+        if (rowIndex < this.workingLineItems.length) {
+          this.applyProductServiceSelection(rowIndex, productService);
+        }
+
+        this.uiFeedback.success(
+          'Product / service created',
+          `"${productService.name}" was created and selected.`,
+        );
+        this.changeDetectorRef.markForCheck();
+      },
+      error: (error) => {
+        this.savingProductService = false;
+        const message = this.uiFeedback.extractErrorMessage(
+          error,
+          'Product / service creation failed. Check the details and try again.',
+        );
+        this.uiFeedback.error('Product / service creation failed', message);
+        this.changeDetectorRef.markForCheck();
+      },
+    });
   }
 
   protected trackByIndex(index: number): number {

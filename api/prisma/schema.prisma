@@ -121,6 +121,53 @@ enum LeadStatus {
   LOST
 }
 
+enum ComplaintContactPerson {
+  BANK_MANAGER
+  ASSISTANT_MANAGER
+  STAFF
+  OWNER
+  OTHER
+}
+
+enum ComplaintStatus {
+  PENDING
+  ASSIGNED
+  IN_PROGRESS
+  CONVERTED_TO_JOB
+  CLOSED
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum TaskStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  OVERDUE
+}
+
+enum TaskReferenceType {
+  OUTSTANDING
+  LEAD
+  JOB
+  AMC_RENEWAL
+  COMPLAINT
+}
+
+enum NotificationReferenceType {
+  LEAD
+  JOB
+  AMC
+  OUTSTANDING
+  TASK
+  COMPLAINT
+}
+
 model User {
   id                String             @id @default(cuid())
   name              String
@@ -134,8 +181,11 @@ model User {
   updatedAt         DateTime           @updatedAt
   technician        Technician?
   assignedLeads     Lead[]             @relation("LeadAssignedEmployee")
+  assignedComplaints Complaint[]       @relation("ComplaintAssignedEmployee")
+  employeeTasks     EmployeeTask[]     @relation("EmployeeAssignedTasks")
   leadNotes         LeadNote[]
   leadStatusHistory LeadStatusHistory[]
+  notifications     Notification[]
   productServiceHistory ProductServiceHistory[]
 
   @@index([role])
@@ -178,6 +228,8 @@ model Customer {
   quotations      Quotation[]
   outstandings    Outstanding[]
   amcs            Amc[]
+  complaints      Complaint[]
+  employeeTasks   EmployeeTask[]
 
   @@index([name])
   @@index([phone])
@@ -191,19 +243,23 @@ model Job {
   title         String
   description   String
   customerId    String
-  technicianId  String
+  technicianId  String?
+  productServiceId String?
   status        JobStatus       @default(PENDING)
   scheduledDate DateTime
   startedAt     DateTime?
   completedAt   DateTime?
   customer      Customer        @relation(fields: [customerId], references: [id], onDelete: Restrict)
-  technician    Technician      @relation(fields: [technicianId], references: [id], onDelete: Restrict)
+  technician    Technician?     @relation(fields: [technicianId], references: [id], onDelete: SetNull)
+  productService ProductService? @relation(fields: [productServiceId], references: [id], onDelete: SetNull)
+  complaint     Complaint?
   visits        JobVisit[]
   locationLogs  LocationLog[]
   attachments   JobAttachment[]
 
   @@index([customerId])
   @@index([technicianId])
+  @@index([productServiceId])
   @@index([status])
   @@index([scheduledDate])
 }
@@ -295,6 +351,7 @@ model ProductService {
   status        ProductServiceStatus @default(ACTIVE)
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
+  jobs          Job[]
   leads         Lead[]
   history       ProductServiceHistory[]
 
@@ -369,6 +426,7 @@ model Invoice {
   roundedOff         Float
   totalAmount        Float
   amountDue          Float
+  pdfFilePath        String?
   status             InvoiceStatus   @default(DRAFT)
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
@@ -433,6 +491,7 @@ model Amc {
   nextBillingDate     DateTime?
   termsAndConditions  String?
   note                String?
+  pdfFilePath         String?
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt
   customer            Customer         @relation(fields: [customerId], references: [id], onDelete: Restrict)
@@ -503,6 +562,7 @@ model Quotation {
   totalTaxAmount     Float
   roundedOff         Float
   totalAmount        Float
+  pdfFilePath        String?
   status             QuotationStatus  @default(DRAFT)
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
@@ -562,6 +622,7 @@ model Lead {
   source                     String
   interestedProductServiceId String
   assignedToEmployeeId       String?
+  assignedAt                 DateTime?
   status                     LeadStatus        @default(NEW)
   note                       String?
   nextFollowUpDate           DateTime?
@@ -579,9 +640,77 @@ model Lead {
   @@index([email])
   @@index([branchId])
   @@index([assignedToEmployeeId])
+  @@index([assignedAt])
   @@index([status])
   @@index([createdAt])
   @@index([nextFollowUpDate])
+}
+
+model Complaint {
+  id                   String                @id @default(cuid())
+  customerId           String?
+  customerName         String
+  contactPerson        ComplaintContactPerson
+  phone                String
+  email                String?
+  address              String
+  location             String
+  complaintTitle       String
+  complaintDescription String
+  status               ComplaintStatus       @default(PENDING)
+  assignedEmployeeId   String?
+  notes                String?
+  jobId                String?               @unique
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  customer             Customer?             @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  assignedEmployee     User?                 @relation("ComplaintAssignedEmployee", fields: [assignedEmployeeId], references: [id], onDelete: SetNull)
+  job                  Job?                  @relation(fields: [jobId], references: [id], onDelete: SetNull)
+
+  @@index([customerId])
+  @@index([assignedEmployeeId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model EmployeeTask {
+  id                 String            @id @default(cuid())
+  title              String
+  priority           TaskPriority      @default(MEDIUM)
+  dueDate            DateTime
+  customerId         String?
+  assignedEmployeeId String
+  referenceType      TaskReferenceType
+  referenceId        String
+  status             TaskStatus        @default(PENDING)
+  sourceSnapshot     Json?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  customer           Customer?         @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  assignedEmployee   User              @relation("EmployeeAssignedTasks", fields: [assignedEmployeeId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@index([assignedEmployeeId])
+  @@index([priority])
+  @@index([dueDate])
+  @@index([status])
+  @@unique([assignedEmployeeId, referenceType, referenceId])
+}
+
+model Notification {
+  id            String                    @id @default(cuid())
+  userId        String
+  title         String
+  message       String
+  referenceType NotificationReferenceType
+  referenceId   String
+  isRead        Boolean                   @default(false)
+  createdAt     DateTime                  @default(now())
+  user          User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@index([createdAt])
 }
 
 model LeadNote {

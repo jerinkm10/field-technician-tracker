@@ -45,6 +45,7 @@ export class ProductServiceFormDialogComponent implements OnChanges {
   @Input() saving = false;
   @Input() mode: 'create' | 'edit' | 'view' = 'create';
   @Input() productService: ProductServiceRecord | null = null;
+  @Input() initialDraft: Partial<ProductServiceUpsertPayload> | null = null;
 
   @Output() readonly cancel = new EventEmitter<void>();
   @Output() readonly save = new EventEmitter<ProductServiceUpsertPayload>();
@@ -65,20 +66,10 @@ export class ProductServiceFormDialogComponent implements OnChanges {
     if (
       changes['visible']?.currentValue === true ||
       changes['productService'] ||
-      changes['mode']
+      changes['mode'] ||
+      changes['initialDraft']
     ) {
-      this.draft = this.productService
-        ? {
-            name: this.productService.name,
-            type: this.productService.type,
-            description: this.productService.description,
-            hsnSacCode: this.productService.hsnSacCode,
-            unit: this.productService.unit,
-            defaultRate: this.productService.defaultRate,
-            taxPercentage: this.productService.taxPercentage,
-            status: this.productService.status,
-          }
-        : this.emptyDraft();
+      this.draft = this.buildDraft();
     }
   }
 
@@ -136,6 +127,30 @@ export class ProductServiceFormDialogComponent implements OnChanges {
 
   protected isReadOnly(): boolean {
     return this.mode === 'view';
+  }
+
+  private buildDraft(): ProductServiceUpsertPayload {
+    const baseDraft = this.productService
+      ? {
+          name: this.productService.name,
+          type: this.productService.type,
+          description: this.productService.description,
+          hsnSacCode: this.productService.hsnSacCode,
+          unit: this.productService.unit,
+          defaultRate: this.productService.defaultRate,
+          taxPercentage: this.productService.taxPercentage,
+          status: this.productService.status,
+        }
+      : this.emptyDraft();
+
+    if (this.mode !== 'create' || this.productService || !this.initialDraft) {
+      return baseDraft;
+    }
+
+    return {
+      ...baseDraft,
+      ...this.initialDraft,
+    };
   }
 
   private emptyDraft(): ProductServiceUpsertPayload {

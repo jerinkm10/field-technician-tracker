@@ -104,11 +104,12 @@
         <tr>
           <th class="align-center">NO</th>
           <th class="align-left">PRODUCT / SERVICE NAME</th>
+          <th class="align-left">DESCRIPTION</th>
           <th class="align-center">HSN/SAC</th>
           <th class="align-center">QTY</th>
           <th class="align-right">UNIT PRICE</th>
-          <th class="align-right">CGST</th>
-          <th class="align-right">SGST</th>
+          <th class="align-center">CGST %</th>
+          <th class="align-center">SGST %</th>
           <th class="align-right">AMOUNT</th>
         </tr>
       </thead>
@@ -119,45 +120,28 @@
             <td class="align-center">{{ $index + 1 }}</td>
             <td class="product-cell">
               <strong>{{ (item.productServiceName || 'Untitled item').toUpperCase() }}</strong>
-              @if (item.description) {
-                <div class="item-description">{{ item.description }}</div>
-              }
             </td>
+            <td class="description-cell">{{ item.description || '-' }}</td>
             <td class="align-center">{{ item.hsnSac || '-' }}</td>
             <td class="align-center">{{ item.quantity | number : '1.0-2' }}</td>
             <td class="align-right">{{ item.unitPrice | number : '1.2-2' }}</td>
-            <td class="align-right tax-cell">
-              <strong>{{ item.cgstAmount | number : '1.2-2' }}</strong>
-              <span>{{ item.cgstPercentage | number : '1.0-2' }}%</span>
-            </td>
-            <td class="align-right tax-cell">
-              <strong>{{ item.sgstAmount | number : '1.2-2' }}</strong>
-              <span>{{ item.sgstPercentage | number : '1.0-2' }}%</span>
-            </td>
+            <td class="align-center percentage-cell">{{ item.cgstPercentage | number : '1.0-2' }}%</td>
+            <td class="align-center percentage-cell">{{ item.sgstPercentage | number : '1.0-2' }}%</td>
             <td class="align-right amount-cell">{{ item.lineAmount | number : '1.2-2' }}</td>
           </tr>
         }
       </tbody>
 
       <tfoot>
-        <tr class="tax-summary-row">
-          <td></td>
-          <td></td>
-          <td class="align-center">@{{ totalTaxRate() | number : '1.0-2' }}%</td>
-          <td class="align-center">{{ totalQuantity() | number : '1.0-2' }}</td>
-          <td class="align-right">{{ preview.totalBeforeTax | number : '1.2-2' }}</td>
-          <td class="align-right">{{ totalCgstAmount() | number : '1.2-2' }}</td>
-          <td class="align-right">{{ totalSgstAmount() | number : '1.2-2' }}</td>
-          <td class="align-right">{{ preview.totalAmount | number : '1.2-2' }}</td>
-        </tr>
         <tr class="grand-total-row">
           <td></td>
           <td class="total-label">TOTAL</td>
           <td></td>
+          <td></td>
           <td class="align-center">{{ totalQuantity() | number : '1.0-2' }}</td>
           <td class="align-right">{{ preview.totalBeforeTax | number : '1.2-2' }}</td>
-          <td class="align-right">{{ totalCgstAmount() | number : '1.2-2' }}</td>
-          <td class="align-right">{{ totalSgstAmount() | number : '1.2-2' }}</td>
+          <td></td>
+          <td></td>
           <td class="align-right">{{ preview.totalAmount | number : '1.2-2' }}</td>
         </tr>
       </tfoot>

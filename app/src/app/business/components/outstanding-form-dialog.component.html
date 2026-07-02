@@ -3,7 +3,7 @@
   [modal]="true"
   [closable]="!saving"
   [dismissableMask]="false"
-  [closeOnEscape]="false"
+  [closeOnEscape]="!saving"
   [draggable]="false"
   [resizable]="false"
   [style]="{ width: 'min(92vw, 60rem)' }"
@@ -77,7 +77,7 @@
         </label>
 
         <label class="field">
-          <span>Due Date</span>
+          <span>Paid Date</span>
           <input
             type="date"
             [(ngModel)]="draft.dueDate"

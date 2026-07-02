@@ -24,6 +24,9 @@ import { AmcModule } from './amc/amc.module';
 import { LedgerModule } from './ledger/ledger.module';
 import { LeadsModule } from './leads/leads.module';
 import { DashboardModule } from './dashboard/dashboard.module';
+import { NotificationsModule } from './notifications/notifications.module';
+import { EmployeeTasksModule } from './employee-tasks/employee-tasks.module';
+import { ComplaintsModule } from './complaints/complaints.module';
 
 @Module({
   imports: [
@@ -55,6 +58,9 @@ import { DashboardModule } from './dashboard/dashboard.module';
     LedgerModule,
     LeadsModule,
     DashboardModule,
+    NotificationsModule,
+    EmployeeTasksModule,
+    ComplaintsModule,
   ],
   controllers: [HealthController],
 })

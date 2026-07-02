@@ -52,7 +52,7 @@ export class QuotationsController {
     response.setHeader('Content-Type', 'application/pdf');
     response.setHeader(
       'Content-Disposition',
-      `inline; filename="${quotation.quotationNumber}.pdf"`,
+      `attachment; filename="${quotation.quotationNumber}.pdf"`,
     );
 
     return new StreamableFile(pdfBuffer);

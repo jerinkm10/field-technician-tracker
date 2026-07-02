@@ -5,8 +5,10 @@ import {
 } from '@nestjs/common';
 import {
   LeadStatus,
+  NotificationReferenceType,
   Prisma,
   Role,
+  TaskReferenceType,
   UserStatus,
 } from '@prisma/client';
 import {
@@ -19,6 +21,8 @@ import {
   createPaginationMeta,
   normalizePagination,
 } from '../common/utils/pagination.util';
+import { EmployeeTasksService } from '../employee-tasks/employee-tasks.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddLeadNoteDto } from './dto/add-lead-note.dto';
 import { CreateLeadDto } from './dto/create-lead.dto';
@@ -112,6 +116,7 @@ const leadListSelect = Prisma.validator<Prisma.LeadSelect>()({
   source: true,
   interestedProductServiceId: true,
   assignedToEmployeeId: true,
+  assignedAt: true,
   status: true,
   note: true,
   nextFollowUpDate: true,
@@ -214,9 +219,13 @@ type LeadPerformanceRecord = {
 
 @Injectable()
 export class LeadsService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly employeeTasksService: EmployeeTasksService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
-  async listLeads(query: ListLeadsQueryDto) {
+  async listLeads(query: ListLeadsQueryDto, currentUser: JwtPayload) {
     const { page, limit, skip } = normalizePagination(query.page, query.limit);
     const search = query.search?.trim();
     const dateRange = this.buildCreatedAtRange(query.fromDate, query.toDate);
@@ -225,6 +234,9 @@ export class LeadsService {
       ...(query.branchId ? { branchId: query.branchId } : {}),
       ...(query.assignedToEmployeeId
         ? { assignedToEmployeeId: query.assignedToEmployeeId }
+        : {}),
+      ...(currentUser.role === Role.EMPLOYEE
+        ? { assignedToEmployeeId: currentUser.sub }
         : {}),
       ...(dateRange ? { createdAt: dateRange } : {}),
       ...(search
@@ -324,8 +336,10 @@ export class LeadsService {
     };
   }
 
-  async getLeadById(leadId: string) {
-    return this.getLeadDetailsOrThrow(leadId);
+  async getLeadById(leadId: string, currentUser: JwtPayload) {
+    const lead = await this.getLeadDetailsOrThrow(leadId);
+    this.ensureLeadAccessible(lead, currentUser);
+    return lead;
   }
 
   async createLead(
@@ -358,6 +372,7 @@ export class LeadsService {
         source: createLeadDto.source.trim(),
         interestedProductServiceId: interestedProductService.id,
         assignedToEmployeeId: assignedEmployee?.id ?? null,
+        assignedAt: assignedEmployee ? new Date() : null,
         status,
         note,
         nextFollowUpDate,
@@ -391,7 +406,11 @@ export class LeadsService {
       },
     });
 
-    return this.getLeadDetailsOrThrow(lead.id);
+    const createdLead = await this.getLeadDetailsOrThrow(lead.id);
+    await this.employeeTasksService.syncLeadTask(createdLead.id);
+    await this.notifyAssignedLead(createdLead, assignedEmployee?.id ?? null);
+
+    return createdLead;
   }
 
   async updateLead(
@@ -439,6 +458,9 @@ export class LeadsService {
         normalizedNote !== null);
     const shouldCreateNote =
       normalizedNote !== null && normalizedNote !== existingLead.note;
+    const assignedEmployeeChanged =
+      hasAssignedEmployeeField &&
+      assignedEmployeeId !== existingLead.assignedToEmployeeId;
 
     await this.prismaService.lead.update({
       where: {
@@ -489,6 +511,11 @@ export class LeadsService {
         ...(hasAssignedEmployeeField
           ? {
               assignedToEmployeeId: assignedEmployee?.id ?? null,
+              assignedAt: assignedEmployee
+                ? assignedEmployeeChanged
+                  ? new Date()
+                  : existingLead.assignedAt
+                : null,
             }
           : {}),
         ...(updateLeadDto.status !== undefined
@@ -537,7 +564,13 @@ export class LeadsService {
       },
     });
 
-    return this.getLeadDetailsOrThrow(leadId);
+    const updatedLead = await this.getLeadDetailsOrThrow(leadId);
+    await this.employeeTasksService.syncLeadTask(updatedLead.id);
+    if (assignedEmployeeChanged) {
+      await this.notifyAssignedLead(updatedLead, assignedEmployee?.id ?? null);
+    }
+
+    return updatedLead;
   }
 
   async updateLeadStatus(
@@ -545,7 +578,8 @@ export class LeadsService {
     updateLeadStatusDto: UpdateLeadStatusDto,
     currentUser: JwtPayload,
   ) {
-    await this.getLeadDetailsOrThrow(leadId);
+    const existingLead = await this.getLeadDetailsOrThrow(leadId);
+    this.ensureLeadAccessible(existingLead, currentUser);
 
     const note = this.normalizeOptionalString(updateLeadStatusDto.note);
     const nextFollowUpDate = this.toDateOrNull(
@@ -591,7 +625,10 @@ export class LeadsService {
       },
     });
 
-    return this.getLeadDetailsOrThrow(leadId);
+    const updatedLead = await this.getLeadDetailsOrThrow(leadId);
+    await this.employeeTasksService.syncLeadTask(updatedLead.id);
+
+    return updatedLead;
   }
 
   async listLeadSuggestions(query?: string) {
@@ -830,6 +867,13 @@ export class LeadsService {
   async deleteLead(leadId: string) {
     await this.getLeadDetailsOrThrow(leadId);
 
+    await this.prismaService.employeeTask.deleteMany({
+      where: {
+        referenceType: TaskReferenceType.LEAD,
+        referenceId: leadId,
+      },
+    });
+
     return this.prismaService.lead.delete({
       where: {
         id: leadId,
@@ -838,8 +882,12 @@ export class LeadsService {
     });
   }
 
-  async getLeadNotes(leadId: string): Promise<LeadNoteRecord[]> {
-    await this.getLeadDetailsOrThrow(leadId);
+  async getLeadNotes(
+    leadId: string,
+    currentUser: JwtPayload,
+  ): Promise<LeadNoteRecord[]> {
+    const lead = await this.getLeadDetailsOrThrow(leadId);
+    this.ensureLeadAccessible(lead, currentUser);
 
     return this.prismaService.leadNote.findMany({
       where: {
@@ -857,7 +905,8 @@ export class LeadsService {
     addLeadNoteDto: AddLeadNoteDto,
     currentUser: JwtPayload,
   ) {
-    await this.getLeadDetailsOrThrow(leadId);
+    const lead = await this.getLeadDetailsOrThrow(leadId);
+    this.ensureLeadAccessible(lead, currentUser);
 
     const note = addLeadNoteDto.note.trim();
     if (!note) {
@@ -1033,6 +1082,34 @@ export class LeadsService {
     }
 
     return lead;
+  }
+
+  private async notifyAssignedLead(
+    lead: Awaited<ReturnType<LeadsService['getLeadDetailsOrThrow']>>,
+    assignedEmployeeId: string | null,
+  ): Promise<void> {
+    if (!assignedEmployeeId) {
+      return;
+    }
+
+    await this.notificationsService.notifyUsers([assignedEmployeeId], {
+      title: 'Lead assigned',
+      message: `${lead.leadName} was assigned to you for follow-up.`,
+      referenceType: NotificationReferenceType.LEAD,
+      referenceId: lead.id,
+    });
+  }
+
+  private ensureLeadAccessible(
+    lead: Awaited<ReturnType<LeadsService['getLeadDetailsOrThrow']>>,
+    currentUser: JwtPayload,
+  ): void {
+    if (
+      currentUser.role === Role.EMPLOYEE &&
+      lead.assignedToEmployeeId !== currentUser.sub
+    ) {
+      throw new NotFoundException('Lead not found');
+    }
   }
 
   private async getSupplierOrThrow(supplierId: string) {

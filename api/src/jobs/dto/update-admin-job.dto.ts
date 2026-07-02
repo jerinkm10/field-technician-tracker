@@ -28,6 +28,10 @@ export class UpdateAdminJobDto {
   technicianId?: string;
 
   @IsOptional()
+  @IsString()
+  productServiceId?: string;
+
+  @IsOptional()
   @IsDateString()
   scheduledDate?: string;
 

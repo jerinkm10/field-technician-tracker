@@ -10,6 +10,7 @@ import { TagModule } from 'primeng/tag';
 
 import { LeadFormDialogComponent } from '../../business/components/lead-form-dialog.component';
 import { LeadStatusDialogComponent } from '../../business/components/lead-status-dialog.component';
+import { AuthService } from '../../core/services/auth.service';
 import { EmployeesApiService } from '../../core/services/employees-api.service';
 import { LeadsApiService } from '../../core/services/leads-api.service';
 import { ProductServicesApiService } from '../../core/services/product-services-api.service';
@@ -58,6 +59,7 @@ type TagSeverity = 'success' | 'warn' | 'danger' | 'info';
 })
 export class LeadsPageComponent {
   private readonly uiFeedback = inject(UiFeedbackService);
+  protected readonly authService = inject(AuthService);
 
   protected readonly leads = signal<LeadRecord[]>([]);
   protected readonly branches = signal<SupplierRecord[]>([]);
@@ -147,7 +149,11 @@ export class LeadsPageComponent {
         },
       });
 
-    this.loadLeadPerformance();
+    if (this.authService.isAdmin()) {
+      this.loadLeadPerformance();
+    } else {
+      this.leadPerformance.set(null);
+    }
   }
 
   protected openCreateDialog(): void {
@@ -458,6 +464,10 @@ export class LeadsPageComponent {
         note: 'Converted leads divided by total assigned leads',
       },
     ];
+  }
+
+  protected canManageLeads(): boolean {
+    return this.authService.isAdmin();
   }
 
   protected footerLabel(): string {

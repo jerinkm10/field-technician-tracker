@@ -4,8 +4,16 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { JobStatus, Prisma, Role } from '@prisma/client';
+import {
+  JobStatus,
+  NotificationReferenceType,
+  Prisma,
+  Role,
+  TaskReferenceType,
+} from '@prisma/client';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
+import { EmployeeTasksService } from '../employee-tasks/employee-tasks.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAdminJobDto } from './dto/create-admin-job.dto';
 import { UpdateAdminJobDto } from './dto/update-admin-job.dto';
@@ -16,6 +24,7 @@ const jobSelect = Prisma.validator<Prisma.JobSelect>()({
   title: true,
   description: true,
   status: true,
+  productServiceId: true,
   scheduledDate: true,
   startedAt: true,
   completedAt: true,
@@ -45,6 +54,14 @@ const jobSelect = Prisma.validator<Prisma.JobSelect>()({
           role: true,
         },
       },
+    },
+  },
+  productService: {
+    select: {
+      id: true,
+      name: true,
+      type: true,
+      hsnSacCode: true,
     },
   },
   visits: {
@@ -85,14 +102,24 @@ type TechnicianContext = {
 
 @Injectable()
 export class JobsService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly employeeTasksService: EmployeeTasksService,
+    private readonly notificationsService: NotificationsService,
+  ) {}
 
   async listTechnicianJobs(userId: string): Promise<JobDetails[]> {
     const technician = await this.getTechnicianByUserId(userId);
+    const today = this.startOfDay(new Date());
+    const tomorrow = this.addDays(today, 1);
 
     return this.prismaService.job.findMany({
       where: {
         technicianId: technician.id,
+        scheduledDate: {
+          gte: today,
+          lt: tomorrow,
+        },
       },
       orderBy: [{ scheduledDate: 'asc' }, { jobNumber: 'asc' }],
       select: jobSelect,
@@ -104,7 +131,7 @@ export class JobsService {
 
     if (
       currentUser.role === Role.TECHNICIAN &&
-      job.technician.user.id !== currentUser.sub
+      job.technician?.user.id !== currentUser.sub
     ) {
       throw new NotFoundException('Job not found');
     }
@@ -122,40 +149,74 @@ export class JobsService {
   async createAdminJob(
     createAdminJobDto: CreateAdminJobDto,
   ): Promise<JobDetails> {
-    await this.ensureCustomerAndTechnician(
-      createAdminJobDto.customerId,
+    const technicianId = this.normalizeOptionalString(
       createAdminJobDto.technicianId,
     );
+    const productServiceId = this.normalizeOptionalString(
+      createAdminJobDto.productServiceId,
+    );
 
-    return this.prismaService.job.create({
+    await this.ensureCustomerAndTechnician(
+      createAdminJobDto.customerId,
+      technicianId,
+    );
+    await this.ensureProductServiceExists(productServiceId);
+
+    const job = await this.prismaService.job.create({
       data: {
         jobNumber: createAdminJobDto.jobNumber,
         title: createAdminJobDto.title,
         description: createAdminJobDto.description,
         customerId: createAdminJobDto.customerId,
-        technicianId: createAdminJobDto.technicianId,
-        status: createAdminJobDto.status ?? JobStatus.ASSIGNED,
+        technicianId,
+        productServiceId,
+        status:
+          createAdminJobDto.status ??
+          (technicianId ? JobStatus.ASSIGNED : JobStatus.PENDING),
         scheduledDate: new Date(createAdminJobDto.scheduledDate),
       },
       select: jobSelect,
     });
+
+    await this.employeeTasksService.syncJobTask(job.id);
+    await this.notifyAssignedTechnician(job);
+
+    return job;
   }
 
   async updateAdminJob(
     jobId: string,
     updateAdminJobDto: UpdateAdminJobDto,
   ): Promise<JobDetails> {
-    await this.ensureJobExists(jobId);
+    const existingJob = await this.getJobDetailsOrThrow(jobId);
 
     if (updateAdminJobDto.customerId) {
       await this.ensureCustomerExists(updateAdminJobDto.customerId);
     }
 
-    if (updateAdminJobDto.technicianId) {
-      await this.ensureTechnicianExists(updateAdminJobDto.technicianId);
+    const hasTechnicianField = Object.prototype.hasOwnProperty.call(
+      updateAdminJobDto,
+      'technicianId',
+    );
+    const technicianId = hasTechnicianField
+      ? this.normalizeOptionalString(updateAdminJobDto.technicianId)
+      : undefined;
+    if (technicianId) {
+      await this.ensureTechnicianExists(technicianId);
     }
 
-    return this.prismaService.job.update({
+    const hasProductServiceField = Object.prototype.hasOwnProperty.call(
+      updateAdminJobDto,
+      'productServiceId',
+    );
+    const productServiceId = hasProductServiceField
+      ? this.normalizeOptionalString(updateAdminJobDto.productServiceId)
+      : undefined;
+    if (hasProductServiceField) {
+      await this.ensureProductServiceExists(productServiceId);
+    }
+
+    const updatedJob = await this.prismaService.job.update({
       where: {
         id: jobId,
       },
@@ -164,7 +225,16 @@ export class JobsService {
         title: updateAdminJobDto.title,
         description: updateAdminJobDto.description,
         customerId: updateAdminJobDto.customerId,
-        technicianId: updateAdminJobDto.technicianId,
+        ...(hasTechnicianField
+          ? {
+              technicianId,
+            }
+          : {}),
+        ...(hasProductServiceField
+          ? {
+              productServiceId,
+            }
+          : {}),
         status: updateAdminJobDto.status,
         scheduledDate: updateAdminJobDto.scheduledDate
           ? new Date(updateAdminJobDto.scheduledDate)
@@ -172,10 +242,24 @@ export class JobsService {
       },
       select: jobSelect,
     });
+
+    await this.employeeTasksService.syncJobTask(updatedJob.id);
+    if (updatedJob.technician?.id !== existingJob.technician?.id) {
+      await this.notifyAssignedTechnician(updatedJob);
+    }
+
+    return updatedJob;
   }
 
   async deleteAdminJob(jobId: string): Promise<JobDetails> {
     await this.ensureJobExists(jobId);
+
+    await this.prismaService.employeeTask.deleteMany({
+      where: {
+        referenceType: TaskReferenceType.JOB,
+        referenceId: jobId,
+      },
+    });
 
     return this.prismaService.job.delete({
       where: {
@@ -354,12 +438,13 @@ export class JobsService {
 
   private async ensureCustomerAndTechnician(
     customerId: string,
-    technicianId: string,
+    technicianId?: string | null,
   ): Promise<void> {
-    await Promise.all([
-      this.ensureCustomerExists(customerId),
-      this.ensureTechnicianExists(technicianId),
-    ]);
+    await this.ensureCustomerExists(customerId);
+
+    if (technicianId) {
+      await this.ensureTechnicianExists(technicianId);
+    }
   }
 
   private async ensureCustomerExists(customerId: string): Promise<void> {
@@ -389,6 +474,27 @@ export class JobsService {
 
     if (!technician) {
       throw new NotFoundException('Technician not found');
+    }
+  }
+
+  private async ensureProductServiceExists(
+    productServiceId?: string | null,
+  ): Promise<void> {
+    if (!productServiceId) {
+      return;
+    }
+
+    const productService = await this.prismaService.productService.findUnique({
+      where: {
+        id: productServiceId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!productService) {
+      throw new NotFoundException('Product or service not found');
     }
   }
 
@@ -444,5 +550,43 @@ export class JobsService {
     }
 
     return job;
+  }
+
+  private async notifyAssignedTechnician(job: JobDetails): Promise<void> {
+    const userId = job.technician?.user.id;
+    if (!userId) {
+      return;
+    }
+
+    await this.notificationsService.createNotification({
+      userId,
+      title: 'Job assigned',
+      message: `${job.jobNumber} is scheduled for ${this.formatDate(job.scheduledDate)}.`,
+      referenceType: NotificationReferenceType.JOB,
+      referenceId: job.id,
+    });
+  }
+
+  private startOfDay(value: Date): Date {
+    return new Date(value.getFullYear(), value.getMonth(), value.getDate());
+  }
+
+  private addDays(value: Date, days: number): Date {
+    const next = new Date(value);
+    next.setDate(next.getDate() + days);
+    return next;
+  }
+
+  private formatDate(value: Date): string {
+    return value.toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  }
+
+  private normalizeOptionalString(value?: string | null): string | null {
+    const normalized = value?.trim();
+    return normalized ? normalized : null;
   }
 }

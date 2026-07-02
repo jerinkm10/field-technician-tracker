@@ -54,8 +54,14 @@ export class AuthService {
   readonly isAuthenticated = computed(
     () => Boolean(this.accessTokenState()) && Boolean(this.currentUserState()),
   );
+  readonly canAccessShell = computed(
+    () => this.isAuthenticated() && this.hasShellAccess(this.currentUserState()?.role),
+  );
   readonly isAdmin = computed(
     () => this.isAuthenticated() && this.hasDashboardAccess(this.currentUserState()?.role),
+  );
+  readonly isEmployee = computed(
+    () => this.isAuthenticated() && this.currentUserState()?.role === 'EMPLOYEE',
   );
   readonly canViewLedger = computed(
     () => this.isAuthenticated() && this.hasLedgerAccess(this.currentUserState()?.role),
@@ -65,12 +71,23 @@ export class AuthService {
     return this.httpClient.post<LoginResponse>(`${appSettings.apiBaseUrl}/auth/login`, payload);
   }
 
+  hasShellAccess(role: AppUserRole | null | undefined): boolean {
+    return role === 'ADMIN' || role === 'ADMIN_OWNER' || role === 'EMPLOYEE';
+  }
+
   hasDashboardAccess(role: AppUserRole | null | undefined): boolean {
     return role === 'ADMIN' || role === 'ADMIN_OWNER';
   }
 
   hasLedgerAccess(role: AppUserRole | null | undefined): boolean {
     return role === 'ADMIN' || role === 'ADMIN_OWNER';
+  }
+
+  hasRole(
+    roles: readonly AppUserRole[],
+    role: AppUserRole | null | undefined = this.currentUserState()?.role,
+  ): boolean {
+    return Boolean(role && roles.includes(role));
   }
 
   startSession(response: LoginResponse): void {

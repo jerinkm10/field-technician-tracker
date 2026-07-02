@@ -7,6 +7,7 @@ import { SelectModule } from 'primeng/select';
 import { TagModule } from 'primeng/tag';
 
 import { OutstandingFormDialogComponent } from '../../business/components/outstanding-form-dialog.component';
+import { AuthService } from '../../core/services/auth.service';
 import { CustomersApiService } from '../../core/services/customers-api.service';
 import { OutstandingsApiService } from '../../core/services/outstandings-api.service';
 import { UiFeedbackService } from '../../core/services/ui-feedback.service';
@@ -47,6 +48,7 @@ type TagSeverity = 'success' | 'warn' | 'danger' | 'info';
 })
 export class OutstandingsPageComponent {
   private readonly uiFeedback = inject(UiFeedbackService);
+  protected readonly authService = inject(AuthService);
 
   protected readonly outstandings = signal<OutstandingRecord[]>([]);
   protected readonly customers = signal<CustomerRecord[]>([]);
@@ -62,10 +64,10 @@ export class OutstandingsPageComponent {
 
   protected readonly statusOptions: Option<OutstandingStatus>[] = [
     { label: 'All statuses', value: '' },
+    { label: 'Overdue', value: 'OVERDUE' },
     { label: 'Pending', value: 'PENDING' },
     { label: 'Partial', value: 'PARTIAL' },
     { label: 'Paid', value: 'PAID' },
-    { label: 'Overdue', value: 'OVERDUE' },
   ];
 
   protected readonly invoiceTypeOptions: Option<OutstandingInvoiceType>[] = [
@@ -268,6 +270,16 @@ export class OutstandingsPageComponent {
 
   protected invoiceTypeLabel(invoiceType: OutstandingInvoiceType): string {
     return invoiceType === 'PROFORMA' ? 'Proforma' : 'Tax';
+  }
+
+  protected paymentDate(outstanding: OutstandingRecord): string {
+    return outstanding.status === 'PAID'
+      ? outstanding.updatedAt
+      : outstanding.dueDate;
+  }
+
+  protected canDeleteOutstandings(): boolean {
+    return this.authService.isAdmin();
   }
 
   private formatDateForInput(date: Date): string {

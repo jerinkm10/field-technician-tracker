@@ -20,26 +20,29 @@ import { CustomersService } from './customers.service';
 
 @Controller('customers')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
 export class CustomersController {
   constructor(private readonly customersService: CustomersService) {}
 
   @Get()
+  @Roles(Role.ADMIN, Role.EMPLOYEE)
   async listCustomers(@Query() query: ListCustomersQueryDto) {
     return this.customersService.listCustomers(query);
   }
 
   @Get(':id')
+  @Roles(Role.ADMIN, Role.EMPLOYEE)
   async getCustomer(@Param('id') customerId: string) {
     return this.customersService.getCustomerById(customerId);
   }
 
   @Post()
+  @Roles(Role.ADMIN)
   async createCustomer(@Body() createCustomerDto: CreateCustomerDto) {
     return this.customersService.createCustomer(createCustomerDto);
   }
 
   @Patch(':id')
+  @Roles(Role.ADMIN)
   async updateCustomer(
     @Param('id') customerId: string,
     @Body() updateCustomerDto: UpdateCustomerDto,
@@ -48,6 +51,7 @@ export class CustomersController {
   }
 
   @Delete(':id')
+  @Roles(Role.ADMIN)
   async deleteCustomer(@Param('id') customerId: string) {
     return this.customersService.deleteCustomer(customerId);
   }

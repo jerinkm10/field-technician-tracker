@@ -119,7 +119,7 @@
         <th>Invoice</th>
         <th>Customer</th>
         <th>Invoice Date</th>
-        <th>Due Date</th>
+        <th>Paid Date</th>
         <th>Total</th>
         <th>Paid</th>
         <th>Credit</th>
@@ -140,7 +140,7 @@
           <div class="muted-row">{{ outstanding.note || 'No note' }}</div>
         </td>
         <td>{{ outstanding.invoiceDate | date : 'mediumDate' }}</td>
-        <td>{{ outstanding.dueDate | date : 'mediumDate' }}</td>
+        <td>{{ paymentDate(outstanding) | date : 'mediumDate' }}</td>
         <td>{{ outstanding.totalAmount | number : '1.2-2' }}</td>
         <td>{{ outstanding.paidAmount | number : '1.2-2' }}</td>
         <td>{{ outstanding.creditAmount | number : '1.2-2' }}</td>
@@ -153,15 +153,17 @@
           </button>
           <button pButton type="button" label="Edit" text icon="pi pi-pencil" (click)="openEditDialog(outstanding)">
           </button>
-          <button
-            pButton
-            type="button"
-            label="Delete"
-            text
-            severity="danger"
-            icon="pi pi-trash"
-            (click)="deleteOutstanding(outstanding)">
-          </button>
+          @if (canDeleteOutstandings()) {
+            <button
+              pButton
+              type="button"
+              label="Delete"
+              text
+              severity="danger"
+              icon="pi pi-trash"
+              (click)="deleteOutstanding(outstanding)">
+            </button>
+          }
         </td>
       </tr>
     </ng-template>

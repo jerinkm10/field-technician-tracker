@@ -1,0 +1,174 @@
+<section class="page">
+  <header class="page-header">
+    <div class="page-heading">
+      <p class="page-eyebrow">Business</p>
+      <h1 class="page-title">Employee To-Do Tasks</h1>
+      <p class="page-subtitle">
+        Review tasks generated from outstandings, leads, jobs, AMC renewals, and complaints.
+      </p>
+    </div>
+  </header>
+
+  @if (errorMessage()) {
+    <div class="panel section-shell error-banner">
+      {{ errorMessage() }}
+    </div>
+  }
+
+  <section class="panel section-shell performance-shell">
+    <div class="performance-summary">
+      @for (card of summaryCards(); track card.label) {
+        <article class="summary-card">
+          <strong>{{ card.value }}</strong>
+          <span>{{ card.label }}</span>
+          <small>{{ card.note }}</small>
+        </article>
+      }
+    </div>
+  </section>
+
+  <section class="panel section-shell filters-shell">
+    <label class="search-field">
+      <span>Search</span>
+      <input
+        pInputText
+        [(ngModel)]="searchTerm"
+        placeholder="Search task title or customer" />
+    </label>
+
+    <div class="filter-actions">
+      <app-filter-dropdown label="Filter Tasks">
+        <label class="popover-field">
+          <span>Status</span>
+          <p-select
+            [options]="statusOptions"
+            optionLabel="label"
+            optionValue="value"
+            appendTo="body"
+            [(ngModel)]="statusFilter">
+          </p-select>
+        </label>
+
+        <label class="popover-field">
+          <span>Priority</span>
+          <p-select
+            [options]="priorityOptions"
+            optionLabel="label"
+            optionValue="value"
+            appendTo="body"
+            [(ngModel)]="priorityFilter">
+          </p-select>
+        </label>
+
+        <label class="popover-field">
+          <span>Module</span>
+          <p-select
+            [options]="referenceOptions"
+            optionLabel="label"
+            optionValue="value"
+            appendTo="body"
+            [(ngModel)]="referenceFilter">
+          </p-select>
+        </label>
+
+        @if (authService.isAdmin()) {
+          <label class="popover-field">
+            <span>Assigned Employee</span>
+            <p-select
+              [options]="employeeOptions()"
+              optionLabel="label"
+              optionValue="value"
+              appendTo="body"
+              [(ngModel)]="assignedEmployeeIdFilter">
+            </p-select>
+          </label>
+        }
+
+        <label class="popover-field checkbox-field">
+          <input type="checkbox" [(ngModel)]="todayOnly" />
+          <span>Today only</span>
+        </label>
+
+        <div class="popover-actions">
+          <button pButton type="button" label="Apply" icon="pi pi-filter" (click)="applyFilters()"></button>
+          <button pButton type="button" label="Reset" text (click)="resetFilters()"></button>
+        </div>
+      </app-filter-dropdown>
+
+      <button pButton type="button" label="Search" icon="pi pi-search" (click)="applyFilters()"></button>
+      <button pButton type="button" label="Reset" icon="pi pi-refresh" text (click)="resetFilters()"></button>
+    </div>
+  </section>
+
+  <app-data-table-with-actions
+    title="Task Queue"
+    subtitle="Keep assignment work moving with clear priority, status, and source visibility."
+    [showCreateButton]="false"
+    [records]="tasks()"
+    [loading]="loading()"
+    [footerLabel]="footerLabel()"
+    [emptyColspan]="7"
+    [page]="page()"
+    [totalPages]="totalPages()"
+    [hasPreviousPage]="hasPreviousPage()"
+    [hasNextPage]="hasNextPage()"
+    (previousPage)="previousPage()"
+    (nextPage)="nextPage()">
+    <ng-template #header>
+      <tr>
+        <th>Task</th>
+        <th>Employee</th>
+        <th>Module</th>
+        <th>Due Date</th>
+        <th>Priority</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </ng-template>
+
+    <ng-template #body let-task>
+      <tr>
+        <td>
+          <div class="table-title-cell">
+            <strong>{{ task.title }}</strong>
+            @if (task.customer) {
+              <span>{{ task.customer.name }}</span>
+            }
+          </div>
+        </td>
+        <td>
+          <div class="table-title-cell">
+            <strong>{{ task.assignedEmployee.name }}</strong>
+            <span>{{ task.assignedEmployee.username }}</span>
+          </div>
+        </td>
+        <td>{{ task.referenceType.replaceAll('_', ' ') }}</td>
+        <td>{{ task.dueDate | date: 'dd MMM yyyy' }}</td>
+        <td>
+          <p-tag
+            [severity]="prioritySeverity(task.priority)"
+            [value]="task.priority">
+          </p-tag>
+        </td>
+        <td>
+          <p-tag
+            [severity]="statusSeverity(task.status)"
+            [value]="task.status.replaceAll('_', ' ')">
+          </p-tag>
+        </td>
+        <td>
+          <div class="table-actions">
+            @if (task.status !== 'IN_PROGRESS' && task.status !== 'COMPLETED') {
+              <button pButton type="button" label="Start" text size="small" (click)="markTaskInProgress(task)">
+              </button>
+            }
+            @if (task.status !== 'COMPLETED') {
+              <button pButton type="button" label="Complete" text size="small" (click)="markTaskCompleted(task)">
+              </button>
+            }
+          </div>
+        </td>
+      </tr>
+    </ng-template>
+  </app-data-table-with-actions>
+</section>

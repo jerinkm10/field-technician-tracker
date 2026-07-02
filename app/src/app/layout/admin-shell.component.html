@@ -88,7 +88,7 @@
         </button>
         <div>
           <p class="topbar-overline">{{ appName }}</p>
-          <h2>Operations Dashboard</h2>
+          <h2>{{ shellTitle() }}</h2>
         </div>
       </div>
 
@@ -97,6 +97,14 @@
           [severity]="connectionSeverity()"
           [value]="realtime.connected() ? 'Live Tracking Online' : 'Live Tracking Pending'">
         </p-tag>
+        <button
+          pButton
+          type="button"
+          icon="pi pi-bell"
+          text
+          [label]="notificationsLabel()"
+          (click)="openNotifications()">
+        </button>
         <button pButton type="button" label="Logout" icon="pi pi-sign-out" text (click)="logout()"></button>
       </div>
     </header>
@@ -106,3 +114,52 @@
     </main>
   </div>
 </div>
+
+<p-dialog
+  [visible]="notificationsVisible()"
+  [modal]="true"
+  [dismissableMask]="false"
+  [closeOnEscape]="true"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: 'min(94vw, 40rem)' }"
+  header="Notifications"
+  (onHide)="closeNotifications()">
+  <div class="dialog-actions inline-actions">
+    <button
+      pButton
+      type="button"
+      text
+      label="Mark All Read"
+      [disabled]="unreadNotifications() === 0"
+      (click)="markAllNotificationsRead()">
+    </button>
+  </div>
+
+  @if (notificationsLoading()) {
+    <p class="muted-text">Loading notifications...</p>
+  } @else if (notifications().length === 0) {
+    <p class="muted-text">No notifications available right now.</p>
+  } @else {
+    <div class="alert-list">
+      @for (notification of notifications(); track notification.id) {
+        <button
+          type="button"
+          class="alert-row notification-row"
+          [class.is-read]="notification.isRead"
+          (click)="markNotificationRead(notification)">
+          <div>
+            <strong>{{ notification.title }}</strong>
+            <p>{{ notification.message }}</p>
+          </div>
+          <div class="alert-meta">
+            @if (!notification.isRead) {
+              <p-tag severity="info" value="Unread"></p-tag>
+            }
+            <span>{{ notification.createdAt | date: 'dd MMM yyyy, hh:mm a' }}</span>
+          </div>
+        </button>
+      }
+    </div>
+  }
+</p-dialog>

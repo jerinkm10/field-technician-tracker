@@ -4,10 +4,12 @@ import {
   OutstandingStatus,
   Prisma,
 } from '@prisma/client';
+import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import {
   createPaginationMeta,
   normalizePagination,
 } from '../common/utils/pagination.util';
+import { EmployeeTasksService } from '../employee-tasks/employee-tasks.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { ListOutstandingsQueryDto } from './dto/list-outstandings-query.dto';
 import { UpdateOutstandingDto } from './dto/update-outstanding.dto';
@@ -50,21 +52,38 @@ type OutstandingDbClient = Prisma.TransactionClient | PrismaService;
 
 @Injectable()
 export class OutstandingsService {
-  constructor(private readonly prismaService: PrismaService) {}
+  constructor(
+    private readonly prismaService: PrismaService,
+    private readonly employeeTasksService: EmployeeTasksService,
+  ) {}
 
   async listOutstandings(query: ListOutstandingsQueryDto) {
     const { page, limit, skip } = normalizePagination(query.page, query.limit);
     const search = query.search?.trim();
 
     const where: Prisma.OutstandingWhereInput = {
-      ...(query.status ? { status: query.status } : {}),
+      ...(query.status
+        ? { status: query.status }
+        : {
+            status: {
+              in: [
+                OutstandingStatus.OVERDUE,
+                OutstandingStatus.PENDING,
+                OutstandingStatus.PARTIAL,
+              ],
+            },
+          }),
       ...(query.customerId ? { customerId: query.customerId } : {}),
       ...(query.invoiceType ? { invoiceType: query.invoiceType } : {}),
       ...(query.fromDate || query.toDate
         ? {
             invoiceDate: {
               ...(query.fromDate ? { gte: new Date(query.fromDate) } : {}),
-              ...(query.toDate ? { lte: new Date(query.toDate) } : {}),
+              ...(query.toDate
+                ? {
+                    lte: this.endOfDay(new Date(query.toDate)),
+                  }
+                : {}),
             },
           }
         : {}),
@@ -98,15 +117,22 @@ export class OutstandingsService {
       this.prismaService.outstanding.count({ where }),
       this.prismaService.outstanding.findMany({
         where,
-        orderBy: [{ invoiceDate: 'desc' }, { createdAt: 'desc' }],
-        skip,
-        take: limit,
         select: outstandingSelect,
       }),
     ]);
 
+    const sortedOutstandings = outstandings.sort((left, right) => {
+      const statusDifference =
+        this.statusSortOrder(left.status) - this.statusSortOrder(right.status);
+      if (statusDifference !== 0) {
+        return statusDifference;
+      }
+
+      return right.invoiceDate.getTime() - left.invoiceDate.getTime();
+    });
+
     return {
-      data: outstandings,
+      data: sortedOutstandings.slice(skip, skip + limit),
       meta: createPaginationMeta(total, page, limit),
     };
   }
@@ -118,6 +144,7 @@ export class OutstandingsService {
   async updateOutstanding(
     outstandingId: string,
     updateOutstandingDto: UpdateOutstandingDto,
+    _currentUser?: JwtPayload,
   ): Promise<OutstandingRecord> {
     const outstanding = await this.getOutstandingOrThrow(outstandingId);
 
@@ -140,7 +167,7 @@ export class OutstandingsService {
       requestedStatus: updateOutstandingDto.status,
     });
 
-    return this.prismaService.outstanding.update({
+    const updatedOutstanding = await this.prismaService.outstanding.update({
       where: {
         id: outstandingId,
       },
@@ -154,6 +181,10 @@ export class OutstandingsService {
       },
       select: outstandingSelect,
     });
+
+    await this.employeeTasksService.refreshSharedTasks();
+
+    return updatedOutstanding;
   }
 
   async deleteOutstanding(outstandingId: string): Promise<OutstandingRecord> {
@@ -316,5 +347,24 @@ export class OutstandingsService {
 
   private roundCurrency(value: number): number {
     return Math.round(value * 100) / 100;
+  }
+
+  private statusSortOrder(status: OutstandingStatus): number {
+    switch (status) {
+      case OutstandingStatus.OVERDUE:
+        return 0;
+      case OutstandingStatus.PENDING:
+        return 1;
+      case OutstandingStatus.PARTIAL:
+        return 2;
+      default:
+        return 3;
+    }
+  }
+
+  private endOfDay(date: Date): Date {
+    const next = new Date(date);
+    next.setHours(23, 59, 59, 999);
+    return next;
   }
 }

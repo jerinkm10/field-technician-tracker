@@ -13,6 +13,7 @@ import {
 } from '@prisma/client';
 import { existsSync } from 'fs';
 import PDFDocument = require('pdfkit');
+import { BillingDocumentsService } from '../billing-documents/billing-documents.service';
 import { CompanySettingsService } from '../company-settings/company-settings.service';
 import {
   createPaginationMeta,
@@ -45,6 +46,7 @@ const amcSelect = Prisma.validator<Prisma.AmcSelect>()({
   nextBillingDate: true,
   termsAndConditions: true,
   note: true,
+  pdfFilePath: true,
   createdAt: true,
   updatedAt: true,
   customer: {
@@ -148,6 +150,7 @@ type BillingCycleState = {
 export class AmcService {
   constructor(
     private readonly prismaService: PrismaService,
+    private readonly billingDocumentsService: BillingDocumentsService,
     private readonly companySettingsService: CompanySettingsService,
     private readonly outstandingsService: OutstandingsService,
   ) {}
@@ -257,7 +260,10 @@ export class AmcService {
 
     try {
       const amc = await this.prismaService.amc.create({
-        data: normalized,
+        data: {
+          ...normalized,
+          pdfFilePath: null,
+        },
         select: amcSelect,
       });
 
@@ -308,7 +314,10 @@ export class AmcService {
         where: {
           id: amcId,
         },
-        data: normalized,
+        data: {
+          ...normalized,
+          pdfFilePath: null,
+        },
         select: amcSelect,
       });
 
@@ -584,6 +593,16 @@ export class AmcService {
 
   async getAmcPdf(amcId: string): Promise<{ amcNumber: string; pdfBuffer: Buffer }> {
     const amc = await this.getAmcOrThrow(amcId);
+    const storedPdfBuffer = await this.billingDocumentsService.readStoredPdfBuffer(
+      amc.pdfFilePath,
+    );
+    if (storedPdfBuffer) {
+      return {
+        amcNumber: amc.amcNumber,
+        pdfBuffer: storedPdfBuffer,
+      };
+    }
+
     const company = await this.companySettingsService.getCompanyBranding();
     const document = new PDFDocument({
       size: 'A4',
@@ -713,9 +732,24 @@ export class AmcService {
 
     document.end();
 
+    const pdfBuffer = await completed;
+    const pdfFilePath = await this.billingDocumentsService.storePdfBuffer(
+      'amc',
+      amc.amcNumber,
+      pdfBuffer,
+    );
+    await this.prismaService.amc.update({
+      where: {
+        id: amc.id,
+      },
+      data: {
+        pdfFilePath,
+      },
+    });
+
     return {
       amcNumber: amc.amcNumber,
-      pdfBuffer: await completed,
+      pdfBuffer,
     };
   }
 

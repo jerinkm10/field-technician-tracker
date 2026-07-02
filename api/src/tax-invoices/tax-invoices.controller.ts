@@ -52,7 +52,7 @@ export class TaxInvoicesController {
     response.setHeader('Content-Type', 'application/pdf');
     response.setHeader(
       'Content-Disposition',
-      `inline; filename="${invoice.invoiceNumber}.pdf"`,
+      `attachment; filename="${invoice.invoiceNumber}.pdf"`,
     );
 
     return new StreamableFile(pdfBuffer);

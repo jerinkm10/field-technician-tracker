@@ -42,11 +42,12 @@ export class InvoicesController {
     @Param('id') invoiceId: string,
     @Res({ passthrough: true }) response: Response,
   ) {
+    const invoice = await this.invoicesService.getInvoiceById(invoiceId);
     const pdfBuffer = await this.invoicesService.getInvoicePdf(invoiceId);
     response.setHeader('Content-Type', 'application/pdf');
     response.setHeader(
       'Content-Disposition',
-      `inline; filename="invoice-${invoiceId}.pdf"`,
+      `attachment; filename="${invoice.invoiceNumber}.pdf"`,
     );
 
     return new StreamableFile(pdfBuffer);

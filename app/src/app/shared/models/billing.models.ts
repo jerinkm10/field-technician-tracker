@@ -25,6 +25,35 @@ export type LeadStatus =
   | 'DEMO_SCHEDULED'
   | 'CONVERTED'
   | 'LOST';
+export type ComplaintContactPerson =
+  | 'BANK_MANAGER'
+  | 'ASSISTANT_MANAGER'
+  | 'STAFF'
+  | 'OWNER'
+  | 'OTHER';
+export type ComplaintStatus =
+  | 'PENDING'
+  | 'ASSIGNED'
+  | 'IN_PROGRESS'
+  | 'CONVERTED_TO_JOB'
+  | 'CLOSED'
+  | 'CANCELLED';
+export type TaskPriority = 'LOW' | 'MEDIUM' | 'HIGH';
+export type TaskStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'OVERDUE';
+export type TaskReferenceType =
+  | 'OUTSTANDING'
+  | 'LEAD'
+  | 'JOB'
+  | 'AMC_RENEWAL'
+  | 'COMPLAINT';
+export type NotificationReferenceType =
+  | 'LEAD'
+  | 'JOB'
+  | 'AMC'
+  | 'OUTSTANDING'
+  | 'TASK'
+  | 'COMPLAINT';
+export type JobStatus = 'PENDING' | 'ASSIGNED' | 'STARTED' | 'COMPLETED' | 'CANCELLED';
 export type LedgerDocumentType =
   | 'PROFORMA_INVOICE'
   | 'TAX_INVOICE'
@@ -473,6 +502,7 @@ export type LeadRecord = {
   source: string;
   interestedProductServiceId: string;
   assignedToEmployeeId: string | null;
+  assignedAt: string | null;
   status: LeadStatus;
   note: string | null;
   nextFollowUpDate: string | null;
@@ -504,6 +534,158 @@ export type LeadUpsertPayload = {
   status: LeadStatus;
   note?: string;
   nextFollowUpDate?: string;
+};
+
+export type JobRecord = {
+  id: string;
+  jobNumber: string;
+  title: string;
+  description: string;
+  customer: {
+    id: string;
+    name: string;
+    phone: string;
+    address: string;
+  };
+  technician:
+    | {
+        id: string;
+        phone: string;
+        status: 'AVAILABLE' | 'ON_JOB' | 'OFFLINE';
+        user: Pick<EmployeeRecord, 'id' | 'name' | 'email' | 'role'>;
+      }
+    | null;
+  productService:
+    | Pick<ProductServiceRecord, 'id' | 'name' | 'type' | 'hsnSacCode'>
+    | null;
+  status: JobStatus;
+  scheduledDate: string;
+  startedAt: string | null;
+  completedAt: string | null;
+};
+
+export type JobUpsertPayload = {
+  jobNumber: string;
+  title: string;
+  description: string;
+  customerId: string;
+  technicianId?: string | null;
+  productServiceId?: string | null;
+  scheduledDate: string;
+  status?: JobStatus;
+};
+
+export type ComplaintRecord = {
+  id: string;
+  customerId: string | null;
+  customerName: string;
+  contactPerson: ComplaintContactPerson;
+  phone: string;
+  email: string | null;
+  address: string;
+  location: string;
+  complaintTitle: string;
+  complaintDescription: string;
+  status: ComplaintStatus;
+  assignedEmployeeId: string | null;
+  notes: string | null;
+  jobId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  customer:
+    | {
+        id: string;
+        name: string;
+        phone: string;
+        email: string | null;
+        address: string;
+      }
+    | null;
+  assignedEmployee: Pick<
+    EmployeeRecord,
+    'id' | 'name' | 'username' | 'email' | 'role' | 'status'
+  > | null;
+  job:
+    | {
+        id: string;
+        jobNumber: string;
+        title: string;
+        status: JobStatus;
+        scheduledDate: string;
+      }
+    | null;
+};
+
+export type ComplaintUpsertPayload = {
+  customerId?: string | null;
+  customerName: string;
+  contactPerson: ComplaintContactPerson;
+  phone: string;
+  email?: string;
+  address: string;
+  location: string;
+  complaintTitle: string;
+  complaintDescription: string;
+  status?: ComplaintStatus;
+  assignedEmployeeId?: string | null;
+  notes?: string;
+};
+
+export type EmployeeTaskRecord = {
+  id: string;
+  title: string;
+  priority: TaskPriority;
+  dueDate: string;
+  customerId: string | null;
+  assignedEmployeeId: string;
+  referenceType: TaskReferenceType;
+  referenceId: string;
+  status: TaskStatus;
+  sourceSnapshot: Record<string, string | number | null> | null;
+  createdAt: string;
+  updatedAt: string;
+  customer:
+    | {
+        id: string;
+        name: string;
+        phone: string;
+        address: string;
+      }
+    | null;
+  assignedEmployee: {
+    id: string;
+    name: string;
+    username: string;
+    role: AppUserRole;
+    status: UserStatus;
+  };
+};
+
+export type EmployeeTaskSummaryResponse = {
+  todayTasks: number;
+  overdueTasks: number;
+  completedTasks: number;
+  pendingTasks: number;
+  recentTasks: EmployeeTaskRecord[];
+};
+
+export type EmployeeTaskStatusUpdatePayload = {
+  status?: TaskStatus;
+};
+
+export type NotificationRecord = {
+  id: string;
+  userId: string;
+  title: string;
+  message: string;
+  referenceType: NotificationReferenceType;
+  referenceId: string;
+  isRead: boolean;
+  createdAt: string;
+};
+
+export type NotificationListResponse = PaginatedResponse<NotificationRecord> & {
+  unreadCount: number;
 };
 
 export type LeadStatusUpdatePayload = {
@@ -753,6 +935,35 @@ export type LeadListFilters = {
   limit?: number;
 };
 
+export type JobListFilters = {
+  page?: number;
+  limit?: number;
+};
+
+export type ComplaintListFilters = {
+  search?: string;
+  status?: ComplaintStatus;
+  customerId?: string;
+  assignedEmployeeId?: string;
+  fromDate?: string;
+  toDate?: string;
+  page?: number;
+  limit?: number;
+};
+
+export type EmployeeTaskListFilters = {
+  search?: string;
+  status?: TaskStatus;
+  priority?: TaskPriority;
+  referenceType?: TaskReferenceType;
+  assignedEmployeeId?: string;
+  fromDate?: string;
+  toDate?: string;
+  todayOnly?: boolean;
+  page?: number;
+  limit?: number;
+};
+
 export type DashboardOutstandingAlert = {
   id: string;
   invoiceNumber: string;
@@ -809,13 +1020,109 @@ export type DashboardBusinessSummaryResponse = {
     amcPaymentDueCount: number;
     overdueAmcPaymentCount: number;
     leadsThisMonthCount: number;
+    leadsConvertedThisMonthCount: number;
+    leadConversionPercentage: number;
     followUpsDueTodayCount: number;
     overdueFollowUpsCount: number;
+    pendingComplaintsCount: number;
+    pendingComplaintsAssignedCount: number;
+    todayJobsCount: number;
+    technicianAvailability: {
+      available: number;
+      onJob: number;
+      offline: number;
+    };
   };
   alerts: {
     overdueOutstanding: DashboardOutstandingAlert[];
     amcExpiringWithin30Days: DashboardAmcExpiringAlert[];
     amcPaymentDue: DashboardAmcPaymentDueAlert[];
     leadsNeedingFollowUp: DashboardLeadFollowUpAlert[];
+    pendingComplaints: Array<{
+      id: string;
+      customerName: string;
+      complaintTitle: string;
+      status: ComplaintStatus;
+      assignedEmployeeId: string | null;
+      createdAt: string;
+    }>;
   };
+  topEmployees: DashboardPerformanceEmployeeRecord[];
+  performanceCharts: DashboardPerformanceResponse['charts'];
+};
+
+export type DashboardEmployeeSummaryResponse = {
+  summary: {
+    todayTasks: number;
+    overdueTasks: number;
+    completedTasks: number;
+    pendingTasks: number;
+    todayFollowUps: number;
+    outstandingCollectionTasks: number;
+    assignedLeads: number;
+    pendingComplaintsAssigned: number;
+  };
+  recentTasks: EmployeeTaskRecord[];
+  todayFollowUps: DashboardLeadFollowUpAlert[];
+  pendingComplaints: Array<{
+    id: string;
+    customerName: string;
+    complaintTitle: string;
+    status: ComplaintStatus;
+    assignedEmployeeId: string | null;
+    createdAt: string;
+  }>;
+  outstandingTasks: Array<{
+    id: string;
+    title: string;
+    dueDate: string;
+    status: TaskStatus;
+    sourceSnapshot: Record<string, string | number | null> | null;
+  }>;
+};
+
+export type DashboardPerformanceEmployeeRecord = {
+  employeeId: string;
+  employeeName: string;
+  username: string;
+  role: AppUserRole;
+  status: UserStatus;
+  leadsAssigned: number;
+  leadsConverted: number;
+  outstandingCollected: number;
+  jobsCompleted: number;
+  revenueGenerated: number;
+  amcRenewals: number;
+  averageResponseTimeHours: number;
+  pendingComplaintsAssigned: number;
+  todayTasks: number;
+  completedTasks: number;
+  technicianPerformance: {
+    availability: 'AVAILABLE' | 'ON_JOB' | 'OFFLINE' | null;
+    assignedJobs: number;
+    completedJobs: number;
+    completionRate: number;
+  };
+};
+
+export type DashboardPerformanceResponse = {
+  summary: {
+    totalLeadsAssigned: number;
+    totalLeadsConverted: number;
+    totalOutstandingCollected: number;
+    totalJobsCompleted: number;
+    totalRevenueGenerated: number;
+    totalAmcRenewals: number;
+    averageResponseTimeHours: number;
+  };
+  employees: DashboardPerformanceEmployeeRecord[];
+  charts: {
+    leadConversion: Array<{ label: string; value: number }>;
+    jobsCompleted: Array<{ label: string; value: number }>;
+    revenueGenerated: Array<{ label: string; value: number }>;
+  };
+  technicianAvailability: Array<{
+    status: 'AVAILABLE' | 'ON_JOB' | 'OFFLINE';
+    count: number;
+  }>;
 };

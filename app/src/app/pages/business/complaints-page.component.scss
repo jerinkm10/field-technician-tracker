@@ -1,0 +1,9 @@
+.field-span-2 {
+  grid-column: span 2;
+}
+
+@media (max-width: 720px) {
+  .field-span-2 {
+    grid-column: span 1;
+  }
+}

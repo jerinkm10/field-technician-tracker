@@ -77,7 +77,7 @@ export class UiFeedbackService {
       rejectButtonStyleClass:
         options.rejectButtonStyleClass ?? 'p-button-text',
       dismissableMask: false,
-      closeOnEscape: false,
+      closeOnEscape: true,
       closable: false,
       accept: options.accept,
       reject: options.reject,

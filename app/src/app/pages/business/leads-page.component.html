@@ -9,7 +9,8 @@
       </p>
     </div>
 
-    <div class="page-actions">
+    @if (canManageLeads()) {
+      <div class="page-actions">
       <input
         #importFileInput
         type="file"
@@ -33,7 +34,8 @@
         icon="pi pi-upload"
         (click)="importFileInput.click()">
       </button>
-    </div>
+      </div>
+    }
   </header>
 
   @if (errorMessage()) {
@@ -122,6 +124,7 @@
     </div>
   </section>
 
+  @if (canManageLeads()) {
   <section class="panel section-shell performance-shell">
     <div class="section-heading">
       <div>
@@ -177,16 +180,17 @@
       </ng-template>
     </p-table>
   </section>
+  }
 
   <app-data-table-with-actions
     title="Lead Pipeline"
     subtitle="Manage lead records, quick status updates, and import validation from one place."
     createLabel="Create Lead"
-    [showCreateButton]="true"
+    [showCreateButton]="canManageLeads()"
     [records]="leads()"
     [loading]="loading()"
     [footerLabel]="footerLabel()"
-    [emptyColspan]="9"
+    [emptyColspan]="10"
     [page]="page()"
     [totalPages]="totalPages()"
     [hasPreviousPage]="hasPreviousPage()"
@@ -200,9 +204,10 @@
         <th>Customer</th>
         <th>Branch</th>
         <th>Assigned Employee</th>
+        <th>Assigned Date</th>
         <th>Interested Product / Service</th>
         <th>Source</th>
-        <th>Status</th>
+        <th>Follow-up Status</th>
         <th>Next Follow Up</th>
         <th>Actions</th>
       </tr>
@@ -237,6 +242,9 @@
           }
         </td>
         <td>
+          {{ lead.assignedAt ? (lead.assignedAt | date: 'dd MMM yyyy') : 'Not assigned' }}
+        </td>
+        <td>
           <div class="table-title-cell">
             <strong>{{ lead.interestedProductService.name }}</strong>
             <span>{{ lead.interestedProductService.type }}</span>
@@ -256,19 +264,23 @@
           <div class="table-actions">
             <button pButton type="button" label="View" text size="small" (click)="openViewDialog(lead)">
             </button>
-            <button pButton type="button" label="Edit" text size="small" (click)="openEditDialog(lead)">
-            </button>
+            @if (canManageLeads()) {
+              <button pButton type="button" label="Edit" text size="small" (click)="openEditDialog(lead)">
+              </button>
+            }
             <button pButton type="button" label="Status" text size="small" (click)="openStatusDialog(lead)">
             </button>
-            <button
-              pButton
-              type="button"
-              label="Delete"
-              text
-              severity="danger"
-              size="small"
-              (click)="deleteLead(lead)">
-            </button>
+            @if (canManageLeads()) {
+              <button
+                pButton
+                type="button"
+                label="Delete"
+                text
+                severity="danger"
+                size="small"
+                (click)="deleteLead(lead)">
+              </button>
+            }
           </div>
         </td>
       </tr>
@@ -301,7 +313,7 @@
   [modal]="true"
   [closable]="!importLoading()"
   [dismissableMask]="false"
-  [closeOnEscape]="false"
+  [closeOnEscape]="!importLoading()"
   [draggable]="false"
   [resizable]="false"
   [style]="{ width: 'min(96vw, 74rem)' }"

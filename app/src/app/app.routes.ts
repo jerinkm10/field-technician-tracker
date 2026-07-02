@@ -5,6 +5,7 @@ import {
   adminChildAuthGuard,
   ledgerAccessGuard,
   loginPageGuard,
+  roleAccessGuard,
 } from './core/guards/auth.guard';
 import { AdminShellComponent } from './layout/admin-shell.component';
 
@@ -28,6 +29,10 @@ export const routes: Routes = [
       },
       {
         path: 'dashboard',
+        canActivate: [roleAccessGuard],
+        data: {
+          roles: ['ADMIN_OWNER', 'ADMIN', 'EMPLOYEE'],
+        },
         loadComponent: () =>
           import('./pages/dashboard/dashboard-page.component').then(
             (module) => module.DashboardPageComponent
@@ -35,6 +40,10 @@ export const routes: Routes = [
       },
       {
         path: 'live-map',
+        canActivate: [roleAccessGuard],
+        data: {
+          roles: ['ADMIN_OWNER', 'ADMIN'],
+        },
         loadComponent: () =>
           import('./pages/live-map/live-map-page.component').then(
             (module) => module.LiveMapPageComponent
@@ -42,11 +51,19 @@ export const routes: Routes = [
       },
       {
         path: 'jobs',
+        canActivate: [roleAccessGuard],
+        data: {
+          roles: ['ADMIN_OWNER', 'ADMIN'],
+        },
         loadComponent: () =>
           import('./pages/jobs/jobs-page.component').then((module) => module.JobsPageComponent)
       },
       {
         path: 'technicians',
+        canActivate: [roleAccessGuard],
+        data: {
+          roles: ['ADMIN_OWNER', 'ADMIN'],
+        },
         loadComponent: () =>
           import('./pages/technicians/technicians-page.component').then(
             (module) => module.TechniciansPageComponent
@@ -54,6 +71,10 @@ export const routes: Routes = [
       },
       {
         path: 'reports',
+        canActivate: [roleAccessGuard],
+        data: {
+          roles: ['ADMIN_OWNER', 'ADMIN'],
+        },
         loadComponent: () =>
           import('./pages/reports/reports-page.component').then(
             (module) => module.ReportsPageComponent
@@ -69,131 +90,155 @@ export const routes: Routes = [
           },
           {
             path: 'proforma',
+            canActivate: [roleAccessGuard],
             loadComponent: () =>
               import('./pages/invoice/billing-document-list-page.component').then(
                 (module) => module.BillingDocumentListPageComponent
               ),
             data: {
               kind: 'proforma',
+              roles: ['ADMIN_OWNER', 'ADMIN'],
             }
           },
           {
             path: 'proforma/create',
+            canActivate: [roleAccessGuard],
             loadComponent: () =>
               import('./pages/invoice/billing-document-editor-page.component').then(
                 (module) => module.BillingDocumentEditorPageComponent
               ),
             data: {
               kind: 'proforma',
-              pageMode: 'create'
+              pageMode: 'create',
+              roles: ['ADMIN_OWNER', 'ADMIN'],
             }
           },
           {
             path: 'proforma/:id/view',
+            canActivate: [roleAccessGuard],
             loadComponent: () =>
               import('./pages/invoice/billing-document-editor-page.component').then(
                 (module) => module.BillingDocumentEditorPageComponent
               ),
             data: {
               kind: 'proforma',
-              pageMode: 'view'
+              pageMode: 'view',
+              roles: ['ADMIN_OWNER', 'ADMIN'],
             }
           },
           {
             path: 'proforma/:id/edit',
+            canActivate: [roleAccessGuard],
             loadComponent: () =>
               import('./pages/invoice/billing-document-editor-page.component').then(
                 (module) => module.BillingDocumentEditorPageComponent
               ),
             data: {
               kind: 'proforma',
-              pageMode: 'edit'
+              pageMode: 'edit',
+              roles: ['ADMIN_OWNER', 'ADMIN'],
             }
           },
           {
             path: 'tax',
+            canActivate: [roleAccessGuard],
             loadComponent: () =>
               import('./pages/invoice/billing-document-list-page.component').then(
                 (module) => module.BillingDocumentListPageComponent
               ),
             data: {
               kind: 'tax',
+              roles: ['ADMIN_OWNER', 'ADMIN'],
             }
           },
           {
             path: 'tax/create',
+            canActivate: [roleAccessGuard],
             loadComponent: () =>
               import('./pages/invoice/billing-document-editor-page.component').then(
                 (module) => module.BillingDocumentEditorPageComponent
               ),
             data: {
               kind: 'tax',
-              pageMode: 'create'
+              pageMode: 'create',
+              roles: ['ADMIN_OWNER', 'ADMIN'],
             }
           },
           {
             path: 'tax/:id/view',
+            canActivate: [roleAccessGuard],
             loadComponent: () =>
               import('./pages/invoice/billing-document-editor-page.component').then(
                 (module) => module.BillingDocumentEditorPageComponent
               ),
             data: {
               kind: 'tax',
-              pageMode: 'view'
+              pageMode: 'view',
+              roles: ['ADMIN_OWNER', 'ADMIN'],
             }
           },
           {
             path: 'tax/:id/edit',
+            canActivate: [roleAccessGuard],
             loadComponent: () =>
               import('./pages/invoice/billing-document-editor-page.component').then(
                 (module) => module.BillingDocumentEditorPageComponent
               ),
             data: {
               kind: 'tax',
-              pageMode: 'edit'
+              pageMode: 'edit',
+              roles: ['ADMIN_OWNER', 'ADMIN'],
             }
           },
           {
             path: 'quotation',
+            canActivate: [roleAccessGuard],
             loadComponent: () =>
               import('./pages/invoice/billing-document-list-page.component').then(
                 (module) => module.BillingDocumentListPageComponent
               ),
             data: {
               kind: 'quotation',
+              roles: ['ADMIN_OWNER', 'ADMIN'],
             }
           },
           {
             path: 'quotation/create',
+            canActivate: [roleAccessGuard],
             loadComponent: () =>
               import('./pages/invoice/billing-document-editor-page.component').then(
                 (module) => module.BillingDocumentEditorPageComponent
               ),
             data: {
               kind: 'quotation',
-              pageMode: 'create'
+              pageMode: 'create',
+              roles: ['ADMIN_OWNER', 'ADMIN'],
             }
           },
           {
             path: 'quotation/:id/view',
+            canActivate: [roleAccessGuard],
             loadComponent: () =>
               import('./pages/invoice/billing-document-editor-page.component').then(
                 (module) => module.BillingDocumentEditorPageComponent
               ),
             data: {
               kind: 'quotation',
-              pageMode: 'view'
+              pageMode: 'view',
+              roles: ['ADMIN_OWNER', 'ADMIN'],
             }
           },
           {
             path: 'quotation/:id/edit',
+            canActivate: [roleAccessGuard],
             loadComponent: () =>
               import('./pages/invoice/billing-document-editor-page.component').then(
                 (module) => module.BillingDocumentEditorPageComponent
               ),
             data: {
               kind: 'quotation',
-              pageMode: 'edit'
+              pageMode: 'edit',
+              roles: ['ADMIN_OWNER', 'ADMIN'],
             }
           },
           {
@@ -203,17 +248,25 @@ export const routes: Routes = [
           },
           {
             path: 'customers',
+            canActivate: [roleAccessGuard],
             loadComponent: () =>
               import('./pages/invoice/customers-page.component').then(
                 (module) => module.InvoiceCustomersPageComponent
-              )
+              ),
+            data: {
+              roles: ['ADMIN_OWNER', 'ADMIN'],
+            }
           },
           {
             path: 'input-fields',
+            canActivate: [roleAccessGuard],
             loadComponent: () =>
               import('./pages/invoice/invoice-input-fields-page.component').then(
                 (module) => module.InvoiceInputFieldsPageComponent
-              )
+              ),
+            data: {
+              roles: ['ADMIN_OWNER', 'ADMIN'],
+            }
           },
         ]
       },
@@ -227,17 +280,25 @@ export const routes: Routes = [
           },
           {
             path: 'outstanding',
+            canActivate: [roleAccessGuard],
             loadComponent: () =>
               import('./pages/business/outstandings-page.component').then(
                 (module) => module.OutstandingsPageComponent
               ),
+            data: {
+              roles: ['ADMIN_OWNER', 'ADMIN', 'EMPLOYEE'],
+            }
           },
           {
             path: 'amc',
+            canActivate: [roleAccessGuard],
             loadComponent: () =>
               import('./pages/business/amc-page.component').then(
                 (module) => module.AmcPageComponent
               ),
+            data: {
+              roles: ['ADMIN_OWNER', 'ADMIN', 'EMPLOYEE'],
+            }
           },
           {
             path: 'ledger',
@@ -249,17 +310,47 @@ export const routes: Routes = [
           },
           {
             path: 'lead',
+            canActivate: [roleAccessGuard],
             loadComponent: () =>
               import('./pages/business/leads-page.component').then(
                 (module) => module.LeadsPageComponent
               ),
+            data: {
+              roles: ['ADMIN_OWNER', 'ADMIN', 'EMPLOYEE'],
+            }
           },
           {
             path: 'product-service',
+            canActivate: [roleAccessGuard],
             loadComponent: () =>
               import('./pages/business/product-services-page.component').then(
                 (module) => module.ProductServicesPageComponent
               ),
+            data: {
+              roles: ['ADMIN_OWNER', 'ADMIN'],
+            }
+          },
+          {
+            path: 'complaints',
+            canActivate: [roleAccessGuard],
+            loadComponent: () =>
+              import('./pages/business/complaints-page.component').then(
+                (module) => module.ComplaintsPageComponent
+              ),
+            data: {
+              roles: ['ADMIN_OWNER', 'ADMIN', 'EMPLOYEE'],
+            }
+          },
+          {
+            path: 'tasks',
+            canActivate: [roleAccessGuard],
+            loadComponent: () =>
+              import('./pages/business/tasks-page.component').then(
+                (module) => module.TasksPageComponent
+              ),
+            data: {
+              roles: ['ADMIN_OWNER', 'ADMIN', 'EMPLOYEE'],
+            }
           },
         ]
       },
@@ -293,89 +384,109 @@ export const routes: Routes = [
           },
           {
             path: 'company',
+            canActivate: [roleAccessGuard],
             loadComponent: () =>
               import('./pages/settings/company-settings-page.component').then(
                 (module) => module.CompanySettingsPageComponent
-              )
+              ),
+            data: {
+              roles: ['ADMIN_OWNER', 'ADMIN'],
+            }
           },
           {
             path: 'branch',
+            canActivate: [roleAccessGuard],
             loadComponent: () =>
               import('./pages/invoice/suppliers-page.component').then(
                 (module) => module.InvoiceSuppliersPageComponent
               ),
             data: {
-              pageMode: 'list'
+              pageMode: 'list',
+              roles: ['ADMIN_OWNER', 'ADMIN'],
             }
           },
           {
             path: 'branch/create',
+            canActivate: [roleAccessGuard],
             loadComponent: () =>
               import('./pages/invoice/suppliers-page.component').then(
                 (module) => module.InvoiceSuppliersPageComponent
               ),
             data: {
-              pageMode: 'create'
+              pageMode: 'create',
+              roles: ['ADMIN_OWNER', 'ADMIN'],
             }
           },
           {
             path: 'branch/:id/view',
+            canActivate: [roleAccessGuard],
             loadComponent: () =>
               import('./pages/invoice/suppliers-page.component').then(
                 (module) => module.InvoiceSuppliersPageComponent
               ),
             data: {
-              pageMode: 'view'
+              pageMode: 'view',
+              roles: ['ADMIN_OWNER', 'ADMIN'],
             }
           },
           {
             path: 'branch/:id/edit',
+            canActivate: [roleAccessGuard],
             loadComponent: () =>
               import('./pages/invoice/suppliers-page.component').then(
                 (module) => module.InvoiceSuppliersPageComponent
               ),
             data: {
-              pageMode: 'edit'
+              pageMode: 'edit',
+              roles: ['ADMIN_OWNER', 'ADMIN'],
             }
           },
           {
             path: 'employees',
+            canActivate: [roleAccessGuard],
             loadComponent: () =>
               import('./pages/settings/employees-page.component').then(
                 (module) => module.EmployeesPageComponent
               ),
             data: {
-              pageMode: 'list'
+              pageMode: 'list',
+              roles: ['ADMIN_OWNER', 'ADMIN'],
             }
           },
           {
             path: 'employees/create',
+            canActivate: [roleAccessGuard],
             loadComponent: () =>
               import('./pages/settings/employees-page.component').then(
                 (module) => module.EmployeesPageComponent
               ),
             data: {
-              pageMode: 'create'
+              pageMode: 'create',
+              roles: ['ADMIN_OWNER', 'ADMIN'],
             }
           },
           {
             path: 'employees/:id/view',
+            canActivate: [roleAccessGuard],
             loadComponent: () =>
               import('./pages/settings/employees-page.component').then(
                 (module) => module.EmployeesPageComponent
               ),
             data: {
-              pageMode: 'view'
+              pageMode: 'view',
+              roles: ['ADMIN_OWNER', 'ADMIN'],
             }
           },
           {
             path: 'employees/:id/edit',
+            canActivate: [roleAccessGuard],
             loadComponent: () =>
               import('./pages/settings/employees-page.component').then(
                 (module) => module.EmployeesPageComponent
               ),
             data: {
-              pageMode: 'edit'
+              pageMode: 'edit',
+              roles: ['ADMIN_OWNER', 'ADMIN'],
             }
           },
         ]

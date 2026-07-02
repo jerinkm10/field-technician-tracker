@@ -3,7 +3,7 @@
   [modal]="true"
   [closable]="true"
   [dismissableMask]="false"
-  [closeOnEscape]="false"
+  [closeOnEscape]="true"
   [draggable]="false"
   [resizable]="false"
   [style]="{ width: 'min(94vw, 74rem)' }"
@@ -47,7 +47,7 @@
             <div><strong>Total Amount</strong><span>Rs. {{ ledgerEntry.totalAmount | number : '1.2-2' }}</span></div>
             <div><strong>Amount Due</strong><span>{{ ledgerEntry.amountDue !== null ? ('Rs. ' + (ledgerEntry.amountDue | number : '1.2-2')) : '-' }}</span></div>
             <div><strong>Outstanding</strong><span>{{ ledgerEntry.outstandingAmount !== null ? ('Rs. ' + (ledgerEntry.outstandingAmount | number : '1.2-2')) : '-' }}</span></div>
-            <div><strong>Due Date</strong><span>{{ ledgerEntry.dueDate ? (ledgerEntry.dueDate | date : 'mediumDate') : '-' }}</span></div>
+            <div><strong>Paid Date</strong><span>{{ ledgerEntry.dueDate ? (ledgerEntry.dueDate | date : 'mediumDate') : '-' }}</span></div>
             <div><strong>Valid Until</strong><span>{{ ledgerEntry.validUntil ? (ledgerEntry.validUntil | date : 'mediumDate') : '-' }}</span></div>
           </div>
         </article>

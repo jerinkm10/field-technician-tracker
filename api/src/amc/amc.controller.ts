@@ -51,7 +51,7 @@ export class AmcController {
     response.setHeader('Content-Type', 'application/pdf');
     response.setHeader(
       'Content-Disposition',
-      `inline; filename="${amcNumber}.pdf"`,
+      `attachment; filename="${amcNumber}.pdf"`,
     );
 
     return new StreamableFile(pdfBuffer);

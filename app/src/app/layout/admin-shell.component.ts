@@ -1,4 +1,10 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  inject,
+  signal,
+} from '@angular/core';
+import { DatePipe } from '@angular/common';
 import {
   NavigationEnd,
   Router,
@@ -9,11 +15,14 @@ import {
 import { AvatarModule } from 'primeng/avatar';
 import { ButtonModule } from 'primeng/button';
 import { DividerModule } from 'primeng/divider';
+import { DialogModule } from 'primeng/dialog';
 import { TagModule } from 'primeng/tag';
 
 import { appSettings } from '../core/config/app.settings';
 import { AuthService } from '../core/services/auth.service';
+import { NotificationsApiService } from '../core/services/notifications-api.service';
 import { RealtimeService } from '../core/services/realtime.service';
+import { NotificationRecord } from '../shared/models/billing.models';
 
 type NavigationItem = {
   readonly label: string;
@@ -32,7 +41,9 @@ const NAVIGATION_STATE_KEY = 'field-technician-tracker.admin-shell.groups';
   imports: [
     AvatarModule,
     ButtonModule,
+    DatePipe,
     DividerModule,
+    DialogModule,
     RouterLink,
     RouterLinkActive,
     RouterOutlet,
@@ -105,6 +116,16 @@ export class AdminShellComponent {
           route: '/business/product-service',
           icon: 'pi pi-box',
         },
+        {
+          label: 'Complaints Registrations',
+          route: '/business/complaints',
+          icon: 'pi pi-exclamation-circle',
+        },
+        {
+          label: 'Employee Tasks',
+          route: '/business/tasks',
+          icon: 'pi pi-list-check',
+        },
       ],
     },
     {
@@ -131,6 +152,7 @@ export class AdminShellComponent {
   ];
 
   private readonly router = inject(Router);
+  private readonly notificationsApiService = inject(NotificationsApiService);
 
   protected readonly primaryNavigation = this.navigation.filter(
     (item) => item.route,
@@ -144,11 +166,16 @@ export class AdminShellComponent {
   protected readonly authService = inject(AuthService);
   protected readonly realtime = inject(RealtimeService);
   protected readonly appName = appSettings.appName;
+  protected readonly notifications = signal<NotificationRecord[]>([]);
+  protected readonly unreadNotifications = signal(0);
+  protected readonly notificationsLoading = signal(false);
+  protected readonly notificationsVisible = signal(false);
 
   constructor() {
     this.expandedGroups.set(this.restoreExpandedGroups());
     this.syncActiveGroups();
     this.realtime.connect();
+    this.loadNotifications();
     this.router.events.subscribe((event) => {
       if (event instanceof NavigationEnd) {
         this.syncActiveGroups();
@@ -174,6 +201,23 @@ export class AdminShellComponent {
   }
 
   protected canViewNavigationItem(item: NavigationItem): boolean {
+    const role = this.authService.currentUser()?.role;
+
+    if (item.route === '/dashboard') {
+      return this.authService.hasShellAccess(role);
+    }
+
+    if (
+      item.route?.startsWith('/invoice') ||
+      item.route === '/jobs' ||
+      item.route === '/technicians' ||
+      item.route === '/reports' ||
+      item.route === '/business/product-service' ||
+      item.route?.startsWith('/settings')
+    ) {
+      return this.authService.hasDashboardAccess(role);
+    }
+
     if (item.route === '/business/ledger') {
       return this.authService.canViewLedger();
     }
@@ -201,6 +245,54 @@ export class AdminShellComponent {
 
   protected isGroupExpanded(groupLabel: string): boolean {
     return this.expandedGroups()[groupLabel] ?? false;
+  }
+
+  protected openNotifications(): void {
+    this.notificationsVisible.set(true);
+    this.loadNotifications();
+  }
+
+  protected closeNotifications(): void {
+    this.notificationsVisible.set(false);
+  }
+
+  protected markNotificationRead(notification: NotificationRecord): void {
+    if (notification.isRead) {
+      return;
+    }
+
+    this.notificationsApiService.markAsRead(notification.id).subscribe({
+      next: () => {
+        this.notifications.update((items) =>
+          items.map((item) =>
+            item.id === notification.id ? { ...item, isRead: true } : item,
+          ),
+        );
+        this.unreadNotifications.update((count) => Math.max(0, count - 1));
+      },
+    });
+  }
+
+  protected markAllNotificationsRead(): void {
+    this.notificationsApiService.markAllAsRead().subscribe({
+      next: () => {
+        this.notifications.update((items) =>
+          items.map((item) => ({ ...item, isRead: true })),
+        );
+        this.unreadNotifications.set(0);
+      },
+    });
+  }
+
+  protected notificationsLabel(): string {
+    const unread = this.unreadNotifications();
+    return unread > 0 ? `Notifications (${unread})` : 'Notifications';
+  }
+
+  protected shellTitle(): string {
+    return this.authService.isAdmin()
+      ? 'Operations Dashboard'
+      : 'Employee Dashboard';
   }
 
   private isRouteActive(route: string): boolean {
@@ -253,5 +345,24 @@ export class AdminShellComponent {
     }
 
     window.localStorage.setItem(NAVIGATION_STATE_KEY, JSON.stringify(state));
+  }
+
+  private loadNotifications(): void {
+    this.notificationsLoading.set(true);
+
+    this.notificationsApiService
+      .getNotifications({ limit: 12, page: 1 })
+      .subscribe({
+        next: (response) => {
+          this.notifications.set(response.data);
+          this.unreadNotifications.set(response.unreadCount);
+          this.notificationsLoading.set(false);
+        },
+        error: () => {
+          this.notifications.set([]);
+          this.unreadNotifications.set(0);
+          this.notificationsLoading.set(false);
+        },
+      });
   }
 }

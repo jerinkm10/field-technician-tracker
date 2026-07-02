@@ -14,8 +14,13 @@ export class CreateAdminJobDto {
   @IsString()
   customerId!: string;
 
+  @IsOptional()
   @IsString()
-  technicianId!: string;
+  technicianId?: string;
+
+  @IsOptional()
+  @IsString()
+  productServiceId?: string;
 
   @IsDateString()
   scheduledDate!: string;

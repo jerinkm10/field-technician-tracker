@@ -1,0 +1,310 @@
+<section class="page">
+  <header class="page-header">
+    <div class="page-heading">
+      <p class="page-eyebrow">Business</p>
+      <h1 class="page-title">Complaints Registrations</h1>
+      <p class="page-subtitle">
+        Register customer complaints, assign follow-up owners, and convert valid complaints into customers or jobs.
+      </p>
+    </div>
+  </header>
+
+  @if (errorMessage()) {
+    <div class="panel section-shell error-banner">
+      {{ errorMessage() }}
+    </div>
+  }
+
+  <section class="panel section-shell filters-shell">
+    <label class="search-field">
+      <span>Search</span>
+      <input
+        pInputText
+        [(ngModel)]="searchTerm"
+        placeholder="Search customer, complaint title, phone, or complaint notes" />
+    </label>
+
+    <div class="filter-actions">
+      <app-filter-dropdown label="Filter Complaints">
+        <label class="popover-field">
+          <span>Status</span>
+          <p-select
+            [options]="statusOptions"
+            optionLabel="label"
+            optionValue="value"
+            appendTo="body"
+            [(ngModel)]="statusFilter">
+          </p-select>
+        </label>
+
+        @if (canManageAssignments()) {
+          <label class="popover-field">
+            <span>Assigned Employee</span>
+            <p-select
+              [options]="employeeOptions()"
+              optionLabel="label"
+              optionValue="value"
+              appendTo="body"
+              [(ngModel)]="assignedEmployeeIdFilter">
+            </p-select>
+          </label>
+        }
+
+        <label class="popover-field">
+          <span>From Date</span>
+          <input pInputText type="date" [(ngModel)]="fromDate" />
+        </label>
+
+        <label class="popover-field">
+          <span>To Date</span>
+          <input pInputText type="date" [(ngModel)]="toDate" />
+        </label>
+
+        <div class="popover-actions">
+          <button pButton type="button" label="Apply" icon="pi pi-filter" (click)="applyFilters()"></button>
+          <button pButton type="button" label="Reset" text (click)="resetFilters()"></button>
+        </div>
+      </app-filter-dropdown>
+
+      <button pButton type="button" label="Search" icon="pi pi-search" (click)="applyFilters()"></button>
+      <button pButton type="button" label="Reset" icon="pi pi-refresh" text (click)="resetFilters()"></button>
+    </div>
+  </section>
+
+  <app-data-table-with-actions
+    title="Complaint Pipeline"
+    subtitle="Track complaint registration, assignment, and conversion from one business workspace."
+    createLabel="Register Complaint"
+    [showCreateButton]="true"
+    [records]="complaints()"
+    [loading]="loading()"
+    [footerLabel]="footerLabel()"
+    [emptyColspan]="8"
+    [page]="page()"
+    [totalPages]="totalPages()"
+    [hasPreviousPage]="hasPreviousPage()"
+    [hasNextPage]="hasNextPage()"
+    (create)="openCreateDialog()"
+    (previousPage)="previousPage()"
+    (nextPage)="nextPage()">
+    <ng-template #header>
+      <tr>
+        <th>Complaint</th>
+        <th>Customer</th>
+        <th>Assigned Employee</th>
+        <th>Status</th>
+        <th>Contact</th>
+        <th>Created</th>
+        <th>Job</th>
+        <th>Actions</th>
+      </tr>
+    </ng-template>
+
+    <ng-template #body let-complaint>
+      <tr>
+        <td>
+          <div class="table-title-cell">
+            <strong>{{ complaint.complaintTitle }}</strong>
+            <span>{{ complaint.complaintDescription }}</span>
+          </div>
+        </td>
+        <td>
+          <div class="table-title-cell">
+            <strong>{{ complaint.customerName }}</strong>
+            <span>{{ complaint.location }}</span>
+          </div>
+        </td>
+        <td>
+          @if (complaint.assignedEmployee) {
+            <div class="table-title-cell">
+              <strong>{{ complaint.assignedEmployee.name }}</strong>
+              <span>{{ complaint.assignedEmployee.username }}</span>
+            </div>
+          } @else {
+            <span class="muted-text">Unassigned</span>
+          }
+        </td>
+        <td>
+          <p-tag
+            [value]="complaint.status.replaceAll('_', ' ')"
+            [severity]="statusSeverity(complaint.status)">
+          </p-tag>
+        </td>
+        <td>
+          <div class="table-title-cell">
+            <strong>{{ complaint.contactPerson.replaceAll('_', ' ') }}</strong>
+            <span>{{ complaint.phone }}</span>
+          </div>
+        </td>
+        <td>{{ complaint.createdAt | date: 'dd MMM yyyy' }}</td>
+        <td>
+          @if (complaint.job) {
+            <div class="table-title-cell">
+              <strong>{{ complaint.job.jobNumber }}</strong>
+              <span>{{ complaint.job.status.replaceAll('_', ' ') }}</span>
+            </div>
+          } @else {
+            <span class="muted-text">Not converted</span>
+          }
+        </td>
+        <td>
+          <div class="table-actions">
+            <button pButton type="button" label="View" text size="small" (click)="openViewDialog(complaint)"></button>
+            <button pButton type="button" label="Edit" text size="small" (click)="openEditDialog(complaint)"></button>
+            @if (canManageAssignments() && !complaint.customerId) {
+              <button
+                pButton
+                type="button"
+                label="To Customer"
+                text
+                size="small"
+                (click)="convertToCustomer(complaint)">
+              </button>
+            }
+            @if (canManageAssignments() && !complaint.jobId) {
+              <button
+                pButton
+                type="button"
+                label="To Job"
+                text
+                size="small"
+                (click)="convertToJob(complaint)">
+              </button>
+            }
+            @if (canDeleteComplaint()) {
+              <button
+                pButton
+                type="button"
+                label="Delete"
+                text
+                severity="danger"
+                size="small"
+                (click)="deleteComplaint(complaint)">
+              </button>
+            }
+          </div>
+        </td>
+      </tr>
+    </ng-template>
+  </app-data-table-with-actions>
+</section>
+
+<p-dialog
+  [visible]="dialogVisible()"
+  [modal]="true"
+  [closable]="!saving()"
+  [dismissableMask]="false"
+  [closeOnEscape]="!saving()"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: 'min(96vw, 70rem)' }"
+  [header]="dialogTitle()"
+  (onHide)="closeDialog()">
+  <div class="filters-grid compact-grid">
+    <label class="field field-span-2">
+      <span>Customer Name</span>
+      <app-customer-autocomplete
+        [selectedCustomer]="draft.selectedCustomer"
+        [disabled]="isReadOnly()"
+        (selectedCustomerChange)="applySelectedCustomer($event)">
+      </app-customer-autocomplete>
+    </label>
+
+    <label class="field">
+      <span>Contact Person</span>
+      <p-select
+        [options]="contactPersonOptions"
+        optionLabel="label"
+        optionValue="value"
+        appendTo="body"
+        [(ngModel)]="draft.contactPerson"
+        [disabled]="isReadOnly()">
+      </p-select>
+    </label>
+
+    <label class="field">
+      <span>Phone</span>
+      <input pInputText [(ngModel)]="draft.phone" [disabled]="isReadOnly()" />
+    </label>
+
+    <label class="field">
+      <span>Email</span>
+      <input pInputText [(ngModel)]="draft.email" [disabled]="isReadOnly()" />
+    </label>
+
+    <label class="field field-span-2">
+      <span>Address</span>
+      <input pInputText [(ngModel)]="draft.address" [disabled]="isReadOnly()" />
+    </label>
+
+    <label class="field">
+      <span>Location</span>
+      <input pInputText [(ngModel)]="draft.location" [disabled]="isReadOnly()" />
+    </label>
+
+    <label class="field">
+      <span>Status</span>
+      <p-select
+        [options]="formStatusOptions"
+        optionLabel="label"
+        optionValue="value"
+        appendTo="body"
+        [(ngModel)]="draft.status"
+        [disabled]="isReadOnly()">
+      </p-select>
+    </label>
+
+    @if (canManageAssignments()) {
+      <label class="field">
+        <span>Assigned Employee</span>
+        <p-select
+          [options]="employeeOptions()"
+          optionLabel="label"
+          optionValue="value"
+          appendTo="body"
+          [(ngModel)]="draft.assignedEmployeeId"
+          [disabled]="isReadOnly()">
+        </p-select>
+      </label>
+    }
+
+    <label class="field field-span-2">
+      <span>Complaint Title</span>
+      <input pInputText [(ngModel)]="draft.complaintTitle" [disabled]="isReadOnly()" />
+    </label>
+  </div>
+
+  <label class="field">
+    <span>Complaint Description</span>
+    <textarea rows="5" [(ngModel)]="draft.complaintDescription" [disabled]="isReadOnly()"></textarea>
+  </label>
+
+  <label class="field">
+    <span>Notes</span>
+    <textarea rows="4" [(ngModel)]="draft.notes" [disabled]="isReadOnly()"></textarea>
+  </label>
+
+  <ng-template #footer>
+    <div class="dialog-actions">
+      <button
+        pButton
+        type="button"
+        [label]="isReadOnly() ? 'Close' : 'Cancel'"
+        text
+        [disabled]="saving()"
+        (click)="closeDialog()">
+      </button>
+
+      @if (!isReadOnly()) {
+        <button
+          pButton
+          type="button"
+          [label]="saving() ? 'Saving...' : (selectedComplaint ? 'Update Complaint' : 'Create Complaint')"
+          icon="pi pi-check"
+          [disabled]="saving() || !canSubmit()"
+          (click)="saveComplaint()">
+        </button>
+      }
+    </div>
+  </ng-template>
+</p-dialog>

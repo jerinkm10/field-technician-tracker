@@ -202,26 +202,15 @@
   font-size: 0.73rem;
 }
 
-.item-description {
-  margin-top: 0.18rem;
+.description-cell {
   white-space: pre-line;
   overflow-wrap: anywhere;
   font-size: 0.64rem;
   line-height: 1.18;
 }
 
-.tax-cell strong,
-.tax-cell span {
-  display: block;
-}
-
-.tax-cell strong {
-  font-weight: 700;
-}
-
-.tax-cell span {
-  margin-top: 0.08rem;
-  font-size: 0.62rem;
+.percentage-cell {
+  font-weight: 600;
 }
 
 .tax-summary-row td {

@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { existsSync } from 'fs';
+import { mkdir, readFile, writeFile } from 'fs/promises';
+import { resolve } from 'path';
 import PDFDocument = require('pdfkit');
 
 type BillingParty = {
@@ -273,6 +275,8 @@ const LAYOUT_PRESETS: LayoutConfig[] = [
 
 @Injectable()
 export class BillingDocumentsService {
+  private readonly storageRoot = resolve(process.cwd(), 'storage', 'documents');
+
   async buildPdfBuffer(data: BillingDocumentPdfData): Promise<Buffer> {
     const document = new PDFDocument({
       margin: 0,
@@ -296,6 +300,34 @@ export class BillingDocumentsService {
     document.end();
 
     return completed;
+  }
+
+  async readStoredPdfBuffer(
+    relativePath: string | null | undefined,
+  ): Promise<Buffer | null> {
+    const filePath = this.resolveStoredPdfPath(relativePath);
+
+    if (!filePath) {
+      return null;
+    }
+
+    return readFile(filePath);
+  }
+
+  async storePdfBuffer(
+    folderName: 'tax-invoices' | 'proforma-invoices' | 'quotations' | 'amc',
+    documentNumber: string,
+    pdfBuffer: Buffer,
+  ): Promise<string> {
+    const safeFolderName = this.sanitizePathSegment(folderName);
+    const safeFileName = `${this.sanitizeFileName(documentNumber)}.pdf`;
+    const directoryPath = resolve(this.storageRoot, safeFolderName);
+    const filePath = resolve(directoryPath, safeFileName);
+
+    await mkdir(directoryPath, { recursive: true });
+    await writeFile(filePath, pdfBuffer);
+
+    return `${safeFolderName}/${safeFileName}`;
   }
 
   private drawDocument(
@@ -702,6 +734,7 @@ export class BillingDocumentsService {
         document,
         lineItem,
         columns[1].width,
+        columns[2].width,
         layout,
       );
       const fillColor = index % 2 === 0 ? ALT_ROW : '#FFFFFF';
@@ -728,6 +761,7 @@ export class BillingDocumentsService {
 
       const productTextY = cursorY + layout.tableCellPaddingTop;
       const productWidth = columns[1].width - layout.tableCellPaddingX * 2;
+      const descriptionWidth = columns[2].width - layout.tableCellPaddingX * 2;
       document
         .font('Helvetica-Bold')
         .fontSize(layout.tableBodyFontSize)
@@ -749,26 +783,17 @@ export class BillingDocumentsService {
         .font('Helvetica')
         .fontSize(layout.tableDescriptionFontSize)
         .fillColor(BODY_TEXT)
-        .text(lineItem.description?.trim() || '-', positions[1] + layout.tableCellPaddingX, productTextY + productNameHeight + 2, {
-          width: productWidth,
+        .text(lineItem.description?.trim() || '-', positions[2] + layout.tableCellPaddingX, productTextY, {
+          width: descriptionWidth,
           lineGap: layout.detailLineGap,
         });
 
       this.drawBodyCellText(
         document,
-        positions[2],
-        cursorY,
-        columns[2],
-        lineItem.hsnSac || '-',
-        layout,
-        'center',
-      );
-      this.drawBodyCellText(
-        document,
         positions[3],
         cursorY,
         columns[3],
-        this.formatNumber(lineItem.quantity),
+        lineItem.hsnSac || '-',
         layout,
         'center',
       );
@@ -777,33 +802,42 @@ export class BillingDocumentsService {
         positions[4],
         cursorY,
         columns[4],
+        this.formatNumber(lineItem.quantity),
+        layout,
+        'center',
+      );
+      this.drawBodyCellText(
+        document,
+        positions[5],
+        cursorY,
+        columns[5],
         this.formatMoney(lineItem.unitPrice),
         layout,
         'right',
       );
-      this.drawTaxCell(
-        document,
-        positions[5],
-        cursorY,
-        columns[5].width,
-        lineItem.cgstAmount,
-        lineItem.cgstPercentage,
-        layout,
-      );
-      this.drawTaxCell(
+      this.drawBodyCellText(
         document,
         positions[6],
         cursorY,
-        columns[6].width,
-        lineItem.sgstAmount,
-        lineItem.sgstPercentage,
+        columns[6],
+        `${this.formatNumber(lineItem.cgstPercentage)}%`,
         layout,
+        'center',
       );
       this.drawBodyCellText(
         document,
         positions[7],
         cursorY,
         columns[7],
+        `${this.formatNumber(lineItem.sgstPercentage)}%`,
+        layout,
+        'center',
+      );
+      this.drawBodyCellText(
+        document,
+        positions[8],
+        cursorY,
+        columns[8],
         this.formatMoney(lineItem.lineAmount),
         layout,
         'right',
@@ -813,48 +847,15 @@ export class BillingDocumentsService {
       cursorY += rowHeight;
     });
 
-    const taxSummaryValues = [
-      '',
-      '',
-      `@${this.formatNumber(this.aggregateTaxRate(data.lineItems))}%`,
-      this.formatNumber(this.totalQuantity(data.lineItems)),
-      this.formatMoney(data.totalBeforeTax),
-      this.formatMoney(this.totalTaxSide(data.lineItems, 'cgstAmount')),
-      this.formatMoney(this.totalTaxSide(data.lineItems, 'sgstAmount')),
-      this.formatMoney(data.totalAmount),
-    ];
-
-    columns.forEach((column, index) => {
-      this.drawTableCell(
-        document,
-        positions[index],
-        cursorY,
-        column.width,
-        layout.summaryRowHeight,
-        SUMMARY_FILL,
-      );
-      if (taxSummaryValues[index]) {
-        document
-          .font('Helvetica-Bold')
-          .fontSize(layout.tableBodyFontSize + (index >= 4 ? 0.2 : 0.4))
-          .fillColor(BODY_TEXT)
-          .text(taxSummaryValues[index], positions[index] + layout.tableCellPaddingX, cursorY + 5, {
-            width: column.width - layout.tableCellPaddingX * 2,
-            align: index === 1 ? 'left' : column.align,
-          });
-      }
-    });
-
-    cursorY += layout.summaryRowHeight;
-
     const totalRowValues = [
       '',
       'TOTAL',
       '',
+      '',
       this.formatNumber(this.totalQuantity(data.lineItems)),
       this.formatMoney(data.totalBeforeTax),
-      this.formatMoney(this.totalTaxSide(data.lineItems, 'cgstAmount')),
-      this.formatMoney(this.totalTaxSide(data.lineItems, 'sgstAmount')),
+      '',
+      '',
       this.formatMoney(data.totalAmount),
     ];
 
@@ -1248,20 +1249,21 @@ export class BillingDocumentsService {
   }
 
   private resolveTableColumns(contentWidth: number): TableColumn[] {
-    const fractions = [0.05, 0.305, 0.095, 0.075, 0.13, 0.11, 0.11];
+    const fractions = [0.04, 0.2, 0.19, 0.085, 0.065, 0.12, 0.09, 0.09];
     const widths = fractions.map((fraction) => Math.floor(contentWidth * fraction));
     const usedWidth = widths.reduce((sum, value) => sum + value, 0);
     widths.push(contentWidth - usedWidth);
 
     return [
       { label: 'NO', width: widths[0], align: 'center' },
-      { label: 'PRODUCT / SERVICE NAME', width: widths[1], align: 'left' },
-      { label: 'HSN/SAC', width: widths[2], align: 'center' },
-      { label: 'QTY', width: widths[3], align: 'center' },
-      { label: 'UNIT PRICE', width: widths[4], align: 'right' },
-      { label: 'CGST', width: widths[5], align: 'right' },
-      { label: 'SGST', width: widths[6], align: 'right' },
-      { label: 'AMOUNT', width: widths[7], align: 'right' },
+      { label: 'PRODUCT / SERVICE', width: widths[1], align: 'left' },
+      { label: 'DESCRIPTION', width: widths[2], align: 'left' },
+      { label: 'HSN/SAC', width: widths[3], align: 'center' },
+      { label: 'QTY', width: widths[4], align: 'center' },
+      { label: 'UNIT PRICE', width: widths[5], align: 'right' },
+      { label: 'CGST %', width: widths[6], align: 'center' },
+      { label: 'SGST %', width: widths[7], align: 'center' },
+      { label: 'AMOUNT', width: widths[8], align: 'right' },
     ];
   }
 
@@ -1408,11 +1410,12 @@ export class BillingDocumentsService {
         document,
         lineItem,
         columns[1].width,
+        columns[2].width,
         layout,
       );
     });
 
-    height += layout.summaryRowHeight + layout.totalRowHeight;
+    height += layout.totalRowHeight;
 
     return height;
   }
@@ -1421,13 +1424,16 @@ export class BillingDocumentsService {
     document: PDFKit.PDFDocument,
     lineItem: BillingLineItem,
     productColumnWidth: number,
+    descriptionColumnWidth: number,
     layout: LayoutConfig,
   ): number {
-    const textWidth = productColumnWidth - layout.tableCellPaddingX * 2;
+    const productTextWidth = productColumnWidth - layout.tableCellPaddingX * 2;
+    const descriptionTextWidth =
+      descriptionColumnWidth - layout.tableCellPaddingX * 2;
     const productHeight = this.measureTextHeight(
       document,
       (lineItem.productServiceName || 'UNTITLED ITEM').toUpperCase(),
-      textWidth,
+      productTextWidth,
       'Helvetica-Bold',
       layout.tableBodyFontSize,
       layout.detailLineGap,
@@ -1435,7 +1441,7 @@ export class BillingDocumentsService {
     const descriptionHeight = this.measureTextHeight(
       document,
       lineItem.description?.trim() || '-',
-      textWidth,
+      descriptionTextWidth,
       'Helvetica',
       layout.tableDescriptionFontSize,
       layout.detailLineGap,
@@ -1444,11 +1450,46 @@ export class BillingDocumentsService {
     return Math.max(
       layout.minRowHeight,
       layout.tableCellPaddingTop +
-        productHeight +
-        2 +
-        descriptionHeight +
+        Math.max(productHeight, descriptionHeight) +
         layout.tableCellPaddingBottom,
     );
+  }
+
+  private resolveStoredPdfPath(
+    relativePath: string | null | undefined,
+  ): string | null {
+    const normalizedPath = relativePath?.trim();
+    if (!normalizedPath) {
+      return null;
+    }
+
+    const pathSegments = normalizedPath
+      .split(/[\\/]+/)
+      .filter(Boolean)
+      .map((segment) => this.sanitizePathSegment(segment));
+
+    if (!pathSegments.length) {
+      return null;
+    }
+
+    const filePath = resolve(this.storageRoot, ...pathSegments);
+    if (!filePath.startsWith(this.storageRoot) || !existsSync(filePath)) {
+      return null;
+    }
+
+    return filePath;
+  }
+
+  private sanitizeFileName(value: string): string {
+    return this.sanitizePathSegment(value).replace(/\.pdf$/i, '');
+  }
+
+  private sanitizePathSegment(value: string): string {
+    const sanitized = value
+      .replace(/[^A-Za-z0-9._-]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+
+    return sanitized || 'document';
   }
 
   private measureFooterHeight(

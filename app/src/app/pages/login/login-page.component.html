@@ -1,76 +1,86 @@
 <section class="login-page">
-  <div class="login-story">
-    <p class="story-overline">{{ appName }}</p>
-    <h1>Keep cooling operations, billing, contracts, and field teams in one calm workspace.</h1>
-    <p>
-      High Cooling Solution brings dispatch, live tracking, invoicing, AMC follow-up, and admin
-      workflows into one connected dashboard.
-    </p>
+  <div class="login-shell panel">
+    <div class="login-visual">
+      <div class="visual-toolbar">
+        <div class="brand-badge">
+          <span class="brand-badge__mark">HC</span>
+          <div>
+            <p>{{ appName }}</p>
+            <span>Connected cooling workspace</span>
+          </div>
+        </div>
 
-    <div class="story-tags">
-      <p-tag value="PrimeNG UI"></p-tag>
-      <p-tag value="Google Maps Ready" severity="info"></p-tag>
-      <p-tag value="Socket.IO Ready" severity="success"></p-tag>
+        <div class="visual-status">
+          <span class="visual-status__dot"></span>
+          Operations live
+        </div>
+      </div>
+
+      <div class="visual-frame">
+        <img
+          src="high-cooling-login-hero.png"
+          alt="High Cooling Solutions operational workspace overview" />
+      </div>
+
+      <div class="visual-footer">
+        <div class="footer-copy">
+          <p class="footer-copy__eyebrow">Unified control</p>
+          <h2>Keep cooling operations, billing, contracts, and field teams in one calm workspace.</h2>
+        </div>
+
+        <div class="footer-highlights">
+          @for (highlight of platformHighlights; track highlight) {
+            <span>{{ highlight }}</span>
+          }
+        </div>
+      </div>
     </div>
 
-    <div class="story-metrics panel">
-      <div>
-        <span>Realtime</span>
-        <strong>Technician Presence</strong>
+    <div class="login-pane">
+      <div class="pane-copy">
+        <p class="pane-eyebrow">Admin Sign In</p>
+        <h1>Welcome back</h1>
+        <p>
+          Sign in to manage dispatch, invoicing, AMC follow-up, and field activity from the High
+          Cooling command center.
+        </p>
       </div>
-      <div>
-        <span>Dispatch</span>
-        <strong>Job Coordination</strong>
-      </div>
-      <div>
-        <span>Insights</span>
-        <strong>Operational Reports</strong>
-      </div>
+      <form class="login-form" (ngSubmit)="login()">
+        <label class="field">
+          <span>Username</span>
+          <input
+            pInputText
+            [(ngModel)]="username"
+            type="text"
+            name="username"
+            autocomplete="username"
+            placeholder="HighCoolingTCR" />
+        </label>
+
+        <label class="field">
+          <span>Password</span>
+          <input
+            pInputText
+            [(ngModel)]="password"
+            type="password"
+            name="password"
+            autocomplete="current-password"
+            placeholder="Enter password" />
+        </label>
+
+        <button
+          pButton
+          type="submit"
+          [label]="loading() ? 'Signing In...' : 'Sign In'"
+          icon="pi pi-arrow-right"
+          iconPos="right"
+          [disabled]="loading() || !username || !password">
+        </button>
+
+        @if (errorMessage()) {
+          <p class="login-error">{{ errorMessage() }}</p>
+        }
+      </form>
     </div>
   </div>
-
-  <p-card class="login-card">
-    <ng-template #title>{{ appName }} Admin</ng-template>
-    <ng-template #subtitle>Enter your username and password to access the operations dashboard.</ng-template>
-
-    <div class="login-form">
-      <label class="field">
-        <span>Username</span>
-        <input
-          pInputText
-          [(ngModel)]="username"
-          type="text"
-          name="username"
-          placeholder="HighCoolingTCR" />
-      </label>
-
-      <label class="field">
-        <span>Password</span>
-        <input
-          pInputText
-          [(ngModel)]="password"
-          type="password"
-          name="password"
-          placeholder="Enter password" />
-      </label>
-
-      <button
-        pButton
-        type="button"
-        [label]="loading() ? 'Signing In...' : 'Sign In'"
-        icon="pi pi-arrow-right"
-        iconPos="right"
-        [disabled]="loading() || !username || !password"
-        (click)="login()">
-      </button>
-
-      @if (errorMessage()) {
-        <p class="login-error">{{ errorMessage() }}</p>
-      }
-
-      <p class="login-hint">
-        Seeded admin owner usernames: <strong>HighCoolingTCR</strong> and <strong>HighCoolingPAL</strong>
-      </p>
-    </div>
-  </p-card>
 </section>

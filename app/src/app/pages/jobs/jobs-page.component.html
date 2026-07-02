@@ -4,21 +4,50 @@
       <p class="page-eyebrow">Jobs</p>
       <h1 class="page-title">Dispatch and job planning board</h1>
       <p class="page-subtitle">
-        This scaffolded jobs page is ready for future admin CRUD actions, assignment workflows, and
-        richer data tables.
+        Assign today, tomorrow, and future service jobs while linking the right product or service from the same screen.
       </p>
     </div>
 
-    <button pButton type="button" label="Create Job" icon="pi pi-plus"></button>
+    <button pButton type="button" label="Create Job" icon="pi pi-plus" (click)="openCreateDialog()"></button>
   </header>
 
+  @if (errorMessage()) {
+    <div class="panel section-shell error-banner">
+      {{ errorMessage() }}
+    </div>
+  }
+
   <section class="panel section-shell">
-    <p-table [value]="jobs" responsiveLayout="scroll">
+    <div class="section-header">
+      <div>
+        <h3>Filters</h3>
+        <p>Focus the dispatch queue by job number, customer, technician, or schedule bucket.</p>
+      </div>
+      <div class="toolbar-actions">
+        <button pButton type="button" text label="All" (click)="setScheduleFilter('ALL')"></button>
+        <button pButton type="button" text label="Today" (click)="setScheduleFilter('TODAY')"></button>
+        <button pButton type="button" text label="Tomorrow" (click)="setScheduleFilter('TOMORROW')"></button>
+        <button pButton type="button" text label="Future" (click)="setScheduleFilter('FUTURE')"></button>
+      </div>
+    </div>
+
+    <label class="field">
+      <span>Search</span>
+      <input
+        pInputText
+        [(ngModel)]="searchTerm"
+        placeholder="Search job number, title, customer, technician, or product/service" />
+    </label>
+  </section>
+
+  <section class="panel section-shell">
+    <p-table [value]="filteredJobs()" responsiveLayout="scroll" [loading]="loading()">
       <ng-template #header>
         <tr>
-          <th>Job Number</th>
+          <th>Job</th>
           <th>Customer</th>
           <th>Technician</th>
+          <th>Product / Service</th>
           <th>Scheduled</th>
           <th>Status</th>
           <th></th>
@@ -27,18 +56,168 @@
 
       <ng-template #body let-job>
         <tr>
-          <td>{{ job.jobNumber }}</td>
-          <td>{{ job.customer }}</td>
-          <td>{{ job.technician }}</td>
-          <td>{{ job.scheduled }}</td>
           <td>
-            <p-tag [value]="job.status" [severity]="statusSeverity(job.status)"></p-tag>
+            <div class="table-title-cell">
+              <strong>{{ job.jobNumber }}</strong>
+              <span>{{ job.title }}</span>
+            </div>
+          </td>
+          <td>
+            <div class="table-title-cell">
+              <strong>{{ job.customer.name }}</strong>
+              <span>{{ job.customer.phone }}</span>
+            </div>
+          </td>
+          <td>
+            @if (job.technician) {
+              <div class="table-title-cell">
+                <strong>{{ job.technician.user.name }}</strong>
+                <span>{{ job.technician.status.replaceAll('_', ' ') }}</span>
+              </div>
+            } @else {
+              <span class="muted-text">Unassigned</span>
+            }
+          </td>
+          <td>
+            @if (job.productService) {
+              <div class="table-title-cell">
+                <strong>{{ job.productService.name }}</strong>
+                <span>{{ job.productService.type }}</span>
+              </div>
+            } @else {
+              <span class="muted-text">Not linked</span>
+            }
+          </td>
+          <td>
+            <div class="table-title-cell">
+              <strong>{{ job.scheduledDate | date: 'dd MMM yyyy' }}</strong>
+              <span>{{ scheduleLabel(job.scheduledDate) }}</span>
+            </div>
+          </td>
+          <td>
+            <p-tag [value]="job.status.replaceAll('_', ' ')" [severity]="statusSeverity(job.status)"></p-tag>
           </td>
           <td class="action-cell">
-            <button pButton type="button" label="Manage" text icon="pi pi-arrow-right"></button>
+            <button pButton type="button" label="View" text (click)="openViewDialog(job)"></button>
+            <button pButton type="button" label="Edit" text (click)="openEditDialog(job)"></button>
+            <button pButton type="button" label="Delete" text severity="danger" (click)="deleteJob(job)"></button>
           </td>
         </tr>
       </ng-template>
     </p-table>
   </section>
 </section>
+
+<p-dialog
+  [visible]="dialogVisible()"
+  [modal]="true"
+  [closable]="!saving()"
+  [dismissableMask]="false"
+  [closeOnEscape]="!saving()"
+  [draggable]="false"
+  [resizable]="false"
+  [style]="{ width: 'min(94vw, 62rem)' }"
+  [header]="dialogTitle()"
+  (onHide)="closeDialog()">
+  <div class="filters-grid compact-grid">
+    <label class="field">
+      <span>Job Number</span>
+      <input pInputText [(ngModel)]="draft.jobNumber" [disabled]="isReadOnly()" />
+    </label>
+
+    <label class="field">
+      <span>Title</span>
+      <input pInputText [(ngModel)]="draft.title" [disabled]="isReadOnly()" />
+    </label>
+
+    <label class="field">
+      <span>Customer</span>
+      <p-select
+        [options]="customerOptions()"
+        optionLabel="label"
+        optionValue="value"
+        appendTo="body"
+        [(ngModel)]="draft.customerId"
+        [disabled]="isReadOnly()">
+      </p-select>
+    </label>
+
+    <label class="field">
+      <span>Technician</span>
+      <p-select
+        [options]="technicianOptions()"
+        optionLabel="label"
+        optionValue="value"
+        appendTo="body"
+        [(ngModel)]="draft.technicianId"
+        [disabled]="isReadOnly()">
+      </p-select>
+    </label>
+
+    <label class="field field-span-2">
+      <span>Product / Service</span>
+      <app-product-service-autocomplete
+        [value]="draft.productServiceName"
+        [disabled]="isReadOnly()"
+        (valueChange)="handleProductServiceValueChange($event)"
+        (selected)="handleProductServiceSelected($event)"
+        (createRequested)="openProductDialog()">
+      </app-product-service-autocomplete>
+    </label>
+
+    <label class="field">
+      <span>Scheduled Date</span>
+      <input type="date" [(ngModel)]="draft.scheduledDate" [disabled]="isReadOnly()" />
+    </label>
+
+    <label class="field">
+      <span>Status</span>
+      <p-select
+        [options]="statusOptions"
+        optionLabel="label"
+        optionValue="value"
+        appendTo="body"
+        [(ngModel)]="draft.status"
+        [disabled]="isReadOnly()">
+      </p-select>
+    </label>
+  </div>
+
+  <label class="field">
+    <span>Description</span>
+    <textarea rows="5" [(ngModel)]="draft.description" [disabled]="isReadOnly()"></textarea>
+  </label>
+
+  <ng-template #footer>
+    <div class="dialog-actions">
+      <button
+        pButton
+        type="button"
+        [label]="isReadOnly() ? 'Close' : 'Cancel'"
+        text
+        [disabled]="saving()"
+        (click)="closeDialog()">
+      </button>
+
+      @if (!isReadOnly()) {
+        <button
+          pButton
+          type="button"
+          [label]="saving() ? 'Saving...' : (selectedJob ? 'Update Job' : 'Create Job')"
+          icon="pi pi-check"
+          [disabled]="saving() || !canSubmit()"
+          (click)="saveJob()">
+        </button>
+      }
+    </div>
+  </ng-template>
+</p-dialog>
+
+<app-product-service-form-dialog
+  [visible]="productDialogVisible()"
+  [saving]="false"
+  mode="create"
+  [productService]="null"
+  (cancel)="closeProductDialog()"
+  (save)="saveProductService($event)">
+</app-product-service-form-dialog>

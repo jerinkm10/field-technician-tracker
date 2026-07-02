@@ -33,6 +33,7 @@ const invoiceSelect = Prisma.validator<Prisma.InvoiceSelect>()({
   roundedOff: true,
   totalAmount: true,
   amountDue: true,
+  pdfFilePath: true,
   status: true,
   createdAt: true,
   updatedAt: true,
@@ -235,6 +236,7 @@ export class InvoicesService {
               roundedOff: createInvoiceDto.roundedOff,
               totalAmount: createInvoiceDto.totalAmount,
               amountDue: createInvoiceDto.amountDue,
+              pdfFilePath: null,
               status: createInvoiceDto.status ?? InvoiceStatus.DRAFT,
               lineItems: {
                 create: createInvoiceDto.lineItems.map((item) =>
@@ -311,6 +313,7 @@ export class InvoicesService {
             roundedOff: updateInvoiceDto.roundedOff,
             totalAmount: updateInvoiceDto.totalAmount,
             amountDue: updateInvoiceDto.amountDue,
+            pdfFilePath: null,
             status: updateInvoiceDto.status,
             lineItems: updateInvoiceDto.lineItems
               ? {
@@ -366,11 +369,7 @@ export class InvoicesService {
 
   async getInvoicePdf(invoiceId: string): Promise<Buffer> {
     const invoice = await this.getInvoiceById(invoiceId);
-    const company = await this.companySettingsService.getCompanyBranding();
-
-    return this.billingDocumentsService.buildPdfBuffer(
-      this.toPdfData(invoice, company),
-    );
+    return this.ensureStoredInvoicePdf(invoice);
   }
 
   async getInvoicePdfByType(
@@ -378,11 +377,7 @@ export class InvoicesService {
     invoiceType: 'PROFORMA' | 'TAX',
   ): Promise<Buffer> {
     const invoice = await this.getInvoiceByIdAndType(invoiceId, invoiceType);
-    const company = await this.companySettingsService.getCompanyBranding();
-
-    return this.billingDocumentsService.buildPdfBuffer(
-      this.toPdfData(invoice, company),
-    );
+    return this.ensureStoredInvoicePdf(invoice);
   }
 
   private async getInvoiceOrThrow(invoiceId: string): Promise<InvoiceRecord> {
@@ -428,6 +423,38 @@ export class InvoicesService {
     if (!customer) {
       throw new NotFoundException('Customer not found');
     }
+  }
+
+  private async ensureStoredInvoicePdf(invoice: InvoiceRecord): Promise<Buffer> {
+    const storedPdfBuffer = await this.billingDocumentsService.readStoredPdfBuffer(
+      invoice.pdfFilePath,
+    );
+    if (storedPdfBuffer) {
+      return storedPdfBuffer;
+    }
+
+    const company = await this.companySettingsService.getCompanyBranding();
+    const pdfBuffer = await this.billingDocumentsService.buildPdfBuffer(
+      this.toPdfData(invoice, company),
+    );
+    const pdfFilePath = await this.billingDocumentsService.storePdfBuffer(
+      invoice.invoiceType === InvoiceType.PROFORMA
+        ? 'proforma-invoices'
+        : 'tax-invoices',
+      invoice.invoiceNumber,
+      pdfBuffer,
+    );
+
+    await this.prismaService.invoice.update({
+      where: {
+        id: invoice.id,
+      },
+      data: {
+        pdfFilePath,
+      },
+    });
+
+    return pdfBuffer;
   }
 
   private resolveDefaultTerms(

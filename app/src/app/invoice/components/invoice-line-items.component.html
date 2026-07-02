@@ -2,7 +2,7 @@
   <div class="section-header">
     <div>
       <h3>Line Items</h3>
-      <p>Use the editable grid and product/service autocomplete to calculate taxable value, GST, and final line amount.</p>
+      <p>Use the editable grid and inline product/service creation to calculate taxable value, GST, and final amount.</p>
     </div>
 
     @if (!readonly) {
@@ -19,10 +19,8 @@
         <th>Qty</th>
         <th>Unit Price</th>
         <th>CGST %</th>
-        <th>CGST Amount</th>
         <th>SGST %</th>
-        <th>SGST Amount</th>
-        <th>Line Amount</th>
+        <th>Amount</th>
         <th></th>
       </tr>
     </ng-template>
@@ -34,6 +32,7 @@
             [value]="workingLineItems[rowIndex].productServiceName"
             [disabled]="readonly"
             (valueChange)="updateProductServiceName(rowIndex, $event)"
+            (createRequested)="openProductServiceDialog(rowIndex)"
             (selected)="applyProductServiceSelection(rowIndex, $event)">
           </app-product-service-autocomplete>
         </td>
@@ -81,29 +80,11 @@
         </td>
         <td>
           <p-inputNumber
-            [(ngModel)]="workingLineItems[rowIndex].cgstAmount"
-            mode="decimal"
-            [min]="0"
-            [maxFractionDigits]="2"
-            [disabled]="true">
-          </p-inputNumber>
-        </td>
-        <td>
-          <p-inputNumber
             [(ngModel)]="workingLineItems[rowIndex].sgstPercentage"
             [min]="0"
             [maxFractionDigits]="2"
             [disabled]="readonly"
             (ngModelChange)="recalculateLine(rowIndex)">
-          </p-inputNumber>
-        </td>
-        <td>
-          <p-inputNumber
-            [(ngModel)]="workingLineItems[rowIndex].sgstAmount"
-            mode="decimal"
-            [min]="0"
-            [maxFractionDigits]="2"
-            [disabled]="true">
           </p-inputNumber>
         </td>
         <td>
@@ -130,4 +111,14 @@
       </tr>
     </ng-template>
   </p-table>
+
+  <app-product-service-form-dialog
+    [visible]="productServiceDialogVisible"
+    [saving]="savingProductService"
+    [initialDraft]="productServiceDialogSeed"
+    mode="create"
+    [productService]="null"
+    (cancel)="closeProductServiceDialog()"
+    (save)="createProductService($event)">
+  </app-product-service-form-dialog>
 </div>
