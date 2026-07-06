@@ -1,5 +1,140 @@
+.filter-actions,
+.table-actions,
+.popover-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.filter-actions,
+.table-actions,
+.popover-actions {
+  flex-wrap: wrap;
+}
+
+.filters-shell {
+  display: grid;
+  gap: 1rem 1.25rem;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+}
+
+.filters-shell > * {
+  min-width: 0;
+}
+
+.search-field,
+.popover-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.search-field span,
+.popover-field span {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--ftt-muted);
+}
+
+.search-field input,
+.popover-field input {
+  display: block;
+  width: 100%;
+}
+
+.filter-actions {
+  align-items: flex-end;
+  justify-content: flex-end;
+}
+
+.popover-actions {
+  justify-content: flex-end;
+}
+
 .checkbox-field {
   align-items: center;
   display: flex;
+  flex-direction: row;
   gap: 0.6rem;
+}
+
+.checkbox-field span {
+  margin: 0;
+}
+
+.performance-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.performance-summary {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
+.summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 1rem;
+  border: 1px solid var(--ftt-border);
+  border-radius: var(--ftt-radius-md);
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.summary-card strong {
+  font-size: 1.5rem;
+  font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+}
+
+.summary-card span,
+.summary-card small,
+.table-title-cell span,
+.muted-text {
+  color: var(--ftt-muted);
+}
+
+.table-title-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.error-banner {
+  border-radius: var(--ftt-radius-md);
+  padding: 1rem 1.1rem;
+  background: rgba(203, 74, 94, 0.08);
+  border: 1px solid rgba(203, 74, 94, 0.18);
+  color: #8f2a3e;
+}
+
+:host ::ng-deep .p-select {
+  width: 100%;
+}
+
+@media (max-width: 960px) {
+  .filters-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-actions {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  .filter-actions,
+  .table-actions,
+  .popover-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .performance-summary {
+    grid-template-columns: 1fr;
+  }
 }

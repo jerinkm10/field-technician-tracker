@@ -37,11 +37,22 @@
 
   <div class="card-grid">
     @for (metric of metrics(); track metric.label) {
-      <article class="panel metric-card">
-        <p-tag [value]="metric.label" [severity]="metric.severity"></p-tag>
-        <h2 class="metric-value">{{ metric.value }}</h2>
-        <p class="metric-note">{{ metric.note }}</p>
-      </article>
+      @if (metric.route) {
+        <a
+          class="panel metric-card metric-card-link"
+          [routerLink]="metric.route"
+          [queryParams]="metric.queryParams">
+          <p-tag [value]="metric.label" [severity]="metric.severity"></p-tag>
+          <h2 class="metric-value">{{ metric.value }}</h2>
+          <p class="metric-note">{{ metric.note }}</p>
+        </a>
+      } @else {
+        <article class="panel metric-card">
+          <p-tag [value]="metric.label" [severity]="metric.severity"></p-tag>
+          <h2 class="metric-value">{{ metric.value }}</h2>
+          <p class="metric-note">{{ metric.note }}</p>
+        </article>
+      }
     }
   </div>
 
@@ -320,6 +331,110 @@
             </article>
           }
         </div>
+
+        <div class="section-header compact-section-header">
+          <div>
+            <h3>Technician Availability Mix</h3>
+            <p>Current technician distribution across available, on-job, and offline states.</p>
+          </div>
+        </div>
+
+        <div class="technician-status-grid">
+          @for (item of performanceData.technicianAvailability; track item.status) {
+            <article class="summary-card">
+              <strong>{{ item.count }}</strong>
+              <span>{{ item.status.replaceAll('_', ' ') }}</span>
+            </article>
+          }
+        </div>
+
+        <div class="section-header compact-section-header">
+          <div>
+            <h3>Individual Employee Performance</h3>
+            <p>Lead, collection, AMC, job, complaint, task, and technician metrics by employee.</p>
+          </div>
+        </div>
+
+        @if (performanceData.employees.length === 0) {
+          <p class="empty-state">No employee performance records are available yet.</p>
+        } @else {
+          <div class="employee-performance-grid">
+            @for (employee of performanceData.employees; track employee.employeeId) {
+              <article class="employee-performance-card">
+                <div class="employee-performance-header">
+                  <div class="table-title-cell">
+                    <strong>{{ employee.employeeName }}</strong>
+                    <span>{{ employee.username }} | {{ employee.role.replaceAll('_', ' ') }}</span>
+                  </div>
+                  <p-tag
+                    [severity]="employee.status === 'ACTIVE' ? 'success' : 'warn'"
+                    [value]="employee.status.replaceAll('_', ' ')">
+                  </p-tag>
+                </div>
+
+                <div class="employee-performance-stats">
+                  <div>
+                    <span>Leads Assigned</span>
+                    <strong>{{ employee.leadsAssigned }}</strong>
+                  </div>
+                  <div>
+                    <span>Leads Converted</span>
+                    <strong>{{ employee.leadsConverted }}</strong>
+                  </div>
+                  <div>
+                    <span>Outstanding Collected</span>
+                    <strong>{{ employee.outstandingCollected | currency: 'INR' : 'symbol' : '1.0-2' }}</strong>
+                  </div>
+                  <div>
+                    <span>Jobs Completed</span>
+                    <strong>{{ employee.jobsCompleted }}</strong>
+                  </div>
+                  <div>
+                    <span>Revenue Generated</span>
+                    <strong>{{ employee.revenueGenerated | currency: 'INR' : 'symbol' : '1.0-2' }}</strong>
+                  </div>
+                  <div>
+                    <span>AMC Renewals</span>
+                    <strong>{{ employee.amcRenewals }}</strong>
+                  </div>
+                  <div>
+                    <span>Avg Response</span>
+                    <strong>{{ employee.averageResponseTimeHours | number: '1.0-2' }}h</strong>
+                  </div>
+                  <div>
+                    <span>Complaints Assigned</span>
+                    <strong>{{ employee.pendingComplaintsAssigned }}</strong>
+                  </div>
+                  <div>
+                    <span>Today's Tasks</span>
+                    <strong>{{ employee.todayTasks }}</strong>
+                  </div>
+                  <div>
+                    <span>Completed Tasks</span>
+                    <strong>{{ employee.completedTasks }}</strong>
+                  </div>
+                </div>
+
+                <div class="employee-performance-meta">
+                  <span>
+                    Technician:
+                    {{
+                      employee.technicianPerformance.availability
+                        ? employee.technicianPerformance.availability.replaceAll('_', ' ')
+                        : 'Not linked'
+                    }}
+                  </span>
+                  <span>Assigned Jobs: {{ employee.technicianPerformance.assignedJobs }}</span>
+                  <span>Completed Jobs: {{ employee.technicianPerformance.completedJobs }}</span>
+                  <span>
+                    Completion Rate:
+                    {{ employee.technicianPerformance.completionRate | number: '1.0-2' }}%
+                  </span>
+                </div>
+              </article>
+            }
+          </div>
+        }
       } @else {
         <p class="empty-state">Performance dashboard data is loading.</p>
       }

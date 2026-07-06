@@ -6,12 +6,12 @@
   [closeOnEscape]="!saving"
   [draggable]="false"
   [resizable]="false"
-  [style]="{ width: 'min(92vw, 54rem)' }"
+  [style]="{ width: 'min(96vw, 72rem)' }"
   [header]="dialogTitle()"
   (onHide)="handleHide()">
   <div class="product-service-form">
     <div class="field-grid">
-      <label class="field">
+      <label class="field field-span-full">
         <span>Name</span>
         <input pInputText [(ngModel)]="draft.name" [disabled]="isReadOnly()" />
       </label>

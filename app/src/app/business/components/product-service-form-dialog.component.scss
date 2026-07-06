@@ -1,19 +1,25 @@
 .product-service-form {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 1.1rem;
 }
 
 .field-grid {
   display: grid;
-  gap: 1rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem 1.25rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: start;
 }
 
 .field {
   display: flex;
   flex-direction: column;
   gap: 0.55rem;
+  min-width: 0;
+}
+
+.field-span-full {
+  grid-column: 1 / -1;
 }
 
 .field span {
@@ -24,6 +30,7 @@
 
 .field input,
 .field textarea {
+  display: block;
   width: 100%;
 }
 
@@ -40,10 +47,32 @@
   display: flex;
   justify-content: flex-end;
   gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+:host ::ng-deep .product-service-form .p-inputnumber,
+:host ::ng-deep .product-service-form .p-inputnumber-input,
+:host ::ng-deep .product-service-form .p-select {
+  width: 100%;
+}
+
+@media (max-width: 1024px) {
+  .field-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 720px) {
   .field-grid {
     grid-template-columns: 1fr;
+  }
+
+  .field-span-full {
+    grid-column: auto;
+  }
+
+  .dialog-actions {
+    flex-direction: column;
+    align-items: stretch;
   }
 }

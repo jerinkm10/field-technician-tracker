@@ -110,15 +110,18 @@ export class JobsService {
 
   async listTechnicianJobs(userId: string): Promise<JobDetails[]> {
     const technician = await this.getTechnicianByUserId(userId);
-    const today = this.startOfDay(new Date());
-    const tomorrow = this.addDays(today, 1);
+    const visibleWindow = this.getTechnicianVisibilityWindow(new Date());
+
+    if (!visibleWindow) {
+      return [];
+    }
 
     return this.prismaService.job.findMany({
       where: {
         technicianId: technician.id,
         scheduledDate: {
-          gte: today,
-          lt: tomorrow,
+          gte: visibleWindow.start,
+          lt: visibleWindow.end,
         },
       },
       orderBy: [{ scheduledDate: 'asc' }, { jobNumber: 'asc' }],
@@ -132,6 +135,13 @@ export class JobsService {
     if (
       currentUser.role === Role.TECHNICIAN &&
       job.technician?.user.id !== currentUser.sub
+    ) {
+      throw new NotFoundException('Job not found');
+    }
+
+    if (
+      currentUser.role === Role.TECHNICIAN &&
+      !this.isTechnicianJobVisible(job.scheduledDate, new Date())
     ) {
       throw new NotFoundException('Job not found');
     }
@@ -286,6 +296,7 @@ export class JobsService {
         },
         select: {
           id: true,
+          scheduledDate: true,
           technicianId: true,
           status: true,
         },
@@ -293,6 +304,12 @@ export class JobsService {
 
       if (!job || job.technicianId !== technician.id) {
         throw new NotFoundException('Job not found');
+      }
+
+      if (!this.isTechnicianJobVisible(job.scheduledDate, new Date())) {
+        throw new BadRequestException(
+          'Today\'s scheduled jobs become available to technicians at 09:00 AM.',
+        );
       }
 
       if (job.status === JobStatus.STARTED) {
@@ -575,6 +592,36 @@ export class JobsService {
     const next = new Date(value);
     next.setDate(next.getDate() + days);
     return next;
+  }
+
+  private getTechnicianVisibilityWindow(
+    now: Date,
+  ): { start: Date; end: Date } | null {
+    const today = this.startOfDay(now);
+    const visibleAt = new Date(today);
+    visibleAt.setHours(9, 0, 0, 0);
+
+    if (now.getTime() < visibleAt.getTime()) {
+      return null;
+    }
+
+    return {
+      start: today,
+      end: this.addDays(today, 1),
+    };
+  }
+
+  private isTechnicianJobVisible(scheduledDate: Date, now: Date): boolean {
+    const visibleWindow = this.getTechnicianVisibilityWindow(now);
+
+    if (!visibleWindow) {
+      return false;
+    }
+
+    return (
+      scheduledDate.getTime() >= visibleWindow.start.getTime() &&
+      scheduledDate.getTime() < visibleWindow.end.getTime()
+    );
   }
 
   private formatDate(value: Date): string {

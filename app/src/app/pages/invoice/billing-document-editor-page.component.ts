@@ -37,6 +37,22 @@ type StatusOption = {
   value: BillingDocumentStatus;
 };
 
+type SaveFilePickerOptions = {
+  suggestedName?: string;
+  startIn?: 'downloads';
+  types?: Array<{
+    description?: string;
+    accept: Record<string, string[]>;
+  }>;
+};
+
+type SaveFilePickerHandle = {
+  createWritable(): Promise<{
+    write(data: Blob): Promise<void>;
+    close(): Promise<void>;
+  }>;
+};
+
 @Component({
   selector: 'app-billing-document-editor-page',
   imports: [
@@ -285,6 +301,10 @@ export class BillingDocumentEditorPageComponent {
     this.previewVisible.set(false);
   }
 
+  protected previewDialogTitle(): string {
+    return `${this.documentTypeLabel()} Preview`;
+  }
+
   protected downloadPdf(): void {
     if (!this.documentId) {
       this.errorMessage.set('Save the document first to enable PDF download.');
@@ -301,17 +321,7 @@ export class BillingDocumentEditorPageComponent {
 
     this.billingDocumentsApiService.downloadPdf(this.kind, this.documentId).subscribe({
       next: (blob) => {
-        this.downloading.set(false);
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = filename;
-        link.click();
-        window.setTimeout(() => window.URL.revokeObjectURL(url), 2000);
-        this.uiFeedback.success(
-          'PDF downloaded',
-          `${filename} is ready.`,
-        );
+        void this.savePdfToDevice(blob, filename);
       },
       error: () => {
         this.downloading.set(false);
@@ -325,11 +335,7 @@ export class BillingDocumentEditorPageComponent {
   protected previewModel(): BillingPreviewModel {
     return {
       company: this.company(),
-      documentTypeLabel: this.kind === 'quotation'
-        ? 'Quotation'
-        : this.kind === 'tax'
-          ? 'Tax Invoice'
-          : 'Proforma Invoice',
+      documentTypeLabel: this.documentTypeLabel(),
       documentNumber: this.draft.documentNumber,
       documentDate: this.draft.documentDate,
       validUntil: this.draft.validUntil ?? null,
@@ -533,24 +539,26 @@ export class BillingDocumentEditorPageComponent {
   }
 
   private resolvePageTitle(): string {
-    const label = this.kind === 'quotation'
-      ? 'Quotation'
-      : this.kind === 'tax'
-        ? 'Tax Invoice'
-        : 'Proforma Invoice';
-
     switch (this.mode) {
       case 'edit':
-        return `Edit ${label}`;
+        return `Edit ${this.documentTypeLabel()}`;
       case 'view':
-        return `View ${label}`;
+        return `View ${this.documentTypeLabel()}`;
       default:
-        return `Create ${label}`;
+        return `Create ${this.documentTypeLabel()}`;
     }
   }
 
   private roundCurrency(value: number): number {
     return Math.round(value * 100) / 100;
+  }
+
+  private documentTypeLabel(): string {
+    return this.kind === 'quotation'
+      ? 'Quotation'
+      : this.kind === 'tax'
+        ? 'Tax Invoice'
+        : 'Proforma Invoice';
   }
 
   private buildPdfFilename(): string | null {
@@ -561,5 +569,81 @@ export class BillingDocumentEditorPageComponent {
 
     const safeDocumentNumber = documentNumber.replace(/[\\/:*?"<>|]+/g, '-');
     return `${safeDocumentNumber}.pdf`;
+  }
+
+  private async savePdfToDevice(blob: Blob, filename: string): Promise<void> {
+    try {
+      const savedWithDialog = await this.trySaveWithDialog(blob, filename);
+
+      if (!savedWithDialog) {
+        this.triggerBrowserDownload(blob, filename);
+      }
+
+      this.uiFeedback.success(
+        savedWithDialog ? 'PDF saved' : 'PDF downloaded',
+        savedWithDialog
+          ? `${filename} was saved successfully.`
+          : `${filename} was sent to your Downloads folder.`,
+      );
+    } catch (error) {
+      if (this.isSaveDialogCancelled(error)) {
+        return;
+      }
+
+      const message = 'PDF save failed.';
+      this.errorMessage.set(message);
+      this.uiFeedback.error('PDF save failed', message);
+    } finally {
+      this.downloading.set(false);
+    }
+  }
+
+  private async trySaveWithDialog(blob: Blob, filename: string): Promise<boolean> {
+    const saveFilePicker = (
+      window as Window & {
+        showSaveFilePicker?: (options?: SaveFilePickerOptions) => Promise<SaveFilePickerHandle>;
+      }
+    ).showSaveFilePicker;
+
+    if (!saveFilePicker) {
+      return false;
+    }
+
+    const handle = await saveFilePicker({
+      suggestedName: filename,
+      startIn: 'downloads',
+      types: [
+        {
+          description: 'PDF document',
+          accept: {
+            'application/pdf': ['.pdf'],
+          },
+        },
+      ],
+    });
+
+    const writable = await handle.createWritable();
+    await writable.write(blob);
+    await writable.close();
+    return true;
+  }
+
+  private triggerBrowserDownload(blob: Blob, filename: string): void {
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    window.setTimeout(() => window.URL.revokeObjectURL(url), 2000);
+  }
+
+  private isSaveDialogCancelled(error: unknown): boolean {
+    if (error instanceof DOMException) {
+      return error.name === 'AbortError';
+    }
+
+    return typeof error === 'object' && error !== null && 'name' in error
+      ? (error as { name?: string }).name === 'AbortError'
+      : false;
   }
 }

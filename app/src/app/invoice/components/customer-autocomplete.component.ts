@@ -53,10 +53,20 @@ type CustomerSuggestion = CustomerRecord & {
   `,
   styles: [
     `
+      :host {
+        display: block;
+        width: 100%;
+      }
+
       .autocomplete-shell {
         display: grid;
         gap: 0.6rem;
         grid-template-columns: minmax(0, 1fr) auto;
+      }
+
+      :host ::ng-deep .p-autocomplete,
+      :host ::ng-deep .p-autocomplete-input {
+        width: 100%;
       }
 
       @media (max-width: 720px) {

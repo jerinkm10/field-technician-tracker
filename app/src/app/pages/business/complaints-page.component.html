@@ -200,89 +200,91 @@
   [style]="{ width: 'min(96vw, 70rem)' }"
   [header]="dialogTitle()"
   (onHide)="closeDialog()">
-  <div class="filters-grid compact-grid">
-    <label class="field field-span-2">
-      <span>Customer Name</span>
-      <app-customer-autocomplete
-        [selectedCustomer]="draft.selectedCustomer"
-        [disabled]="isReadOnly()"
-        (selectedCustomerChange)="applySelectedCustomer($event)">
-      </app-customer-autocomplete>
-    </label>
+  <div class="complaint-form">
+    <div class="complaint-grid">
+      <label class="field field-span-full">
+        <span>Customer Name</span>
+        <app-customer-autocomplete
+          [selectedCustomer]="draft.selectedCustomer"
+          [disabled]="isReadOnly()"
+          (selectedCustomerChange)="applySelectedCustomer($event)">
+        </app-customer-autocomplete>
+      </label>
 
-    <label class="field">
-      <span>Contact Person</span>
-      <p-select
-        [options]="contactPersonOptions"
-        optionLabel="label"
-        optionValue="value"
-        appendTo="body"
-        [(ngModel)]="draft.contactPerson"
-        [disabled]="isReadOnly()">
-      </p-select>
-    </label>
-
-    <label class="field">
-      <span>Phone</span>
-      <input pInputText [(ngModel)]="draft.phone" [disabled]="isReadOnly()" />
-    </label>
-
-    <label class="field">
-      <span>Email</span>
-      <input pInputText [(ngModel)]="draft.email" [disabled]="isReadOnly()" />
-    </label>
-
-    <label class="field field-span-2">
-      <span>Address</span>
-      <input pInputText [(ngModel)]="draft.address" [disabled]="isReadOnly()" />
-    </label>
-
-    <label class="field">
-      <span>Location</span>
-      <input pInputText [(ngModel)]="draft.location" [disabled]="isReadOnly()" />
-    </label>
-
-    <label class="field">
-      <span>Status</span>
-      <p-select
-        [options]="formStatusOptions"
-        optionLabel="label"
-        optionValue="value"
-        appendTo="body"
-        [(ngModel)]="draft.status"
-        [disabled]="isReadOnly()">
-      </p-select>
-    </label>
-
-    @if (canManageAssignments()) {
       <label class="field">
-        <span>Assigned Employee</span>
+        <span>Contact Person</span>
         <p-select
-          [options]="employeeOptions()"
+          [options]="contactPersonOptions"
           optionLabel="label"
           optionValue="value"
           appendTo="body"
-          [(ngModel)]="draft.assignedEmployeeId"
+          [(ngModel)]="draft.contactPerson"
           [disabled]="isReadOnly()">
         </p-select>
       </label>
-    }
 
-    <label class="field field-span-2">
-      <span>Complaint Title</span>
-      <input pInputText [(ngModel)]="draft.complaintTitle" [disabled]="isReadOnly()" />
-    </label>
+      <label class="field">
+        <span>Phone</span>
+        <input pInputText [(ngModel)]="draft.phone" [disabled]="isReadOnly()" />
+      </label>
+
+      <label class="field">
+        <span>Email</span>
+        <input pInputText [(ngModel)]="draft.email" [disabled]="isReadOnly()" />
+      </label>
+
+      <label class="field">
+        <span>Address</span>
+        <input pInputText [(ngModel)]="draft.address" [disabled]="isReadOnly()" />
+      </label>
+
+      <label class="field">
+        <span>Location</span>
+        <input pInputText [(ngModel)]="draft.location" [disabled]="isReadOnly()" />
+      </label>
+
+      <label class="field">
+        <span>Status</span>
+        <p-select
+          [options]="formStatusOptions"
+          optionLabel="label"
+          optionValue="value"
+          appendTo="body"
+          [(ngModel)]="draft.status"
+          [disabled]="isReadOnly()">
+        </p-select>
+      </label>
+
+      @if (canManageAssignments()) {
+        <label class="field">
+          <span>Assigned Employee</span>
+          <p-select
+            [options]="employeeOptions()"
+            optionLabel="label"
+            optionValue="value"
+            appendTo="body"
+            [(ngModel)]="draft.assignedEmployeeId"
+            [disabled]="isReadOnly()">
+          </p-select>
+        </label>
+      }
+
+      <label class="field" [class.field-span-2]="!canManageAssignments()">
+        <span>Complaint Title</span>
+        <input pInputText [(ngModel)]="draft.complaintTitle" [disabled]="isReadOnly()" />
+      </label>
+
+      <label class="field field-span-2">
+        <span>Complaint Description</span>
+        <textarea rows="5" [(ngModel)]="draft.complaintDescription" [disabled]="isReadOnly()"></textarea>
+      </label>
+
+      <label class="field field-span-2">
+        <span>Notes</span>
+        <textarea rows="4" [(ngModel)]="draft.notes" [disabled]="isReadOnly()"></textarea>
+      </label>
+    </div>
   </div>
-
-  <label class="field">
-    <span>Complaint Description</span>
-    <textarea rows="5" [(ngModel)]="draft.complaintDescription" [disabled]="isReadOnly()"></textarea>
-  </label>
-
-  <label class="field">
-    <span>Notes</span>
-    <textarea rows="4" [(ngModel)]="draft.notes" [disabled]="isReadOnly()"></textarea>
-  </label>
 
   <ng-template #footer>
     <div class="dialog-actions">

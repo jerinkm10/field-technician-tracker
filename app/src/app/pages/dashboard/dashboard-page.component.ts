@@ -39,6 +39,8 @@ type DashboardMetric = {
   readonly value: string;
   readonly note: string;
   readonly severity: TagSeverity;
+  readonly route?: string;
+  readonly queryParams?: Readonly<Record<string, string>>;
 };
 
 @Component({
@@ -276,42 +278,70 @@ export class DashboardPageComponent {
       ];
     }
 
+    const trackedEmployees =
+      this.performance()?.employees.length ??
+      this.businessSummary()?.topEmployees.length ??
+      0;
+    const topPerformer =
+      this.performance()?.employees[0]?.employeeName ??
+      this.businessSummary()?.topEmployees[0]?.employeeName ??
+      'Loading';
+
     return [
       {
         label: 'Pending Complaints',
         value: String(summary.pendingComplaintsCount),
         note: `${summary.pendingComplaintsAssignedCount} complaint(s) already assigned`,
         severity: summary.pendingComplaintsCount > 0 ? 'warn' : 'success',
+        route: '/business/complaints',
+        queryParams: { status: 'PENDING' },
       },
       {
         label: 'Outstanding Amount',
         value: this.currencyFormatter.format(summary.totalOutstandingAmount),
         note: `${summary.totalOutstandingCount} invoice(s) remain open`,
         severity: summary.totalOutstandingCount > 0 ? 'info' : 'success',
+        route: '/business/outstanding',
       },
       {
         label: "Today's Jobs",
         value: String(summary.todayJobsCount),
         note: 'Scheduled jobs visible to the field team today',
         severity: summary.todayJobsCount > 0 ? 'info' : 'secondary',
+        route: '/jobs',
       },
       {
         label: 'AMC Expiring',
         value: String(summary.amcExpiringWithin30DaysCount),
         note: `${summary.overdueAmcPaymentCount} AMC payment(s) already overdue`,
         severity: summary.amcExpiringWithin30DaysCount > 0 ? 'warn' : 'success',
+        route: '/business/amc',
       },
       {
         label: 'Lead Conversion',
         value: `${summary.leadConversionPercentage.toFixed(2)}%`,
         note: `${summary.leadsConvertedThisMonthCount}/${summary.leadsThisMonthCount} leads converted this month`,
         severity: summary.leadConversionPercentage > 0 ? 'success' : 'secondary',
+        route: '/business/lead',
+      },
+      {
+        label: 'Employee Performance',
+        value: String(trackedEmployees),
+        note: trackedEmployees > 0 ? `Top performer: ${topPerformer}` : 'Loading employee analytics',
+        severity: trackedEmployees > 0 ? 'info' : 'secondary',
       },
       {
         label: 'Technician Availability',
         value: `${summary.technicianAvailability.available} Available`,
         note: `${summary.technicianAvailability.onJob} on job | ${summary.technicianAvailability.offline} offline`,
         severity: summary.technicianAvailability.available > 0 ? 'success' : 'warn',
+      },
+      {
+        label: 'Complaints Assigned',
+        value: String(summary.pendingComplaintsAssignedCount),
+        note: 'Open complaints already owned by employees',
+        severity: summary.pendingComplaintsAssignedCount > 0 ? 'warn' : 'success',
+        route: '/business/complaints',
       },
     ];
   }
@@ -335,30 +365,35 @@ export class DashboardPageComponent {
         value: String(summary.todayTasks),
         note: `${summary.overdueTasks} overdue task(s) need attention`,
         severity: summary.todayTasks > 0 || summary.overdueTasks > 0 ? 'warn' : 'success',
+        route: '/business/tasks',
       },
       {
         label: "Today's Follow-ups",
         value: String(summary.todayFollowUps),
         note: `${summary.assignedLeads} assigned leads are in your queue`,
         severity: summary.todayFollowUps > 0 ? 'info' : 'secondary',
+        route: '/business/lead',
       },
       {
         label: 'Outstanding Collection',
         value: String(summary.outstandingCollectionTasks),
         note: 'Collection follow-up tasks synced from receivables',
         severity: summary.outstandingCollectionTasks > 0 ? 'warn' : 'success',
+        route: '/business/outstanding',
       },
       {
         label: 'Assigned Leads',
         value: String(summary.assignedLeads),
         note: 'Active sales follow-ups assigned to you',
         severity: summary.assignedLeads > 0 ? 'info' : 'secondary',
+        route: '/business/lead',
       },
       {
         label: 'Pending Complaints',
         value: String(summary.pendingComplaintsAssigned),
         note: `${summary.completedTasks} completed task(s) in your history`,
         severity: summary.pendingComplaintsAssigned > 0 ? 'warn' : 'success',
+        route: '/business/complaints',
       },
     ];
   }
