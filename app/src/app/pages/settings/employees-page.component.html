@@ -25,43 +25,9 @@
         <h3>Search and filters</h3>
         <p>Use backend-driven filters for employee name, username, phone, role, and active status.</p>
       </div>
-
-      <div class="toolbar-actions">
-        <app-filter-dropdown>
-          <label class="field">
-            <span>Role</span>
-            <p-select
-              [options]="roleOptions"
-              optionLabel="label"
-              optionValue="value"
-              appendTo="body"
-              [(ngModel)]="roleFilter">
-            </p-select>
-          </label>
-
-          <label class="field">
-            <span>Status</span>
-            <p-select
-              [options]="statusOptions"
-              optionLabel="label"
-              optionValue="value"
-              appendTo="body"
-              [(ngModel)]="statusFilter">
-            </p-select>
-          </label>
-
-          <div class="filter-actions">
-            <button pButton type="button" label="Apply" icon="pi pi-filter" (click)="applyFilters()"></button>
-            <button pButton type="button" label="Reset" text (click)="resetFilters()"></button>
-          </div>
-        </app-filter-dropdown>
-
-        <button pButton type="button" label="Refresh" icon="pi pi-refresh" text [loading]="loading()" (click)="loadEmployees()">
-        </button>
-      </div>
     </div>
 
-    <div class="filters-grid compact-grid">
+    <div class="filters-toolbar">
       <label class="field">
         <span>Search</span>
         <input
@@ -71,9 +37,52 @@
           (keydown.enter)="applyFilters()" />
       </label>
 
-      <div class="filter-actions">
-        <button pButton type="button" label="Search" icon="pi pi-search" (click)="applyFilters()"></button>
-        <button pButton type="button" label="Reset" text (click)="resetFilters()"></button>
+      <div class="filter-actions-shell">
+        <span class="filter-actions-label">Filter and actions</span>
+
+        <div class="toolbar-actions">
+          <app-filter-dropdown label="Filter Employees">
+            <label class="field">
+              <span>Role</span>
+              <p-select
+                [options]="roleOptions"
+                optionLabel="label"
+                optionValue="value"
+                appendTo="body"
+                [(ngModel)]="roleFilter">
+              </p-select>
+            </label>
+
+            <label class="field">
+              <span>Status</span>
+              <p-select
+                [options]="statusOptions"
+                optionLabel="label"
+                optionValue="value"
+                appendTo="body"
+                [(ngModel)]="statusFilter">
+              </p-select>
+            </label>
+
+            <div class="filter-actions">
+              <button pButton type="button" label="Apply" icon="pi pi-filter" (click)="applyFilters()"></button>
+              <button pButton type="button" label="Reset" text (click)="resetFilters()"></button>
+            </div>
+          </app-filter-dropdown>
+
+          <button
+            pButton
+            type="button"
+            label="Refresh"
+            icon="pi pi-refresh"
+            text
+            [loading]="loading()"
+            (click)="loadEmployees()">
+          </button>
+
+          <button pButton type="button" label="Search" icon="pi pi-search" (click)="applyFilters()"></button>
+          <button pButton type="button" label="Reset" text (click)="resetFilters()"></button>
+        </div>
       </div>
     </div>
   </section>

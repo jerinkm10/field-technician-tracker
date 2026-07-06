@@ -45,82 +45,88 @@
   }
 
   <section class="panel section-shell filters-shell">
-    <label class="search-field">
-      <span>Search</span>
-      <input
-        pInputText
-        [(ngModel)]="searchTerm"
-        placeholder="Lead, customer, phone, branch, employee, source, or product/service" />
-    </label>
+    <div class="filters-toolbar">
+      <label class="search-field">
+        <span>Search</span>
+        <input
+          pInputText
+          [(ngModel)]="searchTerm"
+          placeholder="Lead, customer, phone, branch, employee, source, or product/service" />
+      </label>
 
-    <div class="filter-actions">
-      <app-filter-dropdown label="Filter Leads">
-        <label class="popover-field">
-          <span>Status</span>
-          <p-select
-            [options]="statusOptions"
-            optionLabel="label"
-            optionValue="value"
-            appendTo="body"
-            [(ngModel)]="statusFilter">
-          </p-select>
-        </label>
+      <div class="filter-actions-shell">
+        <span class="filter-actions-label">Filter and actions</span>
 
-        <label class="popover-field">
-          <span>Branch</span>
-          <p-select
-            [options]="branchFilterOptions()"
-            optionLabel="label"
-            optionValue="value"
-            appendTo="body"
-            [(ngModel)]="branchIdFilter">
-          </p-select>
-        </label>
+        <div class="filter-actions">
+          <app-filter-dropdown label="Filter Leads">
+            <label class="popover-field">
+              <span>Status</span>
+              <p-select
+                [options]="statusOptions"
+                optionLabel="label"
+                optionValue="value"
+                appendTo="body"
+                [(ngModel)]="statusFilter">
+              </p-select>
+            </label>
 
-        <label class="popover-field">
-          <span>Assigned Employee</span>
-          <p-select
-            [options]="employeeFilterOptions()"
-            optionLabel="label"
-            optionValue="value"
-            appendTo="body"
-            [(ngModel)]="assignedEmployeeIdFilter">
-          </p-select>
-        </label>
+            <label class="popover-field">
+              <span>Branch</span>
+              <p-select
+                [options]="branchFilterOptions()"
+                optionLabel="label"
+                optionValue="value"
+                appendTo="body"
+                [(ngModel)]="branchIdFilter">
+              </p-select>
+            </label>
 
-        <label class="popover-field">
-          <span>From Date</span>
-          <input pInputText type="date" [(ngModel)]="fromDate" />
-        </label>
+            <label class="popover-field">
+              <span>Assigned Employee</span>
+              <p-select
+                [options]="employeeFilterOptions()"
+                optionLabel="label"
+                optionValue="value"
+                appendTo="body"
+                [(ngModel)]="assignedEmployeeIdFilter">
+              </p-select>
+            </label>
 
-        <label class="popover-field">
-          <span>To Date</span>
-          <input pInputText type="date" [(ngModel)]="toDate" />
-        </label>
+            <label class="popover-field">
+              <span>From Date</span>
+              <input pInputText type="date" [(ngModel)]="fromDate" />
+            </label>
 
-        <div class="popover-actions">
-          <button pButton type="button" label="Apply" icon="pi pi-filter" (click)="applyFilters()">
+            <label class="popover-field">
+              <span>To Date</span>
+              <input pInputText type="date" [(ngModel)]="toDate" />
+            </label>
+
+            <div class="popover-actions">
+              <button pButton type="button" label="Apply" icon="pi pi-filter" (click)="applyFilters()">
+              </button>
+              <button pButton type="button" label="Reset" text (click)="resetFilters()"></button>
+            </div>
+          </app-filter-dropdown>
+
+          <button
+            pButton
+            type="button"
+            label="Search"
+            icon="pi pi-search"
+            (click)="applyFilters()">
           </button>
-          <button pButton type="button" label="Reset" text (click)="resetFilters()"></button>
+
+          <button
+            pButton
+            type="button"
+            label="Reset"
+            icon="pi pi-refresh"
+            text
+            (click)="resetFilters()">
+          </button>
         </div>
-      </app-filter-dropdown>
-
-      <button
-        pButton
-        type="button"
-        label="Search"
-        icon="pi pi-search"
-        (click)="applyFilters()">
-      </button>
-
-      <button
-        pButton
-        type="button"
-        label="Reset"
-        icon="pi pi-refresh"
-        text
-        (click)="resetFilters()">
-      </button>
+      </div>
     </div>
   </section>
 
@@ -147,7 +153,7 @@
     </div>
 
     <p-table
-      [value]="leadPerformance()?.employees ?? []"
+      [value]="activeLeadPerformanceEmployees()"
       responsiveLayout="scroll"
       [loading]="performanceLoading()">
       <ng-template #header>

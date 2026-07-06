@@ -761,12 +761,11 @@ export class LeadsService {
     const [employees, leads] = await Promise.all([
       this.prismaService.user.findMany({
         where: {
-          role: {
-            in: [Role.ADMIN, Role.EMPLOYEE],
-          },
+          role: Role.EMPLOYEE,
+          status: UserStatus.ACTIVE,
           ...(query.assignedToEmployeeId ? { id: query.assignedToEmployeeId } : {}),
         },
-        orderBy: [{ status: 'asc' }, { name: 'asc' }],
+        orderBy: [{ name: 'asc' }],
         select: employeeSummarySelect,
       }),
       this.prismaService.lead.findMany({

@@ -294,58 +294,119 @@
       @if (performance(); as performanceData) {
         <div class="performance-summary">
           <article class="summary-card">
-            <strong>{{ performanceData.summary.totalLeadsConverted }}</strong>
+            <span>Leads Assigned</span>
+            <strong>{{ performanceData.summary.totalLeadsAssigned }}</strong>
+            <small>Company pipeline tracked this cycle</small>
+          </article>
+          <article class="summary-card">
             <span>Leads Converted</span>
+            <strong>{{ performanceData.summary.totalLeadsConverted }}</strong>
+            <small>{{ performanceData.summary.totalLeadsConverted }} opportunities won</small>
           </article>
           <article class="summary-card">
-            <strong>{{ performanceData.summary.totalJobsCompleted }}</strong>
             <span>Jobs Completed</span>
+            <strong>{{ performanceData.summary.totalJobsCompleted }}</strong>
+            <small>Closed service work across the team</small>
           </article>
           <article class="summary-card">
-            <strong>{{ performanceData.summary.totalRevenueGenerated | currency: 'INR' : 'symbol' : '1.0-2' }}</strong>
+            <span>Outstanding Collected</span>
+            <strong>{{ performanceData.summary.totalOutstandingCollected | currency: 'INR' : 'symbol' : '1.0-2' }}</strong>
+            <small>Collections converted into cash flow</small>
+          </article>
+          <article class="summary-card">
             <span>Revenue Generated</span>
+            <strong>{{ performanceData.summary.totalRevenueGenerated | currency: 'INR' : 'symbol' : '1.0-2' }}</strong>
+            <small>Billed performance across jobs and sales</small>
           </article>
           <article class="summary-card">
-            <strong>{{ performanceData.summary.averageResponseTimeHours | number: '1.0-2' }}h</strong>
             <span>Average Response Time</span>
+            <strong>{{ performanceData.summary.averageResponseTimeHours | number: '1.0-2' }}h</strong>
+            <small>{{ performanceData.summary.totalAmcRenewals }} AMC renewal(s) influenced</small>
           </article>
         </div>
 
         <div class="chart-grid">
           @for (chart of [
-            { title: 'Lead Conversion', values: performanceData.charts.leadConversion },
-            { title: 'Jobs Completed', values: performanceData.charts.jobsCompleted },
-            { title: 'Revenue Generated', values: performanceData.charts.revenueGenerated }
+            {
+              title: 'Lead Conversion',
+              subtitle: 'Top employees by converted opportunities.',
+              values: performanceData.charts.leadConversion,
+              kind: 'count'
+            },
+            {
+              title: 'Jobs Completed',
+              subtitle: 'Service delivery leaders this period.',
+              values: performanceData.charts.jobsCompleted,
+              kind: 'count'
+            },
+            {
+              title: 'Revenue Generated',
+              subtitle: 'Highest employee revenue contribution.',
+              values: performanceData.charts.revenueGenerated,
+              kind: 'currency'
+            }
           ]; track chart.title) {
             <article class="chart-card">
-              <h4>{{ chart.title }}</h4>
-              @for (item of chart.values.slice(0, 5); track item.label) {
-                <div class="chart-row">
-                  <span>{{ item.label }}</span>
-                  <div class="chart-bar">
-                    <div class="chart-fill" [style.width]="chartWidth(item.value, maxChartValue(chart.values))"></div>
-                  </div>
-                  <strong>{{ item.value }}</strong>
+              <div class="chart-card-header">
+                <div>
+                  <h4>{{ chart.title }}</h4>
+                  <p>{{ chart.subtitle }}</p>
+                </div>
+                @if (chart.values.length > 0) {
+                  <strong class="chart-total">
+                    @if (chart.kind === 'currency') {
+                      {{ chart.values[0].value | currency: 'INR' : 'symbol' : '1.0-0' }}
+                    } @else {
+                      {{ chart.values[0].value | number: '1.0-0' }}
+                    }
+                  </strong>
+                }
+              </div>
+
+              @if (chart.values.length === 0) {
+                <p class="empty-state">No performance activity is available yet.</p>
+              } @else {
+                <div class="chart-list">
+                  @for (item of chart.values.slice(0, 5); track item.label) {
+                    <div class="chart-row">
+                      <div class="chart-copy">
+                        <span>{{ item.label }}</span>
+                        <small>
+                          @if (chart.kind === 'currency') {
+                            {{ item.value | currency: 'INR' : 'symbol' : '1.0-0' }}
+                          } @else {
+                            {{ item.value | number: '1.0-0' }}
+                          }
+                        </small>
+                      </div>
+                      <div class="chart-bar">
+                        <div class="chart-fill" [style.width]="chartWidth(item.value, maxChartValue(chart.values))"></div>
+                      </div>
+                    </div>
+                  }
                 </div>
               }
             </article>
           }
-        </div>
 
-        <div class="section-header compact-section-header">
-          <div>
-            <h3>Technician Availability Mix</h3>
-            <p>Current technician distribution across available, on-job, and offline states.</p>
-          </div>
-        </div>
+          <article class="chart-card availability-card">
+            <div class="chart-card-header">
+              <div>
+                <h4>Technician Availability</h4>
+                <p>Current field team distribution across active technician states.</p>
+              </div>
+            </div>
 
-        <div class="technician-status-grid">
-          @for (item of performanceData.technicianAvailability; track item.status) {
-            <article class="summary-card">
-              <strong>{{ item.count }}</strong>
-              <span>{{ item.status.replaceAll('_', ' ') }}</span>
-            </article>
-          }
+            <div class="technician-status-grid">
+              @for (item of performanceData.technicianAvailability; track item.status) {
+                <article class="summary-card availability-summary-card">
+                  <span>{{ item.status.replaceAll('_', ' ') }}</span>
+                  <strong>{{ item.count }}</strong>
+                  <small>Technician(s) currently in this state</small>
+                </article>
+              }
+            </div>
+          </article>
         </div>
 
         <div class="section-header compact-section-header">
@@ -362,36 +423,51 @@
             @for (employee of performanceData.employees; track employee.employeeId) {
               <article class="employee-performance-card">
                 <div class="employee-performance-header">
-                  <div class="table-title-cell">
-                    <strong>{{ employee.employeeName }}</strong>
-                    <span>{{ employee.username }} | {{ employee.role.replaceAll('_', ' ') }}</span>
+                  <div class="employee-identity">
+                    <div class="employee-avatar">{{ employeeInitials(employee.employeeName) }}</div>
+                    <div class="table-title-cell">
+                      <strong>{{ employee.employeeName }}</strong>
+                      <span>{{ employee.username }} | {{ employee.role.replaceAll('_', ' ') }}</span>
+                    </div>
                   </div>
-                  <p-tag
-                    [severity]="employee.status === 'ACTIVE' ? 'success' : 'warn'"
-                    [value]="employee.status.replaceAll('_', ' ')">
-                  </p-tag>
+
+                  <div class="employee-performance-badges">
+                    <p-tag
+                      [severity]="employee.status === 'ACTIVE' ? 'success' : 'warn'"
+                      [value]="employee.status.replaceAll('_', ' ')">
+                    </p-tag>
+                    @if (employee.technicianPerformance.availability) {
+                      <p-tag
+                        [severity]="technicianAvailabilitySeverity(employee.technicianPerformance.availability)"
+                        [value]="employee.technicianPerformance.availability.replaceAll('_', ' ')">
+                      </p-tag>
+                    }
+                  </div>
+                </div>
+
+                <div class="employee-highlight-grid">
+                  <article class="employee-highlight-card">
+                    <span>Leads Converted</span>
+                    <strong>{{ employee.leadsConverted }}</strong>
+                  </article>
+                  <article class="employee-highlight-card">
+                    <span>Jobs Completed</span>
+                    <strong>{{ employee.jobsCompleted }}</strong>
+                  </article>
+                  <article class="employee-highlight-card">
+                    <span>Revenue</span>
+                    <strong>{{ employee.revenueGenerated | currency: 'INR' : 'symbol' : '1.0-0' }}</strong>
+                  </article>
+                  <article class="employee-highlight-card">
+                    <span>Collections</span>
+                    <strong>{{ employee.outstandingCollected | currency: 'INR' : 'symbol' : '1.0-0' }}</strong>
+                  </article>
                 </div>
 
                 <div class="employee-performance-stats">
                   <div>
                     <span>Leads Assigned</span>
                     <strong>{{ employee.leadsAssigned }}</strong>
-                  </div>
-                  <div>
-                    <span>Leads Converted</span>
-                    <strong>{{ employee.leadsConverted }}</strong>
-                  </div>
-                  <div>
-                    <span>Outstanding Collected</span>
-                    <strong>{{ employee.outstandingCollected | currency: 'INR' : 'symbol' : '1.0-2' }}</strong>
-                  </div>
-                  <div>
-                    <span>Jobs Completed</span>
-                    <strong>{{ employee.jobsCompleted }}</strong>
-                  </div>
-                  <div>
-                    <span>Revenue Generated</span>
-                    <strong>{{ employee.revenueGenerated | currency: 'INR' : 'symbol' : '1.0-2' }}</strong>
                   </div>
                   <div>
                     <span>AMC Renewals</span>
@@ -415,9 +491,31 @@
                   </div>
                 </div>
 
+                <div class="employee-progress-grid">
+                  <article class="progress-card">
+                    <div class="progress-copy">
+                      <span>Lead Conversion Rate</span>
+                      <strong>{{ employeeLeadConversionRate(employee) | number: '1.0-2' }}%</strong>
+                    </div>
+                    <div class="progress-track">
+                      <div class="progress-fill" [style.width]="percentageWidth(employeeLeadConversionRate(employee))"></div>
+                    </div>
+                  </article>
+
+                  <article class="progress-card">
+                    <div class="progress-copy">
+                      <span>Technician Completion Rate</span>
+                      <strong>{{ employee.technicianPerformance.completionRate | number: '1.0-2' }}%</strong>
+                    </div>
+                    <div class="progress-track">
+                      <div class="progress-fill" [style.width]="percentageWidth(employee.technicianPerformance.completionRate)"></div>
+                    </div>
+                  </article>
+                </div>
+
                 <div class="employee-performance-meta">
                   <span>
-                    Technician:
+                    Technician Link:
                     {{
                       employee.technicianPerformance.availability
                         ? employee.technicianPerformance.availability.replaceAll('_', ' ')
@@ -426,10 +524,7 @@
                   </span>
                   <span>Assigned Jobs: {{ employee.technicianPerformance.assignedJobs }}</span>
                   <span>Completed Jobs: {{ employee.technicianPerformance.completedJobs }}</span>
-                  <span>
-                    Completion Rate:
-                    {{ employee.technicianPerformance.completionRate | number: '1.0-2' }}%
-                  </span>
+                  <span>Task Delivery Snapshot: {{ employee.completedTasks }}/{{ employee.todayTasks || 0 }}</span>
                 </div>
               </article>
             }

@@ -340,15 +340,62 @@ export class BillingDocumentsService {
     const pageWidth = document.page.width;
     const pageHeight = document.page.height;
     const contentWidth = pageWidth - layout.margin * 2;
-    const detailColumns = this.resolveDetailColumns(contentWidth, layout);
 
     document.font('Helvetica').fillColor(BODY_TEXT);
 
-    let cursorY = layout.topPadding;
-
-    cursorY = this.drawHeader(
+    const cursorY = this.drawPageDetailsSection(
       document,
+      data,
+      issuer,
+      headerVariant,
+      layout,
+    );
+
+    this.drawItemsTable(
+      document,
+      data,
+      issuer,
+      headerVariant,
+      layout.margin,
+      contentWidth,
       cursorY,
+      pageHeight,
+      layout,
+    );
+
+    const footerContentHeight = this.measureFooterContentHeight(document, data, layout);
+    const footerStartY = this.resolveFooterStartY(
+      pageHeight,
+      footerContentHeight,
+      layout,
+    );
+
+    this.drawFooter(
+      document,
+      data,
+      issuer,
+      layout.margin,
+      contentWidth,
+      footerStartY,
+      pageHeight,
+      layout,
+    );
+  }
+
+  private drawPageDetailsSection(
+    document: PDFKit.PDFDocument,
+    data: BillingDocumentPdfData,
+    issuer: FooterIssuer,
+    headerVariant: HeaderVariant,
+    layout: LayoutConfig,
+  ): number {
+    const pageWidth = document.page.width;
+    const contentWidth = pageWidth - layout.margin * 2;
+    const detailColumns = this.resolveDetailColumns(contentWidth, layout);
+
+    let cursorY = this.drawHeader(
+      document,
+      layout.topPadding,
       pageWidth,
       issuer,
       data,
@@ -378,28 +425,8 @@ export class BillingDocumentsService {
 
     cursorY = Math.max(leftBottom, rightBottom) + layout.detailGap;
     this.drawDivider(document, layout.margin, pageWidth - layout.margin, cursorY);
-    cursorY += layout.detailGap;
 
-    cursorY = this.drawItemsTable(
-      document,
-      data,
-      layout.margin,
-      contentWidth,
-      cursorY,
-      layout,
-    );
-
-    cursorY += layout.footerTopGap;
-    this.drawFooter(
-      document,
-      data,
-      issuer,
-      layout.margin,
-      contentWidth,
-      cursorY,
-      pageHeight,
-      layout,
-    );
+    return cursorY + layout.detailGap;
   }
 
   private resolveLayout(
@@ -412,14 +439,13 @@ export class BillingDocumentsService {
     const pageHeight = document.page.height;
 
     for (const preset of LAYOUT_PRESETS) {
-      const estimatedHeight = this.estimateDocumentHeight(
+      const estimatedHeight = this.estimateMinimumPageHeight(
         document,
         data,
         issuer,
         headerVariant,
         preset,
         pageWidth,
-        pageHeight,
       );
 
       if (estimatedHeight <= pageHeight - preset.footerBottomGap) {
@@ -430,14 +456,13 @@ export class BillingDocumentsService {
     return LAYOUT_PRESETS[LAYOUT_PRESETS.length - 1];
   }
 
-  private estimateDocumentHeight(
+  private estimateMinimumPageHeight(
     document: PDFKit.PDFDocument,
     data: BillingDocumentPdfData,
     issuer: FooterIssuer,
     headerVariant: HeaderVariant,
     layout: LayoutConfig,
     pageWidth: number,
-    pageHeight: number,
   ): number {
     const contentWidth = pageWidth - layout.margin * 2;
     const detailColumns = this.resolveDetailColumns(contentWidth, layout);
@@ -454,13 +479,13 @@ export class BillingDocumentsService {
       this.measureIssuerDetailsHeight(document, issuer, detailColumns.leftWidth, layout),
       this.measureBillToDetailsHeight(document, data, detailColumns.rightWidth, layout),
     );
-    const tableHeight = this.measureItemsTableHeight(
+    const largestRowHeight = this.measureLargestLineItemRowHeight(
       document,
       data,
       contentWidth,
       layout,
     );
-    const footerHeight = this.measureFooterHeight(document, data, layout, pageHeight);
+    const footerHeight = this.measureFooterReservedHeight(document, data, layout);
 
     return (
       layout.topPadding +
@@ -472,7 +497,9 @@ export class BillingDocumentsService {
       layout.detailGap +
       1 +
       layout.detailGap +
-      tableHeight +
+      layout.tableHeaderHeight +
+      largestRowHeight +
+      layout.totalRowHeight +
       layout.footerTopGap +
       footerHeight
     );
@@ -490,6 +517,13 @@ export class BillingDocumentsService {
     const contentWidth = pageWidth - layout.margin * 2;
     const leftWidth = contentWidth - layout.metaWidth - 18;
     const metaX = pageWidth - layout.margin - layout.metaWidth;
+    const documentNumber = data.documentNumber || 'Draft';
+    const documentNumberSize = this.resolveDocumentNumberFontSize(
+      document,
+      documentNumber,
+      layout.metaWidth,
+      layout.documentNumberSize,
+    );
     const hasLogo = Boolean(
       issuer.logoFilePath && existsSync(issuer.logoFilePath),
     );
@@ -534,14 +568,14 @@ export class BillingDocumentsService {
 
     document
       .font('Helvetica-Bold')
-      .fontSize(layout.documentNumberSize)
+      .fontSize(documentNumberSize)
       .fillColor(BRAND_COLOR)
-      .text(data.documentNumber || 'Draft', metaX, metaY, {
+      .text(documentNumber, metaX, metaY, {
         width: layout.metaWidth,
         align: 'right',
       });
 
-    metaY += layout.documentNumberSize + 4;
+    metaY += documentNumberSize + 4;
 
     document
       .font('Helvetica-Bold')
@@ -673,14 +707,20 @@ export class BillingDocumentsService {
       ],
       layout,
     });
-    cursorY = this.drawIconTextBlock(document, {
-      x,
-      y: cursorY + layout.detailBlockGap,
-      width,
-      icon: 'person',
-      lines: [this.resolveCustomerContact(data)],
-      layout,
+
+    const customerContactBlocks = this.buildCustomerContactBlocks(data);
+
+    customerContactBlocks.forEach((block) => {
+      cursorY = this.drawIconTextBlock(document, {
+        x,
+        y: cursorY + layout.detailBlockGap,
+        width,
+        icon: block.icon,
+        lines: block.lines,
+        layout,
+      });
     });
+
     cursorY = this.drawIconTextBlock(document, {
       x,
       y: cursorY + layout.detailBlockGap,
@@ -699,35 +739,29 @@ export class BillingDocumentsService {
   private drawItemsTable(
     document: PDFKit.PDFDocument,
     data: BillingDocumentPdfData,
+    issuer: FooterIssuer,
+    headerVariant: HeaderVariant,
     x: number,
     contentWidth: number,
     startY: number,
+    pageHeight: number,
     layout: LayoutConfig,
   ): number {
     const columns = this.resolveTableColumns(contentWidth);
     const positions = this.resolveColumnPositions(x, columns);
-    let cursorY = startY;
-
-    columns.forEach((column, index) => {
-      this.drawTableCell(
-        document,
-        positions[index],
-        cursorY,
-        column.width,
-        layout.tableHeaderHeight,
-        '#FFFFFF',
-      );
-      document
-        .font('Helvetica-Bold')
-        .fontSize(layout.tableHeaderFontSize)
-        .fillColor(BRAND_COLOR)
-        .text(column.label, positions[index] + layout.tableCellPaddingX, cursorY + 7, {
-          width: column.width - layout.tableCellPaddingX * 2,
-          align: column.align,
-        });
-    });
-
-    cursorY += layout.tableHeaderHeight;
+    const pageLimitY = pageHeight - layout.margin;
+    const footerReservedHeight = this.measureFooterReservedHeight(
+      document,
+      data,
+      layout,
+    );
+    let cursorY = this.drawTableHeaderRow(
+      document,
+      columns,
+      positions,
+      startY,
+      layout,
+    );
 
     data.lineItems.forEach((lineItem, index) => {
       const rowHeight = this.measureLineItemRowHeight(
@@ -738,6 +772,32 @@ export class BillingDocumentsService {
         layout,
       );
       const fillColor = index % 2 === 0 ? ALT_ROW : '#FFFFFF';
+      const isLastLineItem = index === data.lineItems.length - 1;
+      const reservedAfterRow = isLastLineItem
+        ? layout.totalRowHeight + layout.footerTopGap + footerReservedHeight
+        : 0;
+
+      if (cursorY + rowHeight + reservedAfterRow > pageLimitY) {
+        document.addPage({
+          margin: 0,
+          size: 'A4',
+        });
+
+        cursorY = this.drawPageDetailsSection(
+          document,
+          data,
+          issuer,
+          headerVariant,
+          layout,
+        );
+        cursorY = this.drawTableHeaderRow(
+          document,
+          columns,
+          positions,
+          cursorY,
+          layout,
+        );
+      }
 
       columns.forEach((column, columnIndex) => {
         this.drawTableCell(
@@ -769,15 +829,6 @@ export class BillingDocumentsService {
         .text((lineItem.productServiceName || 'UNTITLED ITEM').toUpperCase(), positions[1] + layout.tableCellPaddingX, productTextY, {
           width: productWidth,
         });
-
-      const productNameHeight = this.measureTextHeight(
-        document,
-        (lineItem.productServiceName || 'UNTITLED ITEM').toUpperCase(),
-        productWidth,
-        'Helvetica-Bold',
-        layout.tableBodyFontSize,
-        layout.detailLineGap,
-      );
 
       document
         .font('Helvetica')
@@ -847,6 +898,75 @@ export class BillingDocumentsService {
       cursorY += rowHeight;
     });
 
+    if (cursorY + layout.totalRowHeight + layout.footerTopGap + footerReservedHeight > pageLimitY) {
+      document.addPage({
+        margin: 0,
+        size: 'A4',
+      });
+
+      cursorY = this.drawPageDetailsSection(
+        document,
+        data,
+        issuer,
+        headerVariant,
+        layout,
+      );
+      cursorY = this.drawTableHeaderRow(
+        document,
+        columns,
+        positions,
+        cursorY,
+        layout,
+      );
+    }
+
+    return this.drawTableTotalRow(
+      document,
+      data,
+      columns,
+      positions,
+      cursorY,
+      layout,
+    );
+  }
+
+  private drawTableHeaderRow(
+    document: PDFKit.PDFDocument,
+    columns: TableColumn[],
+    positions: number[],
+    y: number,
+    layout: LayoutConfig,
+  ): number {
+    columns.forEach((column, index) => {
+      this.drawTableCell(
+        document,
+        positions[index],
+        y,
+        column.width,
+        layout.tableHeaderHeight,
+        '#FFFFFF',
+      );
+      document
+        .font('Helvetica-Bold')
+        .fontSize(layout.tableHeaderFontSize)
+        .fillColor(BRAND_COLOR)
+        .text(column.label, positions[index] + layout.tableCellPaddingX, y + 7, {
+          width: column.width - layout.tableCellPaddingX * 2,
+          align: column.align,
+        });
+    });
+
+    return y + layout.tableHeaderHeight;
+  }
+
+  private drawTableTotalRow(
+    document: PDFKit.PDFDocument,
+    data: BillingDocumentPdfData,
+    columns: TableColumn[],
+    positions: number[],
+    y: number,
+    layout: LayoutConfig,
+  ): number {
     const totalRowValues = [
       '',
       'TOTAL',
@@ -863,7 +983,7 @@ export class BillingDocumentsService {
       this.drawTableCell(
         document,
         positions[index],
-        cursorY,
+        y,
         column.width,
         layout.totalRowHeight,
         '#FFFFFF',
@@ -877,13 +997,13 @@ export class BillingDocumentsService {
         .font('Helvetica-Bold')
         .fontSize(layout.tableBodyFontSize + 0.2)
         .fillColor(BRAND_COLOR)
-        .text(totalRowValues[index], positions[index] + layout.tableCellPaddingX, cursorY + 4.5, {
+        .text(totalRowValues[index], positions[index] + layout.tableCellPaddingX, y + 4.5, {
           width: column.width - layout.tableCellPaddingX * 2,
           align: index === 1 ? 'center' : column.align,
         });
     });
 
-    return cursorY + layout.totalRowHeight;
+    return y + layout.totalRowHeight;
   }
 
   private drawFooter(
@@ -899,12 +1019,22 @@ export class BillingDocumentsService {
     const leftWidth = contentWidth - 220;
     const rightWidth = 210;
     const rightX = x + contentWidth - rightWidth;
+    const amountWordsText = this.buildAmountWordsText(data);
+    const amountWordsHeight = this.measureTextHeight(
+      document,
+      amountWordsText,
+      leftWidth,
+      'Helvetica',
+      layout.amountWordsSize,
+      0,
+    );
+    const signatoryY = startY + amountWordsHeight + 6;
 
     document
       .font('Helvetica')
       .fontSize(layout.amountWordsSize)
       .fillColor(BODY_TEXT)
-      .text(`Total: Rs. ${this.amountToWords(data.totalAmount)}`, x, startY, {
+      .text(amountWordsText, x, startY, {
         width: leftWidth,
       });
 
@@ -912,14 +1042,14 @@ export class BillingDocumentsService {
       .font('Helvetica-Bold')
       .fontSize(layout.signatoryLabelSize)
       .fillColor(BRAND_COLOR)
-      .text('AUTHORIZED SIGNATORY', x, startY + layout.amountWordsSize + 5, {
+      .text('AUTHORIZED SIGNATORY', x, signatoryY, {
         width: leftWidth,
       });
 
     this.drawSignatureAssets(
       document,
       x,
-      startY + layout.amountWordsSize + layout.signatoryLabelSize + 10,
+      signatoryY + layout.signatoryLabelSize + 8,
       issuer,
       layout,
     );
@@ -1286,6 +1416,12 @@ export class BillingDocumentsService {
     layout: LayoutConfig,
   ): number {
     const leftWidth = contentWidth - layout.metaWidth - 18;
+    const documentNumberSize = this.resolveDocumentNumberFontSize(
+      document,
+      data.documentNumber || 'Draft',
+      layout.metaWidth,
+      layout.documentNumberSize,
+    );
     const hasLogo = Boolean(
       issuer.logoFilePath && existsSync(issuer.logoFilePath),
     );
@@ -1307,7 +1443,7 @@ export class BillingDocumentsService {
       rightHeight += layout.metaLabelSize + 4;
     }
 
-    rightHeight += layout.documentNumberSize + 4;
+    rightHeight += documentNumberSize + 4;
     rightHeight += layout.dateSize + 3;
 
     if (data.validUntil) {
@@ -1315,6 +1451,23 @@ export class BillingDocumentsService {
     }
 
     return Math.max(leftHeight, rightHeight) + layout.headerGap;
+  }
+
+  private resolveDocumentNumberFontSize(
+    document: PDFKit.PDFDocument,
+    documentNumber: string,
+    width: number,
+    preferredFontSize: number,
+  ): number {
+    for (let fontSize = preferredFontSize; fontSize >= 16; fontSize -= 1) {
+      document.font('Helvetica-Bold').fontSize(fontSize);
+
+      if (document.widthOfString(documentNumber) <= width) {
+        return fontSize;
+      }
+    }
+
+    return 16;
   }
 
   private measureIssuerDetailsHeight(
@@ -1377,7 +1530,7 @@ export class BillingDocumentsService {
         this.resolveCustomerBranch(data),
         this.resolveCustomerAddress(data),
       ],
-      [this.resolveCustomerContact(data)],
+      ...this.buildCustomerContactBlocks(data).map((block) => block.lines),
       [
         `Place of Supply: ${data.customer.placeOfSupply || '-'}`,
         `GSTIN: ${data.customer.gstin || '-'}`,
@@ -1393,6 +1546,37 @@ export class BillingDocumentsService {
     });
 
     return height;
+  }
+
+  private buildCustomerContactBlocks(
+    data: BillingDocumentPdfData,
+  ): Array<{ icon: IconType; lines: string[] }> {
+    const phone = data.customer.phone?.trim();
+    const email = data.customer.email?.trim();
+    const blocks: Array<{ icon: IconType; lines: string[] }> = [];
+
+    if (phone) {
+      blocks.push({
+        icon: 'phone',
+        lines: [phone],
+      });
+    }
+
+    if (email) {
+      blocks.push({
+        icon: 'email',
+        lines: [email],
+      });
+    }
+
+    if (!blocks.length) {
+      blocks.push({
+        icon: 'person',
+        lines: [data.customer.name || 'Contact Person'],
+      });
+    }
+
+    return blocks;
   }
 
   private measureItemsTableHeight(
@@ -1418,6 +1602,31 @@ export class BillingDocumentsService {
     height += layout.totalRowHeight;
 
     return height;
+  }
+
+  private measureLargestLineItemRowHeight(
+    document: PDFKit.PDFDocument,
+    data: BillingDocumentPdfData,
+    contentWidth: number,
+    layout: LayoutConfig,
+  ): number {
+    if (!data.lineItems.length) {
+      return layout.minRowHeight;
+    }
+
+    const columns = this.resolveTableColumns(contentWidth);
+
+    return data.lineItems.reduce((largestHeight, lineItem) => {
+      const currentHeight = this.measureLineItemRowHeight(
+        document,
+        lineItem,
+        columns[1].width,
+        columns[2].width,
+        layout,
+      );
+
+      return Math.max(largestHeight, currentHeight);
+    }, layout.minRowHeight);
   }
 
   private measureLineItemRowHeight(
@@ -1492,27 +1701,65 @@ export class BillingDocumentsService {
     return sanitized || 'document';
   }
 
-  private measureFooterHeight(
+  private measureFooterContentHeight(
     document: PDFKit.PDFDocument,
     data: BillingDocumentPdfData,
     layout: LayoutConfig,
-    pageHeight: number,
   ): number {
     const rightBlockHeight = layout.totalsRowGap * 4 + layout.totalsFontSize + 4;
     const leftBlockHeight =
       this.measureTextHeight(
         document,
-        `Total: Rs. ${this.amountToWords(data.totalAmount)}`,
-        300,
+        this.buildAmountWordsText(data),
+        this.resolveFooterLeftWidth(document, layout),
         'Helvetica',
         layout.amountWordsSize,
         0,
       ) +
+      6 +
       layout.signatoryLabelSize +
-      12 +
+      8 +
       layout.signatureHeight;
 
-    return Math.max(leftBlockHeight, rightBlockHeight) + pageHeight * 0;
+    return Math.max(leftBlockHeight, rightBlockHeight);
+  }
+
+  private measureFooterReservedHeight(
+    document: PDFKit.PDFDocument,
+    data: BillingDocumentPdfData,
+    layout: LayoutConfig,
+  ): number {
+    return (
+      this.measureFooterContentHeight(document, data, layout) +
+      layout.footerTextSize +
+      layout.footerBottomGap +
+      4
+    );
+  }
+
+  private resolveFooterStartY(
+    pageHeight: number,
+    footerContentHeight: number,
+    layout: LayoutConfig,
+  ): number {
+    return (
+      pageHeight -
+      layout.footerBottomGap -
+      layout.footerTextSize -
+      4 -
+      footerContentHeight
+    );
+  }
+
+  private buildAmountWordsText(data: BillingDocumentPdfData): string {
+    return `TOTAL IN WORDS: Rs. ${this.amountToWords(data.totalAmount)}`;
+  }
+
+  private resolveFooterLeftWidth(
+    document: PDFKit.PDFDocument,
+    layout: LayoutConfig,
+  ): number {
+    return document.page.width - layout.margin * 2 - 220;
   }
 
   private measureIconBlockHeight(
@@ -1618,10 +1865,6 @@ export class BillingDocumentsService {
 
   private resolveCustomerAddress(data: BillingDocumentPdfData): string {
     return data.customer.address || '-';
-  }
-
-  private resolveCustomerContact(data: BillingDocumentPdfData): string {
-    return data.customer.phone || data.customer.email || data.customer.name || 'Contact Person';
   }
 
   private aggregateTaxRate(lineItems: BillingLineItem[]): number {

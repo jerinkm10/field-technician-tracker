@@ -197,7 +197,7 @@
   [closeOnEscape]="!saving()"
   [draggable]="false"
   [resizable]="false"
-  [style]="{ width: 'min(96vw, 70rem)' }"
+  [style]="{ width: 'min(96vw, 78rem)' }"
   [header]="dialogTitle()"
   (onHide)="closeDialog()">
   <div class="complaint-form">
@@ -207,11 +207,12 @@
         <app-customer-autocomplete
           [selectedCustomer]="draft.selectedCustomer"
           [disabled]="isReadOnly()"
-          (selectedCustomerChange)="applySelectedCustomer($event)">
+          (selectedCustomerChange)="applySelectedCustomer($event)"
+          (createRequested)="openCustomerDialog()">
         </app-customer-autocomplete>
       </label>
 
-      <label class="field">
+      <label class="field field-span-3">
         <span>Contact Person</span>
         <p-select
           [options]="contactPersonOptions"
@@ -223,27 +224,17 @@
         </p-select>
       </label>
 
-      <label class="field">
+      <label class="field field-span-3">
         <span>Phone</span>
         <input pInputText [(ngModel)]="draft.phone" [disabled]="isReadOnly()" />
       </label>
 
-      <label class="field">
+      <label class="field field-span-3">
         <span>Email</span>
         <input pInputText [(ngModel)]="draft.email" [disabled]="isReadOnly()" />
       </label>
 
-      <label class="field">
-        <span>Address</span>
-        <input pInputText [(ngModel)]="draft.address" [disabled]="isReadOnly()" />
-      </label>
-
-      <label class="field">
-        <span>Location</span>
-        <input pInputText [(ngModel)]="draft.location" [disabled]="isReadOnly()" />
-      </label>
-
-      <label class="field">
+      <label class="field field-span-3">
         <span>Status</span>
         <p-select
           [options]="formStatusOptions"
@@ -255,8 +246,21 @@
         </p-select>
       </label>
 
+      <label class="field field-span-6">
+        <span>Address</span>
+        <input pInputText [(ngModel)]="draft.address" [disabled]="isReadOnly()" />
+      </label>
+
+      <label
+        class="field"
+        [class.field-span-3]="canManageAssignments()"
+        [class.field-span-6]="!canManageAssignments()">
+        <span>Location</span>
+        <input pInputText [(ngModel)]="draft.location" [disabled]="isReadOnly()" />
+      </label>
+
       @if (canManageAssignments()) {
-        <label class="field">
+        <label class="field field-span-3">
           <span>Assigned Employee</span>
           <p-select
             [options]="employeeOptions()"
@@ -269,17 +273,17 @@
         </label>
       }
 
-      <label class="field" [class.field-span-2]="!canManageAssignments()">
+      <label class="field field-span-full">
         <span>Complaint Title</span>
         <input pInputText [(ngModel)]="draft.complaintTitle" [disabled]="isReadOnly()" />
       </label>
 
-      <label class="field field-span-2">
+      <label class="field field-span-7">
         <span>Complaint Description</span>
         <textarea rows="5" [(ngModel)]="draft.complaintDescription" [disabled]="isReadOnly()"></textarea>
       </label>
 
-      <label class="field field-span-2">
+      <label class="field field-span-5">
         <span>Notes</span>
         <textarea rows="4" [(ngModel)]="draft.notes" [disabled]="isReadOnly()"></textarea>
       </label>
@@ -310,3 +314,12 @@
     </div>
   </ng-template>
 </p-dialog>
+
+<app-customer-form-dialog
+  [visible]="customerDialogVisible()"
+  [saving]="customerDialogSaving()"
+  mode="create"
+  [customer]="customerDialogSeed()"
+  (cancel)="closeCustomerDialog()"
+  (save)="createCustomer($event)">
+</app-customer-form-dialog>

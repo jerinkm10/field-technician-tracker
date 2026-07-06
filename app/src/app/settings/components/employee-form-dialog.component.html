@@ -6,32 +6,32 @@
   [closeOnEscape]="!saving"
   [draggable]="false"
   [resizable]="false"
-  [style]="{ width: 'min(92vw, 48rem)' }"
+  [style]="{ width: 'min(96vw, 58rem)' }"
   [header]="dialogTitle()"
   (onHide)="handleHide()">
   <div class="employee-form">
     <div class="field-grid">
-      <label class="field">
+      <label class="field field-span-6">
         <span>Name</span>
         <input pInputText [(ngModel)]="draft.name" [disabled]="isReadOnly()" />
       </label>
 
-      <label class="field">
+      <label class="field field-span-3">
         <span>Username</span>
         <input pInputText [(ngModel)]="draft.username" [disabled]="isReadOnly()" />
       </label>
 
-      <label class="field">
+      <label class="field field-span-3">
         <span>Phone</span>
         <input pInputText [(ngModel)]="draft.phone" [disabled]="isReadOnly()" />
       </label>
 
-      <label class="field">
+      <label class="field field-span-6">
         <span>Email (Optional)</span>
         <input pInputText type="email" [(ngModel)]="draft.email" [disabled]="isReadOnly()" />
       </label>
 
-      <label class="field">
+      <label class="field field-span-3">
         <span>Role</span>
         <p-select
           [options]="roleOptions"
@@ -43,7 +43,7 @@
         </p-select>
       </label>
 
-      <label class="field">
+      <label class="field field-span-3">
         <span>Status</span>
         <p-select
           [options]="statusOptions"
@@ -56,23 +56,56 @@
       </label>
     </div>
 
-    @if (!isReadOnly()) {
-      <label class="field">
-        <span>{{ mode === 'edit' ? 'New Password (Optional)' : 'Password' }}</span>
-        <input
-          pInputText
-          type="password"
-          [(ngModel)]="draft.password"
-          [disabled]="isReadOnly()"
-          placeholder="{{ mode === 'edit' ? 'Leave blank to keep current password' : 'Minimum 8 characters' }}" />
-        <small class="helper-text">
-          {{
-            mode === 'edit'
-              ? 'Leave the password empty if the employee should keep the current password.'
-              : 'Passwords are stored as bcrypt hashes in the backend.'
-          }}
-        </small>
-      </label>
+    @if (isReadOnly()) {
+      <section class="password-panel password-panel--readonly">
+        <div class="password-panel-copy">
+          <span class="password-kicker">Admin only</span>
+          <h4>Password security</h4>
+          <p>
+            Current employee passwords cannot be viewed. They are stored as bcrypt hashes in the backend
+            and can only be replaced by setting a new password in Edit Employee.
+          </p>
+        </div>
+      </section>
+    } @else {
+      <section class="password-panel">
+        <div class="password-panel-copy">
+          <span class="password-kicker">Admin only</span>
+          <h4>{{ mode === 'edit' ? 'Reset password' : 'Set initial password' }}</h4>
+          <p>
+            {{
+              mode === 'edit'
+                ? 'Leave the password empty to keep the current one, or set a new one for this employee.'
+                : 'Create the first sign-in password here. After save, only admins can reset it later.'
+            }}
+          </p>
+        </div>
+
+        <label class="field password-field">
+          <span>{{ passwordFieldLabel() }}</span>
+
+          <div class="password-input-shell">
+            <input
+              pInputText
+              [type]="passwordInputType()"
+              [(ngModel)]="draft.password"
+              [disabled]="isReadOnly()"
+              [placeholder]="passwordPlaceholder()" />
+
+            <button
+              pButton
+              type="button"
+              text
+              class="password-toggle"
+              [label]="passwordToggleLabel()"
+              [icon]="passwordVisible ? 'pi pi-eye-slash' : 'pi pi-eye'"
+              (click)="togglePasswordVisibility()">
+            </button>
+          </div>
+
+          <small class="helper-text">{{ passwordHelperText() }}</small>
+        </label>
+      </section>
     }
   </div>
 

@@ -122,44 +122,85 @@
   [closeOnEscape]="true"
   [draggable]="false"
   [resizable]="false"
-  [style]="{ width: 'min(94vw, 40rem)' }"
+  styleClass="notifications-dialog-panel"
+  [style]="{ width: 'min(94vw, 46rem)' }"
   header="Notifications"
   (onHide)="closeNotifications()">
-  <div class="dialog-actions inline-actions">
-    <button
-      pButton
-      type="button"
-      text
-      label="Mark All Read"
-      [disabled]="unreadNotifications() === 0"
-      (click)="markAllNotificationsRead()">
-    </button>
-  </div>
+  <div class="notifications-dialog">
+    <div class="notifications-toolbar">
+      <div class="notifications-summary">
+        <span class="notifications-kicker">Inbox</span>
+        <h3>Recent activity</h3>
+        <p>{{ notificationsSummaryLabel() }}</p>
+      </div>
 
-  @if (notificationsLoading()) {
-    <p class="muted-text">Loading notifications...</p>
-  } @else if (notifications().length === 0) {
-    <p class="muted-text">No notifications available right now.</p>
-  } @else {
-    <div class="alert-list">
-      @for (notification of notifications(); track notification.id) {
+      <div class="notifications-toolbar-actions">
+        <span class="notifications-count-pill">{{ unreadNotifications() }} unread</span>
         <button
+          pButton
           type="button"
-          class="alert-row notification-row"
-          [class.is-read]="notification.isRead"
-          (click)="markNotificationRead(notification)">
-          <div>
-            <strong>{{ notification.title }}</strong>
-            <p>{{ notification.message }}</p>
-          </div>
-          <div class="alert-meta">
-            @if (!notification.isRead) {
-              <p-tag severity="info" value="Unread"></p-tag>
-            }
-            <span>{{ notification.createdAt | date: 'dd MMM yyyy, hh:mm a' }}</span>
-          </div>
+          text
+          label="Mark All Read"
+          [disabled]="unreadNotifications() === 0"
+          (click)="markAllNotificationsRead()">
         </button>
-      }
+      </div>
     </div>
-  }
+
+    @if (notificationsLoading()) {
+      <section class="notification-state-card">
+        <div class="notification-state-icon">
+          <i class="pi pi-spin pi-spinner"></i>
+        </div>
+        <div>
+          <h4>Loading notifications</h4>
+          <p class="muted-text">Pulling the latest updates from leads, tasks, AMC, jobs, and complaints.</p>
+        </div>
+      </section>
+    } @else if (notifications().length === 0) {
+      <section class="notification-state-card">
+        <div class="notification-state-icon">
+          <i class="pi pi-inbox"></i>
+        </div>
+        <div>
+          <h4>All caught up</h4>
+          <p class="muted-text">No notifications are available right now.</p>
+        </div>
+      </section>
+    } @else {
+      <div class="notifications-list">
+        @for (notification of notifications(); track notification.id) {
+          <button
+            type="button"
+            class="notification-card"
+            [class.is-read]="notification.isRead"
+            (click)="markNotificationRead(notification)">
+            <div class="notification-icon-shell" [attr.data-tone]="notificationTone(notification.referenceType)">
+              <i [class]="notificationIcon(notification.referenceType)"></i>
+            </div>
+
+            <div class="notification-card-body">
+              <div class="notification-card-header">
+                <div class="notification-card-copy">
+                  <div class="notification-chip-row">
+                    <span class="notification-type-pill" [attr.data-tone]="notificationTone(notification.referenceType)">
+                      {{ notificationTypeLabel(notification.referenceType) }}
+                    </span>
+                    <span class="notification-status-pill" [class.is-read]="notification.isRead">
+                      {{ notification.isRead ? 'Read' : 'Unread' }}
+                    </span>
+                  </div>
+                  <strong>{{ notification.title }}</strong>
+                </div>
+
+                <span class="notification-date">{{ notification.createdAt | date: 'dd MMM yyyy, hh:mm a' }}</span>
+              </div>
+
+              <p>{{ notification.message }}</p>
+            </div>
+          </button>
+        }
+      </div>
+    }
+  </div>
 </p-dialog>

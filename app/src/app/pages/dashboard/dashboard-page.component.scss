@@ -147,26 +147,220 @@
   font-size: 0.88rem;
 }
 
-.technician-status-grid {
+.performance-shell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at top right, rgba(24, 76, 105, 0.14), transparent 28%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(241, 247, 250, 0.92));
+}
+
+.performance-shell > * {
+  position: relative;
+  z-index: 1;
+}
+
+.performance-summary {
   display: grid;
   gap: 1rem;
-  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+}
+
+.summary-card {
+  position: relative;
+  display: flex;
+  min-height: 8.5rem;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 1rem 1.05rem;
+  border: 1px solid rgba(24, 76, 105, 0.1);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(242, 248, 250, 0.92));
+  box-shadow: 0 14px 32px rgba(22, 45, 67, 0.08);
+}
+
+.summary-card::after {
+  position: absolute;
+  right: 1rem;
+  bottom: 0.95rem;
+  left: 1rem;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--ftt-brand-deep), var(--ftt-brand));
+  content: '';
+}
+
+.summary-card strong {
+  font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+  font-size: 1.65rem;
+  line-height: 1.1;
+  color: var(--ftt-text);
+}
+
+.summary-card span {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ftt-brand-deep);
+}
+
+.summary-card small,
+.table-title-cell span,
+.chart-card p,
+.chart-copy small,
+.employee-performance-stats span,
+.employee-performance-meta span,
+.progress-copy span,
+.muted-text {
+  color: var(--ftt-muted);
+}
+
+.chart-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  align-items: stretch;
+}
+
+.chart-card {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.15rem;
+  border: 1px solid rgba(24, 76, 105, 0.1);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.84);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.chart-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.chart-card-header h4 {
+  margin: 0 0 0.2rem;
+  font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+  color: var(--ftt-text);
+}
+
+.chart-card-header p {
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+.chart-total {
+  font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+  font-size: 1.05rem;
+  color: var(--ftt-brand-deep);
+  text-align: right;
+}
+
+.chart-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.chart-row {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: minmax(0, 1fr) minmax(6rem, 1.35fr);
+  align-items: center;
+}
+
+.chart-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.18rem;
+}
+
+.chart-copy span {
+  font-weight: 700;
+  color: var(--ftt-text);
+}
+
+.chart-bar,
+.progress-track {
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(24, 76, 105, 0.12);
+}
+
+.chart-bar {
+  height: 0.62rem;
+}
+
+.chart-fill,
+.progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--ftt-brand-deep), var(--ftt-brand));
+}
+
+.availability-card {
+  justify-content: space-between;
+}
+
+.technician-status-grid {
+  display: grid;
+  gap: 0.85rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.availability-summary-card {
+  min-height: auto;
+  padding: 0.95rem;
+}
+
+.availability-summary-card strong {
+  font-size: 1.35rem;
+}
+
+.availability-summary-card::after {
+  bottom: 0.8rem;
+}
+
+.table-title-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
 }
 
 .employee-performance-grid {
   display: grid;
   gap: 1rem;
-  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(23rem, 1fr));
 }
 
 .employee-performance-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  padding: 1.1rem;
-  border: 1px solid rgba(22, 45, 67, 0.08);
-  border-radius: var(--ftt-radius-md);
-  background: rgba(255, 255, 255, 0.56);
+  padding: 1.15rem;
+  border: 1px solid rgba(24, 76, 105, 0.1);
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.95), rgba(242, 247, 250, 0.9));
+  box-shadow: 0 18px 34px rgba(22, 45, 67, 0.08);
+}
+
+.employee-performance-card::before {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 4px;
+  border-radius: 22px 22px 0 0;
+  background: linear-gradient(90deg, var(--ftt-brand-deep), var(--ftt-brand));
+  content: '';
 }
 
 .employee-performance-header {
@@ -176,33 +370,137 @@
   gap: 1rem;
 }
 
-.employee-performance-stats {
+.employee-identity {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.employee-avatar {
   display: grid;
-  gap: 0.8rem 1rem;
+  width: 3rem;
+  height: 3rem;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(24, 76, 105, 0.14), rgba(31, 122, 109, 0.24));
+  font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ftt-brand-deep);
+}
+
+.employee-performance-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.employee-highlight-grid {
+  display: grid;
+  gap: 0.75rem;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.employee-highlight-card,
 .employee-performance-stats div,
-.employee-performance-meta {
-  display: flex;
-  flex-direction: column;
+.progress-card,
+.employee-performance-meta span {
+  border: 1px solid rgba(24, 76, 105, 0.08);
+  border-radius: 16px;
 }
 
+.employee-highlight-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.9rem;
+  background: rgba(238, 245, 248, 0.92);
+}
+
+.employee-highlight-card span,
 .employee-performance-stats span,
-.employee-performance-meta span {
-  color: var(--ftt-muted);
-  font-size: 0.9rem;
+.progress-copy span {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.employee-highlight-card strong,
+.employee-performance-stats strong,
+.progress-copy strong {
+  font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+  color: var(--ftt-text);
+}
+
+.employee-highlight-card strong {
+  font-size: 1.05rem;
+}
+
+.employee-performance-stats {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.employee-performance-stats div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.85rem 0.9rem;
+  background: rgba(255, 255, 255, 0.82);
 }
 
 .employee-performance-stats strong {
-  font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
   font-size: 1rem;
 }
 
+.employee-progress-grid {
+  display: grid;
+  gap: 0.8rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.progress-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.9rem;
+  background: rgba(238, 245, 248, 0.9);
+}
+
+.progress-copy {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.progress-copy strong {
+  font-size: 1rem;
+  color: var(--ftt-brand-deep);
+}
+
+.progress-track {
+  height: 0.58rem;
+}
+
 .employee-performance-meta {
-  gap: 0.35rem;
-  padding-top: 0.9rem;
-  border-top: 1px solid rgba(22, 45, 67, 0.08);
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.employee-performance-meta span {
+  display: flex;
+  align-items: center;
+  padding: 0.85rem 0.9rem;
+  background: rgba(255, 255, 255, 0.78);
+  font-size: 0.9rem;
+  line-height: 1.5;
 }
 
 @media (max-width: 960px) {
@@ -223,11 +521,57 @@
     text-align: left;
   }
 
-  .employee-performance-stats {
+  .chart-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .technician-status-grid,
+  .employee-performance-stats,
+  .employee-performance-meta {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .employee-progress-grid {
     grid-template-columns: 1fr;
   }
 
-  .employee-performance-header {
+  .employee-performance-badges {
+    justify-content: flex-start;
+  }
+
+  .employee-performance-stats {
+    gap: 0.75rem;
+  }
+}
+
+@media (max-width: 720px) {
+  .performance-shell .section-header,
+  .employee-performance-header,
+  .employee-identity,
+  .progress-copy {
     flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .performance-summary,
+  .chart-grid,
+  .technician-status-grid,
+  .employee-highlight-grid,
+  .employee-performance-stats,
+  .employee-progress-grid,
+  .employee-performance-meta {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-card {
+    min-height: auto;
+  }
+
+  .chart-row {
+    grid-template-columns: 1fr;
+  }
+
+  .chart-total {
+    text-align: left;
   }
 }

@@ -22,7 +22,10 @@ import { appSettings } from '../core/config/app.settings';
 import { AuthService } from '../core/services/auth.service';
 import { NotificationsApiService } from '../core/services/notifications-api.service';
 import { RealtimeService } from '../core/services/realtime.service';
-import { NotificationRecord } from '../shared/models/billing.models';
+import {
+  NotificationRecord,
+  NotificationReferenceType,
+} from '../shared/models/billing.models';
 
 type NavigationItem = {
   readonly label: string;
@@ -287,6 +290,78 @@ export class AdminShellComponent {
   protected notificationsLabel(): string {
     const unread = this.unreadNotifications();
     return unread > 0 ? `Notifications (${unread})` : 'Notifications';
+  }
+
+  protected notificationsSummaryLabel(): string {
+    const total = this.notifications().length;
+    const unread = this.unreadNotifications();
+
+    if (total === 0) {
+      return 'No recent updates are waiting in your inbox.';
+    }
+
+    if (unread === 0) {
+      return `${total} update(s) available. Everything has already been reviewed.`;
+    }
+
+    return `${total} update(s) available with ${unread} unread item(s) needing attention.`;
+  }
+
+  protected notificationTypeLabel(referenceType: NotificationReferenceType): string {
+    switch (referenceType) {
+      case 'AMC':
+        return 'AMC';
+      case 'COMPLAINT':
+        return 'Complaint';
+      case 'JOB':
+        return 'Job';
+      case 'LEAD':
+        return 'Lead';
+      case 'OUTSTANDING':
+        return 'Outstanding';
+      case 'TASK':
+        return 'Task';
+      default:
+        return 'Update';
+    }
+  }
+
+  protected notificationTone(
+    referenceType: NotificationReferenceType,
+  ): 'teal' | 'blue' | 'amber' | 'rose' | 'slate' {
+    switch (referenceType) {
+      case 'AMC':
+        return 'blue';
+      case 'COMPLAINT':
+        return 'rose';
+      case 'JOB':
+        return 'teal';
+      case 'LEAD':
+        return 'amber';
+      case 'OUTSTANDING':
+        return 'slate';
+      case 'TASK':
+      default:
+        return 'blue';
+    }
+  }
+
+  protected notificationIcon(referenceType: NotificationReferenceType): string {
+    switch (referenceType) {
+      case 'AMC':
+        return 'pi pi-calendar';
+      case 'COMPLAINT':
+        return 'pi pi-exclamation-circle';
+      case 'JOB':
+        return 'pi pi-briefcase';
+      case 'LEAD':
+        return 'pi pi-megaphone';
+      case 'OUTSTANDING':
+        return 'pi pi-wallet';
+      case 'TASK':
+      default:
+        return 'pi pi-list-check';
+    }
   }
 
   protected shellTitle(): string {

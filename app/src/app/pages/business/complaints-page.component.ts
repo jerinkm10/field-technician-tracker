@@ -14,10 +14,12 @@ import { SelectModule } from 'primeng/select';
 import { TagModule } from 'primeng/tag';
 
 import { CustomerAutocompleteComponent } from '../../invoice/components/customer-autocomplete.component';
+import { CustomerFormDialogComponent } from '../../invoice/components/customer-form-dialog.component';
 import { DataTableWithActionsComponent } from '../../invoice/components/data-table-with-actions.component';
 import { FilterDropdownComponent } from '../../invoice/components/filter-dropdown.component';
 import { AuthService } from '../../core/services/auth.service';
 import { ComplaintsApiService } from '../../core/services/complaints-api.service';
+import { CustomersApiService } from '../../core/services/customers-api.service';
 import { EmployeesApiService } from '../../core/services/employees-api.service';
 import { UiFeedbackService } from '../../core/services/ui-feedback.service';
 import {
@@ -26,6 +28,7 @@ import {
   ComplaintStatus,
   ComplaintUpsertPayload,
   CustomerRecord,
+  CustomerUpsertPayload,
   EmployeeRecord,
 } from '../../shared/models/billing.models';
 
@@ -45,6 +48,7 @@ type ComplaintDraft = ComplaintUpsertPayload & {
   imports: [
     ButtonModule,
     CustomerAutocompleteComponent,
+    CustomerFormDialogComponent,
     DataTableWithActionsComponent,
     DatePipe,
     DialogModule,
@@ -60,6 +64,7 @@ type ComplaintDraft = ComplaintUpsertPayload & {
 })
 export class ComplaintsPageComponent {
   private readonly complaintsApiService = inject(ComplaintsApiService);
+  private readonly customersApiService = inject(CustomersApiService);
   private readonly employeesApiService = inject(EmployeesApiService);
   private readonly uiFeedback = inject(UiFeedbackService);
   private readonly activatedRoute = inject(ActivatedRoute);
@@ -70,6 +75,9 @@ export class ComplaintsPageComponent {
   protected readonly loading = signal(false);
   protected readonly saving = signal(false);
   protected readonly dialogVisible = signal(false);
+  protected readonly customerDialogVisible = signal(false);
+  protected readonly customerDialogSaving = signal(false);
+  protected readonly customerDialogSeed = signal<CustomerRecord | null>(null);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly page = signal(1);
   protected readonly totalPages = signal(1);
@@ -166,6 +174,7 @@ export class ComplaintsPageComponent {
 
   protected closeDialog(): void {
     this.dialogVisible.set(false);
+    this.closeCustomerDialog();
     this.selectedComplaint = null;
     this.draft = this.emptyDraft();
   }
@@ -271,6 +280,46 @@ export class ComplaintsPageComponent {
     this.draft.email = customer.email ?? '';
     this.draft.address = customer.address;
     this.draft.location = customer.placeOfSupply ?? '';
+  }
+
+  protected openCustomerDialog(): void {
+    if (this.isReadOnly()) {
+      return;
+    }
+
+    this.customerDialogSeed.set(this.buildCustomerDialogSeed());
+    this.customerDialogVisible.set(true);
+  }
+
+  protected closeCustomerDialog(): void {
+    this.customerDialogVisible.set(false);
+    this.customerDialogSaving.set(false);
+    this.customerDialogSeed.set(null);
+  }
+
+  protected createCustomer(payload: CustomerUpsertPayload): void {
+    this.customerDialogSaving.set(true);
+
+    this.customersApiService.createCustomer(payload).subscribe({
+      next: (customer) => {
+        this.customerDialogSaving.set(false);
+        this.applySelectedCustomer(customer);
+        this.closeCustomerDialog();
+        this.uiFeedback.success(
+          'Customer created',
+          `Customer "${customer.customerName}" was created and selected.`,
+        );
+      },
+      error: (error) => {
+        this.customerDialogSaving.set(false);
+        const message = this.uiFeedback.extractErrorMessage(
+          error,
+          'Customer creation failed. Check the details and try again.',
+        );
+        this.errorMessage.set(message);
+        this.uiFeedback.error('Customer creation failed', message);
+      },
+    });
   }
 
   protected applyFilters(): void {
@@ -442,6 +491,37 @@ export class ComplaintsPageComponent {
       status: 'PENDING',
       assignedEmployeeId: '',
       notes: '',
+    };
+  }
+
+  private buildCustomerDialogSeed(): CustomerRecord | null {
+    const customerName = this.draft.customerName.trim();
+    const phone = this.draft.phone.trim();
+    const email = this.normalizeOptionalString(this.draft.email);
+    const address = this.draft.address.trim();
+    const placeOfSupply = this.normalizeOptionalString(this.draft.location);
+
+    if (!customerName && !phone && !email && !address && !placeOfSupply) {
+      return null;
+    }
+
+    const timestamp = new Date().toISOString();
+
+    return {
+      id: '',
+      customerName,
+      phone,
+      email,
+      gstin: null,
+      billingAddress: address,
+      shippingAddress: address,
+      placeOfSupply,
+      address,
+      latitude: null,
+      longitude: null,
+      status: 'ACTIVE',
+      createdAt: timestamp,
+      updatedAt: timestamp,
     };
   }
 

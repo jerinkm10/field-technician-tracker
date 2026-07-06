@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
@@ -80,6 +80,41 @@ export class LeadsPageComponent {
   protected readonly hasPreviousPage = signal(false);
   protected readonly hasNextPage = signal(false);
   protected readonly totalRecords = signal(0);
+  protected readonly activeLeadPerformanceEmployees = computed(() =>
+    (this.leadPerformance()?.employees ?? []).filter(
+      (employee) => employee.status === 'ACTIVE' && employee.role === 'EMPLOYEE',
+    ),
+  );
+  protected readonly activeLeadPerformanceSummary = computed(() => {
+    const employees = this.activeLeadPerformanceEmployees();
+    const totalLeadsAssigned = employees.reduce(
+      (sum, employee) => sum + employee.totalLeadsAssigned,
+      0,
+    );
+    const convertedLeads = employees.reduce(
+      (sum, employee) => sum + employee.convertedLeads,
+      0,
+    );
+    const lostLeads = employees.reduce(
+      (sum, employee) => sum + employee.lostLeads,
+      0,
+    );
+    const followUpsDue = employees.reduce(
+      (sum, employee) => sum + employee.followUpsDue,
+      0,
+    );
+
+    return {
+      totalLeadsAssigned,
+      convertedLeads,
+      lostLeads,
+      followUpsDue,
+      conversionPercentage: this.toPercentage(
+        convertedLeads,
+        totalLeadsAssigned,
+      ),
+    };
+  });
 
   protected readonly statusOptions: Option<LeadStatus>[] = [
     { label: 'All statuses', value: '' },
@@ -435,7 +470,7 @@ export class LeadsPageComponent {
     value: string;
     note: string;
   }> {
-    const summary = this.leadPerformance()?.summary;
+    const summary = this.activeLeadPerformanceSummary();
 
     return [
       {
@@ -540,6 +575,14 @@ export class LeadsPageComponent {
           this.performanceLoading.set(false);
         },
       });
+  }
+
+  private toPercentage(value: number, total: number): number {
+    if (total <= 0) {
+      return 0;
+    }
+
+    return Number(((value / total) * 100).toFixed(2));
   }
 
   private openDialogForRecord(

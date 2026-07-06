@@ -28,75 +28,81 @@
   </section>
 
   <section class="panel section-shell filters-shell">
-    <label class="search-field">
-      <span>Search</span>
-      <input
-        pInputText
-        [(ngModel)]="searchTerm"
-        placeholder="Search task title or customer" />
-    </label>
+    <div class="filters-toolbar">
+      <label class="search-field">
+        <span>Search</span>
+        <input
+          pInputText
+          [(ngModel)]="searchTerm"
+          placeholder="Search task title or customer" />
+      </label>
 
-    <div class="filter-actions">
-      <app-filter-dropdown label="Filter Tasks">
-        <label class="popover-field">
-          <span>Status</span>
-          <p-select
-            [options]="statusOptions"
-            optionLabel="label"
-            optionValue="value"
-            appendTo="body"
-            [(ngModel)]="statusFilter">
-          </p-select>
-        </label>
+      <div class="filter-actions-shell">
+        <span class="filter-actions-label">Filter and actions</span>
 
-        <label class="popover-field">
-          <span>Priority</span>
-          <p-select
-            [options]="priorityOptions"
-            optionLabel="label"
-            optionValue="value"
-            appendTo="body"
-            [(ngModel)]="priorityFilter">
-          </p-select>
-        </label>
+        <div class="filter-actions">
+          <app-filter-dropdown label="Filter Tasks">
+            <label class="popover-field">
+              <span>Status</span>
+              <p-select
+                [options]="statusOptions"
+                optionLabel="label"
+                optionValue="value"
+                appendTo="body"
+                [(ngModel)]="statusFilter">
+              </p-select>
+            </label>
 
-        <label class="popover-field">
-          <span>Module</span>
-          <p-select
-            [options]="referenceOptions"
-            optionLabel="label"
-            optionValue="value"
-            appendTo="body"
-            [(ngModel)]="referenceFilter">
-          </p-select>
-        </label>
+            <label class="popover-field">
+              <span>Priority</span>
+              <p-select
+                [options]="priorityOptions"
+                optionLabel="label"
+                optionValue="value"
+                appendTo="body"
+                [(ngModel)]="priorityFilter">
+              </p-select>
+            </label>
 
-        @if (authService.isAdmin()) {
-          <label class="popover-field">
-            <span>Assigned Employee</span>
-            <p-select
-              [options]="employeeOptions()"
-              optionLabel="label"
-              optionValue="value"
-              appendTo="body"
-              [(ngModel)]="assignedEmployeeIdFilter">
-            </p-select>
-          </label>
-        }
+            <label class="popover-field">
+              <span>Module</span>
+              <p-select
+                [options]="referenceOptions"
+                optionLabel="label"
+                optionValue="value"
+                appendTo="body"
+                [(ngModel)]="referenceFilter">
+              </p-select>
+            </label>
 
-        <label class="popover-field checkbox-field">
-          <input type="checkbox" [(ngModel)]="todayOnly" />
-          <span>Today only</span>
-        </label>
+            @if (authService.isAdmin()) {
+              <label class="popover-field">
+                <span>Assigned Employee</span>
+                <p-select
+                  [options]="employeeOptions()"
+                  optionLabel="label"
+                  optionValue="value"
+                  appendTo="body"
+                  [(ngModel)]="assignedEmployeeIdFilter">
+                </p-select>
+              </label>
+            }
 
-        <div class="popover-actions">
-          <button pButton type="button" label="Apply" icon="pi pi-filter" (click)="applyFilters()"></button>
-          <button pButton type="button" label="Reset" text (click)="resetFilters()"></button>
+            <label class="popover-field checkbox-field">
+              <input type="checkbox" [(ngModel)]="todayOnly" />
+              <span>Today only</span>
+            </label>
+
+            <div class="popover-actions">
+              <button pButton type="button" label="Apply" icon="pi pi-filter" (click)="applyFilters()"></button>
+              <button pButton type="button" label="Reset" text (click)="resetFilters()"></button>
+            </div>
+          </app-filter-dropdown>
+
+          <button pButton type="button" label="Search" icon="pi pi-search" (click)="applyFilters()"></button>
+          <button pButton type="button" label="Reset" icon="pi pi-refresh" text (click)="resetFilters()"></button>
         </div>
-      </app-filter-dropdown>
-
-      <button pButton type="button" label="Search" icon="pi pi-search" (click)="applyFilters()"></button>
-      <button pButton type="button" label="Reset" icon="pi pi-refresh" text (click)="resetFilters()"></button>
+      </div>
     </div>
   </section>
 

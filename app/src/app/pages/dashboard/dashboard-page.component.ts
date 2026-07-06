@@ -26,6 +26,7 @@ import {
   DashboardEmployeeSummaryResponse,
   DashboardLeadFollowUpAlert,
   DashboardOutstandingAlert,
+  DashboardPerformanceEmployeeRecord,
   DashboardPerformanceResponse,
   EmployeeTaskRecord,
   LeadStatus,
@@ -186,15 +187,55 @@ export class DashboardPageComponent {
   }
 
   protected chartWidth(value: number, maxValue: number): string {
-    if (maxValue <= 0) {
+    if (maxValue <= 0 || value <= 0) {
       return '0%';
     }
 
     return `${Math.max(8, Math.round((value / maxValue) * 100))}%`;
   }
 
+  protected percentageWidth(value: number): string {
+    return `${Math.max(0, Math.min(100, value))}%`;
+  }
+
   protected maxChartValue(values: Array<{ value: number }>): number {
     return values.reduce((max, item) => Math.max(max, item.value), 0);
+  }
+
+  protected employeeInitials(name: string): string {
+    const initials = name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part.charAt(0).toUpperCase())
+      .join('');
+
+    return initials || 'NA';
+  }
+
+  protected employeeLeadConversionRate(
+    employee: DashboardPerformanceEmployeeRecord,
+  ): number {
+    if (employee.leadsAssigned <= 0 || employee.leadsConverted <= 0) {
+      return 0;
+    }
+
+    return (employee.leadsConverted / employee.leadsAssigned) * 100;
+  }
+
+  protected technicianAvailabilitySeverity(
+    availability: DashboardPerformanceEmployeeRecord['technicianPerformance']['availability'],
+  ): TagSeverity {
+    switch (availability) {
+      case 'AVAILABLE':
+        return 'success';
+      case 'ON_JOB':
+        return 'info';
+      case 'OFFLINE':
+        return 'warn';
+      default:
+        return 'secondary';
+    }
   }
 
   protected adminPendingComplaints() {

@@ -1,3 +1,145 @@
 :host {
   display: block;
 }
+
+.filters-toolbar {
+  display: grid;
+  gap: 1rem 1.25rem;
+  grid-template-columns: minmax(0, 1.7fr) auto;
+  align-items: end;
+}
+
+.filters-toolbar > * {
+  min-width: 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  min-width: 0;
+  width: 100%;
+}
+
+.field span {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--ftt-muted);
+}
+
+.field input {
+  width: 100%;
+}
+
+.filter-actions,
+.action-cell,
+.toolbar-actions {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.toolbar-actions,
+.filter-actions {
+  align-items: flex-end;
+}
+
+.toolbar-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.toolbar-actions > * {
+  flex-shrink: 0;
+}
+
+.filter-actions-shell {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.45rem;
+}
+
+.filter-actions-label {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--ftt-muted);
+}
+
+.section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.section-header h3,
+.state-panel h3 {
+  margin: 0 0 0.25rem;
+}
+
+.section-header p,
+.state-panel p,
+.muted-row {
+  margin: 0;
+  color: var(--ftt-muted);
+  line-height: 1.5;
+}
+
+.muted-row {
+  margin-top: 0.2rem;
+}
+
+.action-cell {
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.state-panel {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+}
+
+.error-panel i {
+  color: #dc2626;
+  font-size: 1.35rem;
+}
+
+:host ::ng-deep .p-select {
+  width: 100%;
+}
+
+:host ::ng-deep app-filter-dropdown {
+  display: block;
+}
+
+@media (max-width: 960px) {
+  .filters-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .filter-actions-shell,
+  .toolbar-actions,
+  .filter-actions,
+  .action-cell,
+  .section-header {
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 720px) {
+  .toolbar-actions,
+  .filter-actions,
+  .action-cell {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .filter-actions-shell {
+    align-items: stretch;
+  }
+}

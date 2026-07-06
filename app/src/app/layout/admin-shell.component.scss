@@ -197,9 +197,264 @@
   min-width: 0;
 }
 
+.notifications-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.notifications-toolbar {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.1rem 0 0.35rem;
+}
+
+.notifications-summary h3,
+.notifications-summary p,
+.notification-state-card h4,
+.notification-state-card p,
+.notification-card p {
+  margin: 0;
+}
+
+.notifications-kicker {
+  display: inline-flex;
+  margin-bottom: 0.35rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ftt-brand);
+}
+
+.notifications-summary h3 {
+  font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+  font-size: 1.35rem;
+  color: var(--ftt-text);
+}
+
+.notifications-summary p,
+.notification-date,
+.muted-text {
+  color: var(--ftt-muted);
+}
+
+.notifications-summary p {
+  margin-top: 0.35rem;
+  max-width: 34rem;
+  line-height: 1.55;
+}
+
+.notifications-toolbar-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.notifications-count-pill,
+.notification-type-pill,
+.notification-status-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.notifications-count-pill {
+  min-height: 2rem;
+  padding: 0.35rem 0.8rem;
+  background: rgba(24, 76, 105, 0.1);
+  color: var(--ftt-brand-deep);
+}
+
+.notification-state-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.1rem 1.15rem;
+  border: 1px solid rgba(24, 76, 105, 0.08);
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(241, 247, 250, 0.94));
+}
+
+.notification-state-card h4 {
+  margin-bottom: 0.2rem;
+  font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
+  font-size: 1.05rem;
+  color: var(--ftt-text);
+}
+
+.notification-state-icon {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(24, 76, 105, 0.16), rgba(31, 122, 109, 0.2));
+  color: var(--ftt-brand-deep);
+  font-size: 1.15rem;
+}
+
+.notifications-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.notification-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.95rem;
+  width: 100%;
+  padding: 1rem 1.05rem;
+  border: 1px solid rgba(24, 76, 105, 0.1);
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(241, 247, 250, 0.95));
+  box-shadow: 0 14px 32px rgba(22, 45, 67, 0.08);
+  text-align: left;
+  transition:
+    transform 180ms ease,
+    box-shadow 180ms ease,
+    border-color 180ms ease;
+}
+
+.notification-card:hover {
+  transform: translateY(-1px);
+  border-color: rgba(24, 76, 105, 0.18);
+  box-shadow: 0 18px 36px rgba(22, 45, 67, 0.1);
+}
+
+.notification-card:focus-visible {
+  outline: 2px solid rgba(24, 76, 105, 0.45);
+  outline-offset: 3px;
+}
+
+.notification-card.is-read {
+  background: rgba(248, 251, 253, 0.96);
+  box-shadow: none;
+}
+
+.notification-icon-shell {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 18px;
+  font-size: 1.05rem;
+}
+
+.notification-icon-shell[data-tone='teal'],
+.notification-type-pill[data-tone='teal'] {
+  background: rgba(31, 122, 109, 0.14);
+  color: #16685b;
+}
+
+.notification-icon-shell[data-tone='blue'],
+.notification-type-pill[data-tone='blue'] {
+  background: rgba(24, 76, 105, 0.14);
+  color: #184c69;
+}
+
+.notification-icon-shell[data-tone='amber'],
+.notification-type-pill[data-tone='amber'] {
+  background: rgba(176, 115, 31, 0.14);
+  color: #94610d;
+}
+
+.notification-icon-shell[data-tone='rose'],
+.notification-type-pill[data-tone='rose'] {
+  background: rgba(183, 66, 102, 0.14);
+  color: #a13559;
+}
+
+.notification-icon-shell[data-tone='slate'],
+.notification-type-pill[data-tone='slate'] {
+  background: rgba(89, 110, 127, 0.16);
+  color: #52697a;
+}
+
+.notification-card-body {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.notification-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.notification-card-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.32rem;
+}
+
+.notification-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.notification-type-pill,
+.notification-status-pill {
+  min-height: 1.7rem;
+  padding: 0.2rem 0.72rem;
+}
+
+.notification-status-pill {
+  background: rgba(17, 24, 39, 0.06);
+  color: var(--ftt-muted);
+}
+
+.notification-status-pill:not(.is-read) {
+  background: rgba(24, 76, 105, 0.14);
+  color: var(--ftt-brand-deep);
+}
+
+.notification-card strong {
+  font-size: 1.08rem;
+  line-height: 1.35;
+  color: var(--ftt-text);
+}
+
+.notification-card p {
+  line-height: 1.58;
+  color: rgba(22, 45, 67, 0.84);
+}
+
+.notification-date {
+  flex-shrink: 0;
+  padding-top: 0.05rem;
+  font-size: 0.86rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
 .menu-toggle,
 .sidebar-backdrop {
   display: none;
+}
+
+:host ::ng-deep .notifications-dialog-panel .p-dialog-header {
+  padding-bottom: 0.9rem;
+  border-bottom: 1px solid rgba(24, 76, 105, 0.08);
+}
+
+:host ::ng-deep .notifications-dialog-panel .p-dialog-content {
+  overflow: visible;
+  padding-top: 1rem;
 }
 
 @media (max-width: 960px) {
@@ -249,5 +504,36 @@
   .topbar-actions {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .notifications-toolbar,
+  .notification-card-header {
+    flex-direction: column;
+  }
+
+  .notifications-toolbar-actions {
+    align-items: flex-start;
+  }
+
+  .notification-date {
+    text-align: left;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 720px) {
+  .notification-card {
+    grid-template-columns: 1fr;
+  }
+
+  .notification-icon-shell {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+
+  .notifications-toolbar-actions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
   }
 }

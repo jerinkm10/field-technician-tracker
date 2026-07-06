@@ -32,7 +32,6 @@ import {
     FormsModule,
     InputNumberModule,
     InputTextModule,
-    ProductServiceFormDialogComponent,
     ProductServiceAutocompleteComponent,
     TableModule,
   ],

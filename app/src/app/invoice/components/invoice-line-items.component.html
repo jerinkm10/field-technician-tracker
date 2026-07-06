@@ -111,14 +111,4 @@
       </tr>
     </ng-template>
   </p-table>
-
-  <app-product-service-form-dialog
-    [visible]="productServiceDialogVisible"
-    [saving]="savingProductService"
-    [initialDraft]="productServiceDialogSeed"
-    mode="create"
-    [productService]="null"
-    (cancel)="closeProductServiceDialog()"
-    (save)="createProductService($event)">
-  </app-product-service-form-dialog>
 </div>
