@@ -53,7 +53,13 @@
 
   <div class="map-layout">
     <section class="panel map-stage">
-      @if (leafletReady()) {
+      @if (mapErrorMessage()) {
+        <div class="map-placeholder">
+          <i class="pi pi-map"></i>
+          <h3>Live map could not start</h3>
+          <p>{{ mapErrorMessage() }}</p>
+        </div>
+      } @else if (leafletReady()) {
         <div #mapContainer class="map-canvas"></div>
         @if (loading()) {
           <div class="map-overlay">

@@ -1,17 +1,48 @@
 .login-page {
+  position: relative;
   display: flex;
   min-height: 100vh;
   align-items: stretch;
   justify-content: center;
   padding: clamp(1rem, 2vw, 1.5rem);
+  overflow: hidden;
+  isolation: isolate;
+  background:
+    radial-gradient(circle at top left, rgba(129, 191, 240, 0.26), transparent 34%),
+    linear-gradient(180deg, #eef5fb, #dbe9f5);
+}
+
+.login-page::before {
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  content: '';
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.58), rgba(222, 236, 247, 0.34));
+}
+
+.login-page::after {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  content: '';
+  background:
+    radial-gradient(circle at bottom right, rgba(101, 171, 229, 0.12), transparent 32%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.04));
 }
 
 .login-shell {
+  position: relative;
   display: grid;
   width: min(100%, 1560px);
   min-height: calc(100vh - clamp(2rem, 4vw, 3rem));
   overflow: hidden;
   grid-template-columns: minmax(0, 1.45fr) minmax(360px, 460px);
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  border-radius: clamp(1.8rem, 3vw, 2.4rem);
+  background: rgba(248, 251, 255, 0.28);
+  box-shadow: 0 28px 80px rgba(14, 39, 68, 0.16);
+  backdrop-filter: blur(18px);
 }
 
 .login-visual {
@@ -19,8 +50,8 @@
   gap: 1.25rem;
   padding: clamp(1rem, 2vw, 1.5rem);
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.82), rgba(242, 248, 255, 0.6)),
-    radial-gradient(circle at top left, rgba(89, 170, 231, 0.15), transparent 35%);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.62), rgba(255, 255, 255, 0.2)),
+    radial-gradient(circle at top left, rgba(89, 170, 231, 0.14), transparent 35%);
 }
 
 .visual-toolbar {
@@ -42,17 +73,13 @@
   backdrop-filter: blur(16px);
 }
 
-.brand-badge__mark {
-  display: grid;
-  width: 2.5rem;
-  height: 2.5rem;
-  place-items: center;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--ftt-brand-deep), #267fbe);
-  color: #fff;
-  font-family: 'Space Grotesk', 'Segoe UI', sans-serif;
-  font-size: 1rem;
-  font-weight: 700;
+.brand-badge__logo {
+  width: 4.5rem;
+  height: 4.5rem;
+  flex-shrink: 0;
+  border-radius: 1rem;
+  object-fit: cover;
+  box-shadow: 0 14px 32px rgba(20, 40, 60, 0.12);
 }
 
 .brand-badge p,
@@ -96,12 +123,12 @@
 
 .visual-frame {
   position: relative;
-  min-height: 0;
+  min-height: clamp(420px, 58vh, 760px);
   overflow: hidden;
   border-radius: clamp(1.5rem, 2.8vw, 2.4rem);
-  border: 1px solid rgba(22, 49, 74, 0.08);
-  background: #f6f8fb;
-  box-shadow: 0 24px 60px rgba(17, 37, 55, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  background: rgba(246, 248, 251, 0.42);
+  box-shadow: 0 24px 60px rgba(17, 37, 55, 0.18);
 }
 
 .visual-frame img {
@@ -109,7 +136,16 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  object-position: center top;
+  object-position: center center;
+}
+
+.visual-frame::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02) 42%, rgba(19, 70, 122, 0.12)),
+    radial-gradient(circle at top right, rgba(255, 255, 255, 0.14), transparent 30%);
 }
 
 .visual-footer {
@@ -174,8 +210,9 @@
   padding: clamp(1.6rem, 3vw, 2.6rem);
   border-left: 1px solid rgba(22, 49, 74, 0.08);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(247, 250, 252, 0.84)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(247, 250, 252, 0.72)),
     radial-gradient(circle at top right, rgba(89, 170, 231, 0.12), transparent 26%);
+  backdrop-filter: blur(18px);
 }
 
 .pane-copy {
@@ -226,8 +263,8 @@
   padding: 1.35rem;
   border: 1px solid rgba(22, 49, 74, 0.08);
   border-radius: 1.5rem;
-  background: rgba(255, 255, 255, 0.84);
-  box-shadow: 0 18px 44px rgba(17, 37, 55, 0.08);
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 18px 44px rgba(17, 37, 55, 0.12);
   backdrop-filter: blur(14px);
 }
 

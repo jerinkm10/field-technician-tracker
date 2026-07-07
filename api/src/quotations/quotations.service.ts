@@ -34,7 +34,6 @@ const quotationSelect = Prisma.validator<Prisma.QuotationSelect>()({
   totalTaxAmount: true,
   roundedOff: true,
   totalAmount: true,
-  pdfFilePath: true,
   status: true,
   createdAt: true,
   updatedAt: true,
@@ -212,7 +211,6 @@ export class QuotationsService {
             totalTaxAmount: createQuotationDto.totalTaxAmount,
             roundedOff: createQuotationDto.roundedOff,
             totalAmount: createQuotationDto.totalAmount,
-            pdfFilePath: null,
             status: createQuotationDto.status ?? QuotationStatus.DRAFT,
             lineItems: {
               create: createQuotationDto.lineItems.map((item) =>
@@ -270,7 +268,6 @@ export class QuotationsService {
           totalTaxAmount: updateQuotationDto.totalTaxAmount,
           roundedOff: updateQuotationDto.roundedOff,
           totalAmount: updateQuotationDto.totalAmount,
-          pdfFilePath: null,
           status: updateQuotationDto.status,
           lineItems: updateQuotationDto.lineItems
             ? {
@@ -299,7 +296,7 @@ export class QuotationsService {
 
   async getQuotationPdf(quotationId: string): Promise<Buffer> {
     const quotation = await this.getQuotationOrThrow(quotationId);
-    return this.ensureStoredQuotationPdf(quotation);
+    return this.buildQuotationPdf(quotation);
   }
 
   private async getQuotationOrThrow(
@@ -339,36 +336,13 @@ export class QuotationsService {
     }
   }
 
-  private async ensureStoredQuotationPdf(
+  private async buildQuotationPdf(
     quotation: QuotationRecord,
   ): Promise<Buffer> {
-    const storedPdfBuffer = await this.billingDocumentsService.readStoredPdfBuffer(
-      quotation.pdfFilePath,
-    );
-    if (storedPdfBuffer) {
-      return storedPdfBuffer;
-    }
-
     const company = await this.companySettingsService.getCompanyBranding();
-    const pdfBuffer = await this.billingDocumentsService.buildPdfBuffer(
+    return this.billingDocumentsService.buildPdfBuffer(
       this.toPdfData(quotation, company),
     );
-    const pdfFilePath = await this.billingDocumentsService.storePdfBuffer(
-      'quotations',
-      quotation.quotationNumber,
-      pdfBuffer,
-    );
-
-    await this.prismaService.quotation.update({
-      where: {
-        id: quotation.id,
-      },
-      data: {
-        pdfFilePath,
-      },
-    });
-
-    return pdfBuffer;
   }
 
   private toLineItemCreateInput(

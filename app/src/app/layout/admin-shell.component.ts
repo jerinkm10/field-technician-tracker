@@ -12,7 +12,6 @@ import {
   RouterLinkActive,
   RouterOutlet,
 } from '@angular/router';
-import { AvatarModule } from 'primeng/avatar';
 import { ButtonModule } from 'primeng/button';
 import { DividerModule } from 'primeng/divider';
 import { DialogModule } from 'primeng/dialog';
@@ -42,7 +41,6 @@ const NAVIGATION_STATE_KEY = 'field-technician-tracker.admin-shell.groups';
 @Component({
   selector: 'app-admin-shell',
   imports: [
-    AvatarModule,
     ButtonModule,
     DatePipe,
     DividerModule,
