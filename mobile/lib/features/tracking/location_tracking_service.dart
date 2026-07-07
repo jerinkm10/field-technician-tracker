@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/network/api_client.dart';
@@ -9,7 +10,8 @@ import '../../shared/models/pending_location_log.dart';
 import 'tracking_repository.dart';
 import 'tracking_state.dart';
 
-final locationTrackingServiceProvider = Provider<LocationTrackingService>((ref) {
+final locationTrackingServiceProvider =
+    Provider<LocationTrackingService>((ref) {
   final service = LocationTrackingService(
     connectivity: ref.watch(connectivityProvider),
     trackingRepository: ref.watch(trackingRepositoryProvider),
@@ -84,6 +86,7 @@ class LocationTrackingService {
 
   Future<bool> syncLocation({
     String? jobId,
+    bool requireOnline = false,
   }) async {
     final effectiveJobId = jobId ?? _state.activeJobId;
     if (_isSyncInProgress) {
@@ -114,6 +117,16 @@ class LocationTrackingService {
 
       final isOnline = await _hasInternetConnection();
       if (!isOnline) {
+        if (requireOnline) {
+          _emit(
+            _state.copyWith(
+              isSyncing: false,
+              errorMessage: 'Internet connection is required for this action',
+            ),
+          );
+          return false;
+        }
+
         await _queuePendingLog(capturedLog);
         _emit(
           _state.copyWith(
@@ -143,6 +156,16 @@ class LocationTrackingService {
     } on DioException catch (error) {
       final shouldQueue = _shouldQueueForOffline(error);
       if (shouldQueue && capturedLog != null) {
+        if (requireOnline) {
+          _emit(
+            _state.copyWith(
+              isSyncing: false,
+              errorMessage: 'Internet connection is required for this action',
+            ),
+          );
+          return false;
+        }
+
         await _queuePendingLog(capturedLog);
         _emit(
           _state.copyWith(
@@ -161,7 +184,9 @@ class LocationTrackingService {
         ),
       );
       return false;
-    } catch (_error) {
+    } catch (error, stackTrace) {
+      debugPrint('Unable to capture current location: $error');
+      debugPrintStack(stackTrace: stackTrace);
       _emit(
         _state.copyWith(
           isSyncing: false,
@@ -214,8 +239,15 @@ class LocationTrackingService {
           remainingLogs.addAll(logs.skip(currentIndex + 1));
           break;
         }
-      } catch (_error) {
+      } catch (error, stackTrace) {
         remainingLogs.add(log);
+        debugPrint('Unable to sync saved location log: $error');
+        debugPrintStack(stackTrace: stackTrace);
+        _emit(
+          _state.copyWith(
+            errorMessage: 'Unable to sync one or more saved locations',
+          ),
+        );
       }
     }
 

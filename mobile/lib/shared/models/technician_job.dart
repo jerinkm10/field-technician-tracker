@@ -9,8 +9,10 @@ class TechnicianJob {
     required this.status,
     required this.scheduledDate,
     required this.customer,
+    required this.visits,
     this.startedAt,
     this.completedAt,
+    this.technician,
   });
 
   final String id;
@@ -22,6 +24,10 @@ class TechnicianJob {
   final DateTime? startedAt;
   final DateTime? completedAt;
   final CustomerInfo customer;
+  final AssignedTechnician? technician;
+  final List<JobVisit> visits;
+
+  JobVisit? get latestVisit => visits.isEmpty ? null : visits.first;
 
   factory TechnicianJob.fromJson(Map<String, dynamic> json) {
     return TechnicianJob(
@@ -42,6 +48,120 @@ class TechnicianJob {
       customer: CustomerInfo.fromJson(
         Map<String, dynamic>.from(json['customer'] as Map? ?? const {}),
       ),
+      technician: json['technician'] is Map
+          ? AssignedTechnician.fromJson(
+              Map<String, dynamic>.from(json['technician'] as Map),
+            )
+          : null,
+      visits: (json['visits'] as List? ?? const [])
+          .whereType<Map>()
+          .map(
+            (visit) => JobVisit.fromJson(
+              Map<String, dynamic>.from(visit),
+            ),
+          )
+          .toList(),
+    );
+  }
+}
+
+class AssignedTechnician {
+  const AssignedTechnician({
+    required this.id,
+    required this.phone,
+    required this.status,
+    required this.user,
+    this.currentLatitude,
+    this.currentLongitude,
+    this.lastSeenAt,
+  });
+
+  final String id;
+  final String phone;
+  final String status;
+  final double? currentLatitude;
+  final double? currentLongitude;
+  final DateTime? lastSeenAt;
+  final AssignedTechnicianUser user;
+
+  factory AssignedTechnician.fromJson(Map<String, dynamic> json) {
+    return AssignedTechnician(
+      id: json['id'] as String? ?? '',
+      phone: json['phone'] as String? ?? '',
+      status: json['status'] as String? ?? '',
+      currentLatitude: (json['currentLatitude'] as num?)?.toDouble(),
+      currentLongitude: (json['currentLongitude'] as num?)?.toDouble(),
+      lastSeenAt: json['lastSeenAt'] == null
+          ? null
+          : DateTime.tryParse(json['lastSeenAt'] as String),
+      user: AssignedTechnicianUser.fromJson(
+        Map<String, dynamic>.from(json['user'] as Map? ?? const {}),
+      ),
+    );
+  }
+}
+
+class AssignedTechnicianUser {
+  const AssignedTechnicianUser({
+    required this.id,
+    required this.name,
+    required this.email,
+    required this.role,
+  });
+
+  final String id;
+  final String name;
+  final String email;
+  final String role;
+
+  factory AssignedTechnicianUser.fromJson(Map<String, dynamic> json) {
+    return AssignedTechnicianUser(
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      email: json['email'] as String? ?? '',
+      role: json['role'] as String? ?? '',
+    );
+  }
+}
+
+class JobVisit {
+  const JobVisit({
+    required this.id,
+    required this.technicianId,
+    this.checkInAt,
+    this.checkOutAt,
+    this.timeSpentMinutes,
+    this.startLatitude,
+    this.startLongitude,
+    this.endLatitude,
+    this.endLongitude,
+  });
+
+  final String id;
+  final String technicianId;
+  final DateTime? checkInAt;
+  final DateTime? checkOutAt;
+  final int? timeSpentMinutes;
+  final double? startLatitude;
+  final double? startLongitude;
+  final double? endLatitude;
+  final double? endLongitude;
+
+  factory JobVisit.fromJson(Map<String, dynamic> json) {
+    return JobVisit(
+      id: json['id'] as String? ?? '',
+      technicianId: json['technicianId'] as String? ?? '',
+      checkInAt: json['checkInAt'] == null
+          ? null
+          : DateTime.tryParse(json['checkInAt'] as String),
+      checkOutAt: json['checkOutAt'] == null
+          ? null
+          : DateTime.tryParse(json['checkOutAt'] as String),
+      timeSpentMinutes: json['timeSpentMinutes'] as int?,
+      startLatitude: (json['startLatitude'] as num?)?.toDouble(),
+      startLongitude: (json['startLongitude'] as num?)?.toDouble(),
+      endLatitude: (json['endLatitude'] as num?)?.toDouble(),
+      endLongitude: (json['endLongitude'] as num?)?.toDouble(),
     );
   }
 }

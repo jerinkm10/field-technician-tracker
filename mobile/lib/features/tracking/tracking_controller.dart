@@ -31,8 +31,12 @@ class TrackingController extends StateNotifier<TrackingState> {
 
   Future<bool> syncLocation({
     String? jobId,
+    bool requireOnline = false,
   }) async {
-    return _locationTrackingService.syncLocation(jobId: jobId);
+    return _locationTrackingService.syncLocation(
+      jobId: jobId,
+      requireOnline: requireOnline,
+    );
   }
 
   Future<void> stopTracking() async {

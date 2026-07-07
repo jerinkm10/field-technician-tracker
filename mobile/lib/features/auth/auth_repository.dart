@@ -13,13 +13,17 @@ class AuthRepository {
   final Dio _dio;
 
   Future<LoginResult> login({
-    required String email,
+    required String identifier,
     required String password,
   }) async {
+    final normalizedIdentifier = identifier.trim();
+    final isEmail = normalizedIdentifier.contains('@');
+
     final response = await _dio.post<Map<String, dynamic>>(
       '/auth/login',
       data: {
-        'email': email,
+        if (isEmail) 'email': normalizedIdentifier,
+        if (!isEmail) 'username': normalizedIdentifier,
         'password': password,
       },
     );

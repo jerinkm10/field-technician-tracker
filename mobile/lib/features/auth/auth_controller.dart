@@ -25,7 +25,7 @@ class AuthController extends StateNotifier<AuthState> {
   final AuthRepository _authRepository;
 
   Future<bool> login({
-    required String email,
+    required String identifier,
     required String password,
   }) async {
     state = state.copyWith(
@@ -35,7 +35,7 @@ class AuthController extends StateNotifier<AuthState> {
 
     try {
       final result = await _authRepository.login(
-        email: email.trim(),
+        identifier: identifier.trim(),
         password: password,
       );
 

@@ -53,24 +53,8 @@
 
   <div class="map-layout">
     <section class="panel map-stage">
-      @if (googleMapsReady()) {
-        <google-map
-          class="map-canvas"
-          height="100%"
-          width="100%"
-          [center]="center()"
-          [zoom]="zoom()"
-          [options]="mapOptions">
-          @for (technician of mappableTechnicians(); track technician.id) {
-            <map-marker
-              [position]="{ lat: latitudeOf(technician)!, lng: longitudeOf(technician)! }"
-              [title]="technician.user.name"
-              [options]="markerOptions(technician)"
-              (mapClick)="selectTechnician(technician.id)">
-            </map-marker>
-          }
-        </google-map>
-
+      @if (leafletReady()) {
+        <div #mapContainer class="map-canvas"></div>
         @if (loading()) {
           <div class="map-overlay">
             <i class="pi pi-spin pi-spinner"></i>
@@ -80,8 +64,8 @@
       } @else {
         <div class="map-placeholder">
           <i class="pi pi-map"></i>
-          <h3>Google Maps API key required</h3>
-          <p>Update <code>src/index.html</code> with a valid key to render the live technician map.</p>
+          <h3>Leaflet map assets loading</h3>
+          <p>Waiting for OpenStreetMap and Leaflet assets so the live technician map can render.</p>
         </div>
       }
     </section>

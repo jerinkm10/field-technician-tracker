@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+
 import '../../shared/models/technician_job.dart';
 import 'jobs_provider.dart';
 
@@ -10,12 +11,12 @@ class JobListScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final dateFormat = DateFormat('dd MMM, hh:mm a');
     final jobsAsync = ref.watch(technicianJobsProvider);
 
     return RefreshIndicator(
       onRefresh: () async {
-        await ref.refresh(technicianJobsProvider.future);
+        ref.invalidate(technicianJobsProvider);
+        await ref.read(technicianJobsProvider.future);
       },
       child: jobsAsync.when(
         data: (jobs) {
@@ -38,11 +39,7 @@ class JobListScreen extends ConsumerWidget {
               if (jobs.isEmpty)
                 const _EmptyJobsState()
               else
-                for (final job in jobs)
-                  _JobCard(
-                    job: job,
-                    dateFormat: dateFormat,
-                  ),
+                for (final job in jobs) _JobCard(job: job),
             ],
           );
         },
@@ -97,18 +94,38 @@ class JobListScreen extends ConsumerWidget {
 class _JobCard extends StatelessWidget {
   const _JobCard({
     required this.job,
-    required this.dateFormat,
   });
 
   final TechnicianJob job;
-  final DateFormat dateFormat;
 
   @override
   Widget build(BuildContext context) {
+    final scheduleFormat = DateFormat('dd MMM, hh:mm a');
+    final timeFormat = DateFormat('hh:mm a');
+    final statusText = _formatStatus(job.status);
+    final teamName = job.technician?.user.name.isNotEmpty == true
+        ? job.technician!.user.name
+        : 'Unassigned';
+    final isCompleted = job.status == 'COMPLETED';
+    final backgroundColor =
+        isCompleted ? const Color(0xFFE8F7EC) : Colors.white;
+    final borderColor =
+        isCompleted ? const Color(0xFF84C79A) : const Color(0xFFE5ECF3);
+    final secondaryStartLabel =
+        job.startedAt == null ? 'Scheduled Start' : 'Started';
+    final secondaryEndText = job.completedAt == null
+        ? (job.status == 'COMPLETED' ? '--' : 'Pending')
+        : timeFormat.format(job.completedAt!.toLocal());
+
     return Card(
       margin: const EdgeInsets.only(bottom: 16),
+      color: backgroundColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(22),
+        side: BorderSide(color: borderColor),
+      ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(22),
         onTap: () {
           context.push('/jobs/${job.id}');
         },
@@ -121,19 +138,37 @@ class _JobCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: Text(
-                      job.jobNumber,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          job.jobNumber,
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          job.title,
+                          style:
+                              Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                    color: const Color(0xFF1B2A41),
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                        ),
+                      ],
                     ),
                   ),
                   Chip(
-                    label: Text(job.status),
+                    label: Text(statusText),
+                    backgroundColor: isCompleted
+                        ? const Color(0xFFD2EED9)
+                        : const Color(0xFFF2F6FA),
                   ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 14),
               Text(
                 job.customer.name,
                 style: Theme.of(context).textTheme.bodyLarge,
@@ -143,9 +178,38 @@ class _JobCard extends StatelessWidget {
                 job.customer.address,
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
+              const SizedBox(height: 10),
+              Text(
+                'Team: $teamName',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: const Color(0xFF355070),
+                      fontWeight: FontWeight.w600,
+                    ),
+              ),
               const SizedBox(height: 12),
               Text(
-                'Scheduled: ${dateFormat.format(job.scheduledDate.toLocal())}',
+                'Scheduled: ${scheduleFormat.format(job.scheduledDate.toLocal())}',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: _TimeInfoChip(
+                      label: secondaryStartLabel,
+                      value: timeFormat.format(
+                        (job.startedAt ?? job.scheduledDate).toLocal(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _TimeInfoChip(
+                      label: 'End',
+                      value: secondaryEndText,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
               Align(
@@ -161,6 +225,46 @@ class _JobCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _TimeInfoChip extends StatelessWidget {
+  const _TimeInfoChip({
+    required this.label,
+    required this.value,
+  });
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.9),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFD9E4EE)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: const Color(0xFF52667A),
+                ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+        ],
       ),
     );
   }
@@ -195,4 +299,18 @@ class _EmptyJobsState extends StatelessWidget {
       ),
     );
   }
+}
+
+String _formatStatus(String status) {
+  if (status.isEmpty) {
+    return '--';
+  }
+
+  return status
+      .split('_')
+      .map(
+        (part) =>
+            '${part.substring(0, 1).toUpperCase()}${part.substring(1).toLowerCase()}',
+      )
+      .join(' ');
 }

@@ -1,6 +1,14 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, OnDestroy, OnInit, ViewChild, computed, signal } from '@angular/core';
-import { GoogleMap, MapMarker } from '@angular/google-maps';
+import {
+  ChangeDetectionStrategy,
+  Component,
+  ElementRef,
+  OnDestroy,
+  OnInit,
+  ViewChild,
+  computed,
+  signal
+} from '@angular/core';
 import { ButtonModule } from 'primeng/button';
 import { TagModule } from 'primeng/tag';
 
@@ -13,41 +21,46 @@ import {
 import { RealtimeService } from '../../core/services/realtime.service';
 
 type TagSeverity = 'success' | 'info' | 'warn';
+type LeafletLike = {
+  map: (element: HTMLElement, options?: Record<string, unknown>) => any;
+  tileLayer: (urlTemplate: string, options?: Record<string, unknown>) => any;
+  marker: (latLng: [number, number], options?: Record<string, unknown>) => any;
+  divIcon: (options?: Record<string, unknown>) => any;
+  latLngBounds: (latLngs: [number, number][]) => any;
+};
 
-const DEFAULT_CENTER: google.maps.LatLngLiteral = { lat: 10.5276, lng: 76.2144 };
+declare global {
+  interface Window {
+    L?: LeafletLike;
+  }
+}
+
+const DEFAULT_CENTER = { lat: 10.5276, lng: 76.2144 };
+const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 
 @Component({
   selector: 'app-live-map-page',
-  imports: [ButtonModule, DatePipe, DecimalPipe, GoogleMap, MapMarker, TagModule],
+  imports: [ButtonModule, DatePipe, DecimalPipe, TagModule],
   templateUrl: './live-map-page.component.html',
   styleUrl: './live-map-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class LiveMapPageComponent implements OnInit, OnDestroy {
-  @ViewChild(GoogleMap)
-  set mapComponent(component: GoogleMap | undefined) {
-    this.googleMapComponent = component;
+  @ViewChild('mapContainer')
+  set mapContainer(element: ElementRef<HTMLElement> | undefined) {
+    this.mapElement = element;
 
-    if (component) {
-      queueMicrotask(() => this.fitMapToMarkers());
+    if (element) {
+      queueMicrotask(() => this.initializeMapIfReady());
     }
   }
 
-  protected readonly googleMapsReady = signal(false);
+  protected readonly leafletReady = signal(false);
   protected readonly loading = signal(true);
   protected readonly refreshing = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
   protected readonly technicians = signal<LiveMapTechnician[]>([]);
   protected readonly selectedTechnicianId = signal<string | null>(null);
-  protected readonly center = signal<google.maps.LatLngLiteral>(DEFAULT_CENTER);
-  protected readonly zoom = signal(11);
-  protected readonly mapOptions: google.maps.MapOptions = {
-    disableDefaultUI: true,
-    zoomControl: true,
-    streetViewControl: false,
-    fullscreenControl: false,
-    mapTypeControl: false
-  };
 
   protected readonly selectedTechnician = computed(() => {
     const selectedId = this.selectedTechnicianId();
@@ -62,15 +75,15 @@ export class LiveMapPageComponent implements OnInit, OnDestroy {
 
   protected readonly mappableTechnicians = computed(() =>
     this.technicians().filter(
-      (technician) =>
-        this.latitudeOf(technician) !== null &&
-        this.longitudeOf(technician) !== null
+      (technician) => this.latitudeOf(technician) !== null && this.longitudeOf(technician) !== null
     )
   );
 
-  private googleMapComponent?: GoogleMap;
-  private googleMapsPollId: number | null = null;
+  private mapElement?: ElementRef<HTMLElement>;
+  private mapInstance: any | null = null;
+  private leafletPollId: number | null = null;
   private removeSocketListener: (() => void) | null = null;
+  private readonly markerInstances = new Map<string, any>();
 
   constructor(
     private readonly adminTrackingService: AdminTrackingService,
@@ -78,7 +91,7 @@ export class LiveMapPageComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.watchGoogleMaps();
+    this.watchLeaflet();
     this.loadLiveMap(false);
     this.removeSocketListener = this.realtimeService.on<TechnicianLocationUpdatedPayload>(
       'technician_location_updated',
@@ -87,11 +100,14 @@ export class LiveMapPageComponent implements OnInit, OnDestroy {
   }
 
   ngOnDestroy(): void {
-    if (this.googleMapsPollId !== null) {
-      window.clearInterval(this.googleMapsPollId);
+    if (this.leafletPollId !== null) {
+      window.clearInterval(this.leafletPollId);
     }
 
     this.removeSocketListener?.();
+    this.clearMarkers();
+    this.mapInstance?.remove?.();
+    this.mapInstance = null;
   }
 
   protected refresh(): void {
@@ -102,18 +118,15 @@ export class LiveMapPageComponent implements OnInit, OnDestroy {
     this.selectedTechnicianId.set(technicianId);
 
     const technician = this.technicians().find((item) => item.id === technicianId);
-    if (!technician) {
+    const position = technician ? this.positionOf(technician) : null;
+
+    if (!position || !this.mapInstance) {
       return;
     }
 
-    const position = this.positionOf(technician);
-    if (!position) {
-      return;
-    }
-
-    this.center.set(position);
-    this.zoom.set(13);
-    this.googleMapComponent?.googleMap?.panTo(position);
+    this.mapInstance.setView(position, 13, {
+      animate: true
+    });
   }
 
   protected statusLabel(status: TechnicianStatus): string {
@@ -136,13 +149,6 @@ export class LiveMapPageComponent implements OnInit, OnDestroy {
       default:
         return 'warn';
     }
-  }
-
-  protected markerOptions(technician: LiveMapTechnician): google.maps.MarkerOptions {
-    return {
-      icon: this.markerIconFor(technician.status),
-      clickable: true
-    };
   }
 
   protected jobLabel(technician: LiveMapTechnician): string {
@@ -184,6 +190,7 @@ export class LiveMapPageComponent implements OnInit, OnDestroy {
         this.syncSelectedTechnician();
         this.loading.set(false);
         this.refreshing.set(false);
+        this.renderMarkers();
         this.fitMapToMarkers();
       },
       error: () => {
@@ -244,13 +251,14 @@ export class LiveMapPageComponent implements OnInit, OnDestroy {
     });
 
     this.syncSelectedTechnician();
+    this.renderMarkers();
 
     if (this.selectedTechnicianId() === payload.technician.id) {
       const updated = this.technicians().find((technician) => technician.id === payload.technician.id);
       const position = updated ? this.positionOf(updated) : null;
 
-      if (position) {
-        this.center.set(position);
+      if (position && this.mapInstance) {
+        this.mapInstance.panTo(position);
       }
     }
   }
@@ -272,7 +280,7 @@ export class LiveMapPageComponent implements OnInit, OnDestroy {
     this.selectedTechnicianId.set((firstWithLocation ?? technicians[0]).id);
   }
 
-  private positionOf(technician: LiveMapTechnician): google.maps.LatLngLiteral | null {
+  private positionOf(technician: LiveMapTechnician): [number, number] | null {
     const latitude = this.latitudeOf(technician);
     const longitude = this.longitudeOf(technician);
 
@@ -280,90 +288,163 @@ export class LiveMapPageComponent implements OnInit, OnDestroy {
       return null;
     }
 
-    return { lat: latitude, lng: longitude };
+    return [latitude, longitude];
+  }
+
+  private initializeMapIfReady(): void {
+    const leaflet = this.leaflet();
+    if (!leaflet || !this.mapElement?.nativeElement || this.mapInstance) {
+      return;
+    }
+
+    this.mapInstance = leaflet.map(this.mapElement.nativeElement, {
+      zoomControl: true,
+      attributionControl: true
+    });
+
+    leaflet
+      .tileLayer(TILE_URL, {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors'
+      })
+      .addTo(this.mapInstance);
+
+    this.mapInstance.setView([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], 11);
+    this.renderMarkers();
+    this.fitMapToMarkers();
+
+    queueMicrotask(() => this.mapInstance?.invalidateSize?.());
+  }
+
+  private renderMarkers(): void {
+    const leaflet = this.leaflet();
+    if (!leaflet || !this.mapInstance) {
+      return;
+    }
+
+    this.clearMarkers();
+
+    this.mappableTechnicians().forEach((technician) => {
+      const position = this.positionOf(technician);
+      if (!position) {
+        return;
+      }
+
+      const marker = leaflet.marker(position, {
+        icon: this.markerIconFor(technician.status)
+      });
+
+      marker.on('click', () => this.selectTechnician(technician.id));
+      marker.bindTooltip(technician.user.name, {
+        direction: 'top',
+        offset: [0, -18]
+      });
+      marker.addTo(this.mapInstance);
+
+      this.markerInstances.set(technician.id, marker);
+    });
   }
 
   private fitMapToMarkers(): void {
-    if (!this.googleMapsReady() || !this.googleMapComponent?.googleMap) {
+    const leaflet = this.leaflet();
+    if (!leaflet || !this.mapInstance) {
       return;
     }
 
     const technicians = this.mappableTechnicians();
     if (!technicians.length) {
-      this.center.set(DEFAULT_CENTER);
-      this.zoom.set(11);
+      this.mapInstance.setView([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], 11);
       return;
     }
 
     if (technicians.length === 1) {
       const position = this.positionOf(technicians[0]);
       if (position) {
-        this.center.set(position);
-        this.zoom.set(13);
+        this.mapInstance.setView(position, 13);
       }
       return;
     }
 
-    const googleMapsWindow = window as Window & { google?: typeof google };
-    if (!googleMapsWindow.google?.maps) {
-      return;
-    }
+    const bounds = leaflet.latLngBounds(
+      technicians
+        .map((technician) => this.positionOf(technician))
+        .filter((position): position is [number, number] => position !== null)
+    );
 
-    const bounds = new googleMapsWindow.google.maps.LatLngBounds();
-    technicians.forEach((technician) => {
-      const position = this.positionOf(technician);
-      if (position) {
-        bounds.extend(position);
-      }
+    this.mapInstance.fitBounds(bounds, {
+      padding: [72, 72]
     });
-
-    this.googleMapComponent.googleMap.fitBounds(bounds, 72);
   }
 
-  private watchGoogleMaps(): void {
+  private watchLeaflet(): void {
     const check = () => {
-      const googleMapsWindow = window as Window & { google?: typeof google };
-      const ready = Boolean(googleMapsWindow.google?.maps);
-
-      if (!ready) {
+      if (!this.leaflet()) {
         return;
       }
 
-      this.googleMapsReady.set(true);
+      this.leafletReady.set(true);
 
-      if (this.googleMapsPollId !== null) {
-        window.clearInterval(this.googleMapsPollId);
-        this.googleMapsPollId = null;
+      if (this.leafletPollId !== null) {
+        window.clearInterval(this.leafletPollId);
+        this.leafletPollId = null;
       }
 
-      queueMicrotask(() => this.fitMapToMarkers());
+      this.initializeMapIfReady();
     };
 
     check();
 
-    if (this.googleMapsReady()) {
+    if (this.leafletReady()) {
       return;
     }
 
-    this.googleMapsPollId = window.setInterval(check, 500);
+    this.leafletPollId = window.setInterval(check, 300);
   }
 
-  private markerIconFor(status: TechnicianStatus): string {
+  private markerIconFor(status: TechnicianStatus): any {
+    const leaflet = this.leaflet();
+    if (!leaflet) {
+      return undefined;
+    }
+
     const fill =
-      status === 'AVAILABLE'
-        ? '#22c55e'
-        : status === 'ON_JOB'
-          ? '#2563eb'
-          : '#94a3b8';
+      status === 'AVAILABLE' ? '#22c55e' : status === 'ON_JOB' ? '#2563eb' : '#94a3b8';
 
-    const svg = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="42" height="42" viewBox="0 0 42 42">
-        <circle cx="21" cy="21" r="9" fill="${fill}" />
-        <circle cx="21" cy="21" r="15" fill="${fill}" fill-opacity="0.18" />
-        <circle cx="21" cy="21" r="20" fill="${fill}" fill-opacity="0.08" />
-      </svg>
-    `;
+    return leaflet.divIcon({
+      className: 'ftt-live-marker',
+      html: `
+        <span
+          style="
+            display:flex;
+            width:24px;
+            height:24px;
+            border-radius:999px;
+            background:${fill};
+            border:3px solid #ffffff;
+            box-shadow:0 0 0 8px ${this.colorWithAlpha(fill, 0.18)}, 0 12px 24px rgba(15, 23, 42, 0.18);
+          ">
+        </span>
+      `,
+      iconSize: [24, 24],
+      iconAnchor: [12, 12]
+    });
+  }
 
-    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+  private colorWithAlpha(hexColor: string, alpha: number): string {
+    const normalizedHex = hexColor.replace('#', '');
+    const red = Number.parseInt(normalizedHex.substring(0, 2), 16);
+    const green = Number.parseInt(normalizedHex.substring(2, 4), 16);
+    const blue = Number.parseInt(normalizedHex.substring(4, 6), 16);
+
+    return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+  }
+
+  private clearMarkers(): void {
+    this.markerInstances.forEach((marker) => marker.remove?.());
+    this.markerInstances.clear();
+  }
+
+  private leaflet(): LeafletLike | null {
+    return window.L ?? null;
   }
 }
