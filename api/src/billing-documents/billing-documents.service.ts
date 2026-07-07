@@ -1,7 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { existsSync } from 'fs';
-import { mkdir, readFile, writeFile } from 'fs/promises';
-import { resolve } from 'path';
 import PDFDocument = require('pdfkit');
 
 type BillingParty = {
@@ -275,8 +273,6 @@ const LAYOUT_PRESETS: LayoutConfig[] = [
 
 @Injectable()
 export class BillingDocumentsService {
-  private readonly storageRoot = resolve(process.cwd(), 'storage', 'documents');
-
   async buildPdfBuffer(data: BillingDocumentPdfData): Promise<Buffer> {
     const document = new PDFDocument({
       margin: 0,
@@ -300,34 +296,6 @@ export class BillingDocumentsService {
     document.end();
 
     return completed;
-  }
-
-  async readStoredPdfBuffer(
-    relativePath: string | null | undefined,
-  ): Promise<Buffer | null> {
-    const filePath = this.resolveStoredPdfPath(relativePath);
-
-    if (!filePath) {
-      return null;
-    }
-
-    return readFile(filePath);
-  }
-
-  async storePdfBuffer(
-    folderName: 'tax-invoices' | 'proforma-invoices' | 'quotations' | 'amc',
-    documentNumber: string,
-    pdfBuffer: Buffer,
-  ): Promise<string> {
-    const safeFolderName = this.sanitizePathSegment(folderName);
-    const safeFileName = `${this.sanitizeFileName(documentNumber)}.pdf`;
-    const directoryPath = resolve(this.storageRoot, safeFolderName);
-    const filePath = resolve(directoryPath, safeFileName);
-
-    await mkdir(directoryPath, { recursive: true });
-    await writeFile(filePath, pdfBuffer);
-
-    return `${safeFolderName}/${safeFileName}`;
   }
 
   private drawDocument(
@@ -1662,43 +1630,6 @@ export class BillingDocumentsService {
         Math.max(productHeight, descriptionHeight) +
         layout.tableCellPaddingBottom,
     );
-  }
-
-  private resolveStoredPdfPath(
-    relativePath: string | null | undefined,
-  ): string | null {
-    const normalizedPath = relativePath?.trim();
-    if (!normalizedPath) {
-      return null;
-    }
-
-    const pathSegments = normalizedPath
-      .split(/[\\/]+/)
-      .filter(Boolean)
-      .map((segment) => this.sanitizePathSegment(segment));
-
-    if (!pathSegments.length) {
-      return null;
-    }
-
-    const filePath = resolve(this.storageRoot, ...pathSegments);
-    if (!filePath.startsWith(this.storageRoot) || !existsSync(filePath)) {
-      return null;
-    }
-
-    return filePath;
-  }
-
-  private sanitizeFileName(value: string): string {
-    return this.sanitizePathSegment(value).replace(/\.pdf$/i, '');
-  }
-
-  private sanitizePathSegment(value: string): string {
-    const sanitized = value
-      .replace(/[^A-Za-z0-9._-]+/g, '-')
-      .replace(/^-+|-+$/g, '');
-
-    return sanitized || 'document';
   }
 
   private measureFooterContentHeight(

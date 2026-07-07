@@ -1,5 +1,6 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
 import {
+  AfterViewInit,
   ChangeDetectionStrategy,
   Component,
   ElementRef,
@@ -37,6 +38,14 @@ declare global {
 
 const DEFAULT_CENTER = { lat: 10.5276, lng: 76.2144 };
 const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+const LEAFLET_SCRIPT_URLS = [
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
+  'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js'
+] as const;
+const LEAFLET_STYLE_URLS = [
+  'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css',
+  'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css'
+] as const;
 
 @Component({
   selector: 'app-live-map-page',
@@ -45,7 +54,9 @@ const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
   styleUrl: './live-map-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class LiveMapPageComponent implements OnInit, OnDestroy {
+export class LiveMapPageComponent implements OnInit, AfterViewInit, OnDestroy {
+  private static leafletAssetsPromise: Promise<LeafletLike> | null = null;
+
   @ViewChild('mapContainer')
   set mapContainer(element: ElementRef<HTMLElement> | undefined) {
     this.mapElement = element;
@@ -56,9 +67,11 @@ export class LiveMapPageComponent implements OnInit, OnDestroy {
   }
 
   protected readonly leafletReady = signal(false);
+  protected readonly mapReady = signal(false);
   protected readonly loading = signal(true);
   protected readonly refreshing = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
+  protected readonly mapErrorMessage = signal<string | null>(null);
   protected readonly technicians = signal<LiveMapTechnician[]>([]);
   protected readonly selectedTechnicianId = signal<string | null>(null);
 
@@ -84,6 +97,7 @@ export class LiveMapPageComponent implements OnInit, OnDestroy {
   private leafletPollId: number | null = null;
   private removeSocketListener: (() => void) | null = null;
   private readonly markerInstances = new Map<string, any>();
+  private resizeObserver: ResizeObserver | null = null;
 
   constructor(
     private readonly adminTrackingService: AdminTrackingService,
@@ -99,12 +113,17 @@ export class LiveMapPageComponent implements OnInit, OnDestroy {
     );
   }
 
+  ngAfterViewInit(): void {
+    this.initializeMapIfReady();
+  }
+
   ngOnDestroy(): void {
     if (this.leafletPollId !== null) {
       window.clearInterval(this.leafletPollId);
     }
 
     this.removeSocketListener?.();
+    this.resizeObserver?.disconnect();
     this.clearMarkers();
     this.mapInstance?.remove?.();
     this.mapInstance = null;
@@ -297,23 +316,36 @@ export class LiveMapPageComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.mapInstance = leaflet.map(this.mapElement.nativeElement, {
-      zoomControl: true,
-      attributionControl: true
-    });
+    try {
+      this.mapErrorMessage.set(null);
 
-    leaflet
-      .tileLayer(TILE_URL, {
-        maxZoom: 19,
-        attribution: '&copy; OpenStreetMap contributors'
-      })
-      .addTo(this.mapInstance);
+      this.mapInstance = leaflet.map(this.mapElement.nativeElement, {
+        zoomControl: true,
+        attributionControl: true
+      });
 
-    this.mapInstance.setView([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], 11);
-    this.renderMarkers();
-    this.fitMapToMarkers();
+      leaflet
+        .tileLayer(TILE_URL, {
+          maxZoom: 19,
+          attribution: '&copy; OpenStreetMap contributors'
+        })
+        .addTo(this.mapInstance);
 
-    queueMicrotask(() => this.mapInstance?.invalidateSize?.());
+      this.mapInstance.setView([DEFAULT_CENTER.lat, DEFAULT_CENTER.lng], 11);
+      this.renderMarkers();
+      this.fitMapToMarkers();
+      this.mapReady.set(true);
+      this.observeMapSize();
+      this.invalidateMapSize();
+    } catch (error) {
+      this.mapInstance = null;
+      this.mapReady.set(false);
+      this.mapErrorMessage.set(
+        error instanceof Error
+          ? `Unable to initialize the live map: ${error.message}`
+          : 'Unable to initialize the live map.'
+      );
+    }
   }
 
   private renderMarkers(): void {
@@ -378,11 +410,13 @@ export class LiveMapPageComponent implements OnInit, OnDestroy {
 
   private watchLeaflet(): void {
     const check = () => {
-      if (!this.leaflet()) {
+      const leaflet = this.leaflet();
+      if (!leaflet) {
         return;
       }
 
       this.leafletReady.set(true);
+      this.mapErrorMessage.set(null);
 
       if (this.leafletPollId !== null) {
         window.clearInterval(this.leafletPollId);
@@ -398,7 +432,115 @@ export class LiveMapPageComponent implements OnInit, OnDestroy {
       return;
     }
 
+    this.loadLeafletAssets();
     this.leafletPollId = window.setInterval(check, 300);
+  }
+
+  private loadLeafletAssets(): void {
+    LiveMapPageComponent.leafletAssetsPromise ??= this.ensureLeafletAssets();
+
+    LiveMapPageComponent.leafletAssetsPromise
+      .then(() => {
+        this.leafletReady.set(true);
+        this.mapErrorMessage.set(null);
+        this.initializeMapIfReady();
+      })
+      .catch(() => {
+        this.mapReady.set(false);
+        this.mapErrorMessage.set(
+          'Leaflet map assets could not be loaded. Check the server internet connection or CDN access.'
+        );
+      });
+  }
+
+  private async ensureLeafletAssets(): Promise<LeafletLike> {
+    const existingLeaflet = this.leaflet();
+    if (existingLeaflet) {
+      return existingLeaflet;
+    }
+
+    await this.ensureStylesheet(LEAFLET_STYLE_URLS);
+    await this.ensureScript(LEAFLET_SCRIPT_URLS);
+
+    const leaflet = this.leaflet();
+    if (!leaflet) {
+      throw new Error('Leaflet did not expose a usable global object.');
+    }
+
+    return leaflet;
+  }
+
+  private ensureStylesheet(urls: readonly string[]): Promise<void> {
+    const existing = document.getElementById('ftt-leaflet-css') as HTMLLinkElement | null;
+    if (existing?.sheet) {
+      return Promise.resolve();
+    }
+
+    return new Promise((resolve, reject) => {
+      const link =
+        existing ??
+        Object.assign(document.createElement('link'), {
+          id: 'ftt-leaflet-css',
+          rel: 'stylesheet'
+        });
+
+      const tryIndex = (index: number) => {
+        if (index >= urls.length) {
+          reject(new Error('Leaflet stylesheet failed to load.'));
+          return;
+        }
+
+        link.onload = () => resolve();
+        link.onerror = () => tryIndex(index + 1);
+        link.href = urls[index];
+
+        if (!existing) {
+          document.head.appendChild(link);
+        }
+      };
+
+      tryIndex(0);
+    });
+  }
+
+  private ensureScript(urls: readonly string[]): Promise<void> {
+    if (this.leaflet()) {
+      return Promise.resolve();
+    }
+
+    const existing = document.getElementById('ftt-leaflet-script') as HTMLScriptElement | null;
+    if (existing?.dataset['loaded'] === 'true') {
+      return Promise.resolve();
+    }
+
+    return new Promise((resolve, reject) => {
+      const script =
+        existing ??
+        Object.assign(document.createElement('script'), {
+          id: 'ftt-leaflet-script',
+          defer: true
+        });
+
+      const tryIndex = (index: number) => {
+        if (index >= urls.length) {
+          reject(new Error('Leaflet script failed to load.'));
+          return;
+        }
+
+        script.onload = () => {
+          script.dataset['loaded'] = 'true';
+          resolve();
+        };
+        script.onerror = () => tryIndex(index + 1);
+        script.src = urls[index];
+
+        if (!existing) {
+          document.head.appendChild(script);
+        }
+      };
+
+      tryIndex(0);
+    });
   }
 
   private markerIconFor(status: TechnicianStatus): any {
@@ -444,7 +586,36 @@ export class LiveMapPageComponent implements OnInit, OnDestroy {
     this.markerInstances.clear();
   }
 
+  private observeMapSize(): void {
+    if (!this.mapElement?.nativeElement || this.resizeObserver) {
+      return;
+    }
+
+    this.resizeObserver = new ResizeObserver(() => {
+      this.mapInstance?.invalidateSize?.();
+    });
+    this.resizeObserver.observe(this.mapElement.nativeElement);
+  }
+
+  private invalidateMapSize(): void {
+    queueMicrotask(() => this.mapInstance?.invalidateSize?.());
+    window.setTimeout(() => this.mapInstance?.invalidateSize?.(), 150);
+    window.setTimeout(() => this.mapInstance?.invalidateSize?.(), 500);
+  }
+
   private leaflet(): LeafletLike | null {
-    return window.L ?? null;
+    const candidate = window.L;
+    if (
+      candidate &&
+      typeof candidate.map === 'function' &&
+      typeof candidate.tileLayer === 'function' &&
+      typeof candidate.marker === 'function' &&
+      typeof candidate.divIcon === 'function' &&
+      typeof candidate.latLngBounds === 'function'
+    ) {
+      return candidate;
+    }
+
+    return null;
   }
 }

@@ -426,7 +426,6 @@ model Invoice {
   roundedOff         Float
   totalAmount        Float
   amountDue          Float
-  pdfFilePath        String?
   status             InvoiceStatus   @default(DRAFT)
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
@@ -491,7 +490,6 @@ model Amc {
   nextBillingDate     DateTime?
   termsAndConditions  String?
   note                String?
-  pdfFilePath         String?
   createdAt           DateTime         @default(now())
   updatedAt           DateTime         @updatedAt
   customer            Customer         @relation(fields: [customerId], references: [id], onDelete: Restrict)
@@ -562,7 +560,6 @@ model Quotation {
   totalTaxAmount     Float
   roundedOff         Float
   totalAmount        Float
-  pdfFilePath        String?
   status             QuotationStatus  @default(DRAFT)
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt

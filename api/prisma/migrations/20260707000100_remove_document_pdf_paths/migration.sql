@@ -1,0 +1,8 @@
+ALTER TABLE "Invoice"
+DROP COLUMN IF EXISTS "pdfFilePath";
+
+ALTER TABLE "Quotation"
+DROP COLUMN IF EXISTS "pdfFilePath";
+
+ALTER TABLE "Amc"
+DROP COLUMN IF EXISTS "pdfFilePath";
