@@ -9,6 +9,7 @@ import { FormsModule } from '@angular/forms';
 import { ButtonModule } from 'primeng/button';
 import { DialogModule } from 'primeng/dialog';
 import { InputTextModule } from 'primeng/inputtext';
+import { MultiSelectModule } from 'primeng/multiselect';
 import { SelectModule } from 'primeng/select';
 import { TableModule } from 'primeng/table';
 import { TagModule } from 'primeng/tag';
@@ -19,15 +20,20 @@ import { CustomersApiService } from '../../core/services/customers-api.service';
 import { EmployeesApiService } from '../../core/services/employees-api.service';
 import { JobsApiService } from '../../core/services/jobs-api.service';
 import { ProductServicesApiService } from '../../core/services/product-services-api.service';
+import { SuppliersApiService } from '../../core/services/suppliers-api.service';
 import { UiFeedbackService } from '../../core/services/ui-feedback.service';
+import { FilterDropdownComponent } from '../../invoice/components/filter-dropdown.component';
 import {
   CustomerRecord,
   EmployeeRecord,
+  JobAssignmentRecord,
+  JobPriority,
   JobRecord,
   JobStatus,
   JobUpsertPayload,
   ProductServiceRecord,
   ProductServiceUpsertPayload,
+  SupplierRecord,
 } from '../../shared/models/billing.models';
 
 type Option<T> = {
@@ -37,7 +43,8 @@ type Option<T> = {
 
 type TagSeverity = 'success' | 'info' | 'warn' | 'danger' | 'secondary';
 
-type JobDraft = JobUpsertPayload & {
+type JobDraft = Omit<JobUpsertPayload, 'assignedMemberIds'> & {
+  assignedMemberIds: string[];
   productServiceName: string;
 };
 
@@ -47,8 +54,10 @@ type JobDraft = JobUpsertPayload & {
     ButtonModule,
     DatePipe,
     DialogModule,
+    FilterDropdownComponent,
     FormsModule,
     InputTextModule,
+    MultiSelectModule,
     ProductServiceAutocompleteComponent,
     ProductServiceFormDialogComponent,
     SelectModule,
@@ -64,25 +73,36 @@ export class JobsPageComponent {
   private readonly customersApiService = inject(CustomersApiService);
   private readonly employeesApiService = inject(EmployeesApiService);
   private readonly productServicesApiService = inject(ProductServicesApiService);
+  private readonly suppliersApiService = inject(SuppliersApiService);
   private readonly uiFeedback = inject(UiFeedbackService);
 
   protected readonly jobs = signal<JobRecord[]>([]);
   protected readonly customers = signal<CustomerRecord[]>([]);
-  protected readonly technicians = signal<EmployeeRecord[]>([]);
+  protected readonly assignableMembers = signal<EmployeeRecord[]>([]);
+  protected readonly branches = signal<SupplierRecord[]>([]);
   protected readonly loading = signal(false);
   protected readonly saving = signal(false);
   protected readonly dialogVisible = signal(false);
   protected readonly productDialogVisible = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
-  protected readonly selectedProductService = signal<ProductServiceRecord | null>(null);
+  protected readonly selectedProductService = signal<ProductServiceRecord | null>(
+    null,
+  );
 
   protected searchTerm = '';
-  protected scheduleFilter: 'ALL' | 'TODAY' | 'TOMORROW' | 'FUTURE' = 'ALL';
+  protected fromDate = '';
+  protected toDate = '';
+  protected statusFilter: JobStatus | '' = '';
+  protected priorityFilter: JobPriority | '' = '';
+  protected customerIdFilter = '';
+  protected assignedUserIdFilter = '';
+  protected branchIdFilter = '';
   protected dialogMode: 'create' | 'edit' | 'view' = 'create';
   protected selectedJob: JobRecord | null = null;
   protected draft: JobDraft = this.emptyDraft();
 
-  protected readonly statusOptions: Option<JobStatus>[] = [
+  protected readonly statusOptions: Option<JobStatus | ''>[] = [
+    { label: 'All statuses', value: '' },
     { label: 'Pending', value: 'PENDING' },
     { label: 'Assigned', value: 'ASSIGNED' },
     { label: 'Started', value: 'STARTED' },
@@ -90,29 +110,64 @@ export class JobsPageComponent {
     { label: 'Cancelled', value: 'CANCELLED' },
   ];
 
+  protected readonly priorityOptions: Option<JobPriority | ''>[] = [
+    { label: 'All priorities', value: '' },
+    { label: 'Low', value: 'LOW' },
+    { label: 'Medium', value: 'MEDIUM' },
+    { label: 'High', value: 'HIGH' },
+  ];
+
   constructor() {
     this.loadJobs();
     this.loadCustomers();
-    this.loadTechnicians();
+    this.loadAssignableMembers();
+    this.loadBranches();
   }
 
-  protected filteredJobs(): JobRecord[] {
-    const search = this.searchTerm.trim().toLowerCase();
+  protected loadJobs(): void {
+    this.loading.set(true);
+    this.errorMessage.set(null);
 
-    return this.jobs().filter((job) => {
-      const bucket = this.scheduleBucket(job.scheduledDate);
-      const matchesBucket =
-        this.scheduleFilter === 'ALL' || bucket === this.scheduleFilter;
-      const matchesSearch =
-        !search ||
-        job.jobNumber.toLowerCase().includes(search) ||
-        job.title.toLowerCase().includes(search) ||
-        job.customer.name.toLowerCase().includes(search) ||
-        (job.technician?.user.name.toLowerCase().includes(search) ?? false) ||
-        (job.productService?.name.toLowerCase().includes(search) ?? false);
+    this.jobsApiService
+      .getJobs({
+        search: this.searchTerm.trim() || undefined,
+        fromDate: this.fromDate || undefined,
+        toDate: this.toDate || undefined,
+        status: this.statusFilter || undefined,
+        priority: this.priorityFilter || undefined,
+        customerId: this.customerIdFilter || undefined,
+        assignedUserId: this.assignedUserIdFilter || undefined,
+        branchId: this.branchIdFilter || undefined,
+      })
+      .subscribe({
+        next: (jobs) => {
+          this.jobs.set(jobs);
+          this.loading.set(false);
+        },
+        error: () => {
+          this.jobs.set([]);
+          this.loading.set(false);
+          this.errorMessage.set(
+            'Unable to load jobs right now. Make sure the backend is running and migrated.',
+          );
+        },
+      });
+  }
 
-      return matchesBucket && matchesSearch;
-    });
+  protected applyFilters(): void {
+    this.loadJobs();
+  }
+
+  protected resetFilters(): void {
+    this.searchTerm = '';
+    this.fromDate = '';
+    this.toDate = '';
+    this.statusFilter = '';
+    this.priorityFilter = '';
+    this.customerIdFilter = '';
+    this.assignedUserIdFilter = '';
+    this.branchIdFilter = '';
+    this.loadJobs();
   }
 
   protected openCreateDialog(): void {
@@ -149,10 +204,12 @@ export class JobsPageComponent {
       title: this.draft.title.trim(),
       description: this.draft.description.trim(),
       customerId: this.draft.customerId,
-      technicianId: this.normalizeOptionalString(this.draft.technicianId) ?? null,
+      branchId: this.normalizeOptionalString(this.draft.branchId) ?? null,
+      assignedMemberIds: [...this.draft.assignedMemberIds],
       productServiceId:
         this.normalizeOptionalString(this.draft.productServiceId) ?? null,
       scheduledDate: this.draft.scheduledDate,
+      priority: this.draft.priority,
       status: this.draft.status,
     };
 
@@ -174,7 +231,7 @@ export class JobsPageComponent {
       error: () => {
         this.saving.set(false);
         this.errorMessage.set(
-          'Unable to save the job. Verify customer, schedule, and assignment details.',
+          'Unable to save the job. Verify customer, assigned members, and schedule details.',
         );
       },
     });
@@ -214,55 +271,40 @@ export class JobsPageComponent {
     }
   }
 
-  protected scheduleBucket(scheduledDate: string): 'TODAY' | 'TOMORROW' | 'FUTURE' {
-    const jobDate = new Date(scheduledDate);
+  protected scheduleLabel(scheduledDate: string): string {
+    const jobDate = this.startOfDay(new Date(scheduledDate));
     const today = this.startOfDay(new Date());
     const tomorrow = this.addDays(today, 1);
 
-    if (this.startOfDay(jobDate).getTime() === today.getTime()) {
-      return 'TODAY';
-    }
-
-    if (this.startOfDay(jobDate).getTime() === tomorrow.getTime()) {
-      return 'TOMORROW';
-    }
-
-    return 'FUTURE';
-  }
-
-  protected scheduleLabel(scheduledDate: string): string {
-    const bucket = this.scheduleBucket(scheduledDate);
-    if (bucket === 'TODAY') {
+    if (jobDate.getTime() === today.getTime()) {
       return 'Today';
     }
 
-    if (bucket === 'TOMORROW') {
+    if (jobDate.getTime() === tomorrow.getTime()) {
       return 'Tomorrow';
     }
 
     return 'Future';
   }
 
-  protected setScheduleFilter(
-    filter: 'ALL' | 'TODAY' | 'TOMORROW' | 'FUTURE',
-  ): void {
-    this.scheduleFilter = filter;
-  }
-
-  protected technicianOptions(): Array<Option<string>> {
-    return [
-      { label: 'Unassigned technician', value: '' },
-      ...this.technicians().map((technician) => ({
-        label: `${technician.name} (${technician.username})`,
-        value: technician.technicianProfileId ?? '',
-      })),
-    ];
-  }
-
   protected customerOptions(): Array<Option<string>> {
     return this.customers().map((customer) => ({
       label: customer.customerName,
       value: customer.id,
+    }));
+  }
+
+  protected memberOptions(): Array<Option<string>> {
+    return this.assignableMembers().map((member) => ({
+      label: `${member.name} (${member.role.replaceAll('_', ' ')})`,
+      value: member.id,
+    }));
+  }
+
+  protected branchOptions(): Array<Option<string>> {
+    return this.branches().map((branch) => ({
+      label: branch.supplierName,
+      value: branch.id,
     }));
   }
 
@@ -336,19 +378,26 @@ export class JobsPageComponent {
     });
   }
 
-  private loadJobs(): void {
-    this.loading.set(true);
-    this.jobsApiService.getJobs().subscribe({
-      next: (jobs) => {
-        this.jobs.set(jobs);
-        this.loading.set(false);
-      },
-      error: () => {
-        this.jobs.set([]);
-        this.loading.set(false);
-        this.errorMessage.set('Unable to load jobs right now.');
-      },
-    });
+  protected assignedMembersLabel(job: JobRecord): string {
+    const assignments = this.sortedAssignments(job);
+    if (assignments.length > 0) {
+      return assignments
+        .map(
+          (assignment) =>
+            `${assignment.user.name} (${assignment.roleType.replaceAll('_', ' ')})`,
+        )
+        .join(', ');
+    }
+
+    if (job.technician) {
+      return `${job.technician.user.name} (Technician)`;
+    }
+
+    return 'Unassigned';
+  }
+
+  protected memberStatusLabel(assignment: JobAssignmentRecord): string {
+    return assignment.status.replaceAll('_', ' ');
   }
 
   private loadCustomers(): void {
@@ -364,15 +413,33 @@ export class JobsPageComponent {
       });
   }
 
-  private loadTechnicians(): void {
+  private loadAssignableMembers(): void {
     this.employeesApiService
-      .getEmployeesPage({ role: 'TECHNICIAN', status: 'ACTIVE', page: 1, limit: 200 })
+      .getEmployeesPage({ status: 'ACTIVE', page: 1, limit: 200 })
       .subscribe({
         next: (response) => {
-          this.technicians.set(response.data);
+          this.assignableMembers.set(
+            response.data.filter(
+              (member) =>
+                member.role === 'TECHNICIAN' || member.role === 'EMPLOYEE',
+            ),
+          );
         },
         error: () => {
-          this.technicians.set([]);
+          this.assignableMembers.set([]);
+        },
+      });
+  }
+
+  private loadBranches(): void {
+    this.suppliersApiService
+      .getSuppliersPage({ status: 'ACTIVE', page: 1, limit: 200 })
+      .subscribe({
+        next: (response) => {
+          this.branches.set(response.data);
+        },
+        error: () => {
+          this.branches.set([]);
         },
       });
   }
@@ -386,10 +453,18 @@ export class JobsPageComponent {
       title: job.title,
       description: job.description,
       customerId: job.customer.id,
+      branchId: job.branch?.id ?? '',
       technicianId: job.technician?.id ?? '',
+      assignedMemberIds:
+        job.assignments.length > 0
+          ? job.assignments.map((assignment) => assignment.userId)
+          : job.technician?.user.id
+            ? [job.technician.user.id]
+            : [],
       productServiceId: job.productService?.id ?? '',
       productServiceName: job.productService?.name ?? '',
       scheduledDate: job.scheduledDate.slice(0, 10),
+      priority: job.priority,
       status: job.status,
     };
     this.dialogVisible.set(true);
@@ -401,12 +476,25 @@ export class JobsPageComponent {
       title: '',
       description: '',
       customerId: '',
+      branchId: '',
       technicianId: '',
+      assignedMemberIds: [],
       productServiceId: '',
       productServiceName: '',
       scheduledDate: new Date().toISOString().slice(0, 10),
+      priority: 'MEDIUM',
       status: 'PENDING',
     };
+  }
+
+  private sortedAssignments(job: JobRecord): JobAssignmentRecord[] {
+    return [...job.assignments].sort((left, right) => {
+      if (left.roleType !== right.roleType) {
+        return left.roleType.localeCompare(right.roleType);
+      }
+
+      return left.user.name.localeCompare(right.user.name);
+    });
   }
 
   private startOfDay(value: Date): Date {

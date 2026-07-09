@@ -10,6 +10,7 @@ class TechnicianJob {
     required this.scheduledDate,
     required this.customer,
     required this.visits,
+    required this.assignments,
     this.startedAt,
     this.completedAt,
     this.technician,
@@ -26,8 +27,18 @@ class TechnicianJob {
   final CustomerInfo customer;
   final AssignedTechnician? technician;
   final List<JobVisit> visits;
+  final List<JobAssignmentMember> assignments;
 
   JobVisit? get latestVisit => visits.isEmpty ? null : visits.first;
+  String get assignedMemberSummary {
+    if (assignments.isNotEmpty) {
+      return assignments
+          .map((assignment) => assignment.user.name)
+          .join(', ');
+    }
+
+    return technician?.user.name ?? 'Unassigned';
+  }
 
   factory TechnicianJob.fromJson(Map<String, dynamic> json) {
     return TechnicianJob(
@@ -53,6 +64,14 @@ class TechnicianJob {
               Map<String, dynamic>.from(json['technician'] as Map),
             )
           : null,
+      assignments: (json['assignments'] as List? ?? const [])
+          .whereType<Map>()
+          .map(
+            (assignment) => JobAssignmentMember.fromJson(
+              Map<String, dynamic>.from(assignment),
+            ),
+          )
+          .toList(),
       visits: (json['visits'] as List? ?? const [])
           .whereType<Map>()
           .map(
@@ -61,6 +80,39 @@ class TechnicianJob {
             ),
           )
           .toList(),
+    );
+  }
+}
+
+class JobAssignmentMember {
+  const JobAssignmentMember({
+    required this.id,
+    required this.userId,
+    required this.roleType,
+    required this.status,
+    required this.assignedAt,
+    required this.user,
+  });
+
+  final String id;
+  final String userId;
+  final String roleType;
+  final String status;
+  final DateTime? assignedAt;
+  final AssignedTechnicianUser user;
+
+  factory JobAssignmentMember.fromJson(Map<String, dynamic> json) {
+    return JobAssignmentMember(
+      id: json['id'] as String? ?? '',
+      userId: json['userId'] as String? ?? '',
+      roleType: json['roleType'] as String? ?? '',
+      status: json['status'] as String? ?? '',
+      assignedAt: json['assignedAt'] == null
+          ? null
+          : DateTime.tryParse(json['assignedAt'] as String),
+      user: AssignedTechnicianUser.fromJson(
+        Map<String, dynamic>.from(json['user'] as Map? ?? const {}),
+      ),
     );
   }
 }
@@ -105,12 +157,14 @@ class AssignedTechnicianUser {
   const AssignedTechnicianUser({
     required this.id,
     required this.name,
+    required this.username,
     required this.email,
     required this.role,
   });
 
   final String id;
   final String name;
+  final String username;
   final String email;
   final String role;
 
@@ -118,6 +172,7 @@ class AssignedTechnicianUser {
     return AssignedTechnicianUser(
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
+      username: json['username'] as String? ?? '',
       email: json['email'] as String? ?? '',
       role: json['role'] as String? ?? '',
     );

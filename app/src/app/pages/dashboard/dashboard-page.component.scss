@@ -86,6 +86,17 @@
   margin-bottom: 1.2rem;
 }
 
+.toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.compact-field {
+  min-width: 10rem;
+}
+
 .section-header p,
 .alert-row p,
 .empty-state {
@@ -573,5 +584,15 @@
 
   .chart-total {
     text-align: left;
+  }
+
+  .toolbar-actions {
+    width: 100%;
+    justify-content: stretch;
+  }
+
+  .compact-field {
+    min-width: 0;
+    flex: 1 1 100%;
   }
 }

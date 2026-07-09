@@ -1,5 +1,12 @@
-import { JobStatus } from '@prisma/client';
-import { IsDateString, IsEnum, IsOptional, IsString } from 'class-validator';
+import { JobPriority, JobStatus } from '@prisma/client';
+import {
+  ArrayUnique,
+  IsArray,
+  IsDateString,
+  IsEnum,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 
 export class CreateAdminJobDto {
   @IsString()
@@ -16,7 +23,17 @@ export class CreateAdminJobDto {
 
   @IsOptional()
   @IsString()
+  branchId?: string;
+
+  @IsOptional()
+  @IsString()
   technicianId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsString({ each: true })
+  assignedMemberIds?: string[];
 
   @IsOptional()
   @IsString()
@@ -24,6 +41,10 @@ export class CreateAdminJobDto {
 
   @IsDateString()
   scheduledDate!: string;
+
+  @IsOptional()
+  @IsEnum(JobPriority)
+  priority?: JobPriority;
 
   @IsOptional()
   @IsEnum(JobStatus)

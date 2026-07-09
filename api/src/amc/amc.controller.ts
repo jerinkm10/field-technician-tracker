@@ -23,7 +23,7 @@ import { AmcService } from './amc.service';
 
 @Controller('amc')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
+@Roles(Role.ADMIN, Role.ADMIN_OWNER)
 export class AmcController {
   constructor(private readonly amcService: AmcService) {}
 

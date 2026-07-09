@@ -7,7 +7,7 @@ import { TrackingService } from './tracking.service';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
+@Roles(Role.ADMIN, Role.ADMIN_OWNER)
 export class AdminTrackingController {
   constructor(private readonly trackingService: TrackingService) {}
 

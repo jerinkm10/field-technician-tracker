@@ -26,7 +26,7 @@ export class ComplaintsController {
   constructor(private readonly complaintsService: ComplaintsService) {}
 
   @Get()
-  @Roles(Role.ADMIN, Role.EMPLOYEE)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER, Role.EMPLOYEE)
   async listComplaints(
     @Query() query: ListComplaintsQueryDto,
     @CurrentUser() currentUser: JwtPayload,
@@ -35,7 +35,7 @@ export class ComplaintsController {
   }
 
   @Get(':id')
-  @Roles(Role.ADMIN, Role.EMPLOYEE)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER, Role.EMPLOYEE)
   async getComplaint(
     @Param('id') complaintId: string,
     @CurrentUser() currentUser: JwtPayload,
@@ -44,7 +44,7 @@ export class ComplaintsController {
   }
 
   @Post()
-  @Roles(Role.ADMIN, Role.EMPLOYEE)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER, Role.EMPLOYEE)
   async createComplaint(
     @Body() createComplaintDto: CreateComplaintDto,
     @CurrentUser() currentUser: JwtPayload,
@@ -56,7 +56,7 @@ export class ComplaintsController {
   }
 
   @Patch(':id')
-  @Roles(Role.ADMIN, Role.EMPLOYEE)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER, Role.EMPLOYEE)
   async updateComplaint(
     @Param('id') complaintId: string,
     @Body() updateComplaintDto: UpdateComplaintDto,
@@ -70,19 +70,19 @@ export class ComplaintsController {
   }
 
   @Delete(':id')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER)
   async deleteComplaint(@Param('id') complaintId: string) {
     return this.complaintsService.deleteComplaint(complaintId);
   }
 
   @Post(':id/convert-to-customer')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER)
   async convertToCustomer(@Param('id') complaintId: string) {
     return this.complaintsService.convertToCustomer(complaintId);
   }
 
   @Post(':id/convert-to-job')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER)
   async convertToJob(@Param('id') complaintId: string) {
     return this.complaintsService.convertToJob(complaintId);
   }

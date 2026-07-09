@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
+import '../../core/storage/auth_session.dart';
 import '../../shared/models/technician_job.dart';
 import 'jobs_provider.dart';
 
@@ -12,6 +13,8 @@ class JobListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final jobsAsync = ref.watch(technicianJobsProvider);
+    final currentUser = ref.watch(currentUserProvider);
+    final isAdmin = currentUser?.isAdmin == true;
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -25,21 +28,33 @@ class JobListScreen extends ConsumerWidget {
             padding: const EdgeInsets.all(20),
             children: [
               Text(
-                'Assigned Jobs',
+                isAdmin ? 'Admin Jobs' : 'Assigned Jobs',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w700,
                     ),
               ),
               const SizedBox(height: 8),
               Text(
-                'Today and upcoming site visits for the technician.',
+                isAdmin
+                    ? 'Review upcoming jobs and multi-member assignments from the admin mobile queue.'
+                    : 'Today and upcoming site visits for the technician.',
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
+              if (isAdmin) ...[
+                const SizedBox(height: 16),
+                FilledButton.icon(
+                  onPressed: () {
+                    context.push('/jobs/create');
+                  },
+                  icon: const Icon(Icons.add_task_rounded),
+                  label: const Text('Create Job'),
+                ),
+              ],
               const SizedBox(height: 20),
               if (jobs.isEmpty)
-                const _EmptyJobsState()
+                _EmptyJobsState(isAdmin: isAdmin)
               else
-                for (final job in jobs) _JobCard(job: job),
+                for (final job in jobs) _JobCard(job: job, isAdmin: isAdmin),
             ],
           );
         },
@@ -94,18 +109,18 @@ class JobListScreen extends ConsumerWidget {
 class _JobCard extends StatelessWidget {
   const _JobCard({
     required this.job,
+    required this.isAdmin,
   });
 
   final TechnicianJob job;
+  final bool isAdmin;
 
   @override
   Widget build(BuildContext context) {
     final scheduleFormat = DateFormat('dd MMM, hh:mm a');
     final timeFormat = DateFormat('hh:mm a');
     final statusText = _formatStatus(job.status);
-    final teamName = job.technician?.user.name.isNotEmpty == true
-        ? job.technician!.user.name
-        : 'Unassigned';
+    final teamName = job.assignedMemberSummary;
     final isCompleted = job.status == 'COMPLETED';
     final backgroundColor =
         isCompleted ? const Color(0xFFE8F7EC) : Colors.white;
@@ -180,7 +195,7 @@ class _JobCard extends StatelessWidget {
               ),
               const SizedBox(height: 10),
               Text(
-                'Team: $teamName',
+                isAdmin ? 'Assigned Members: $teamName' : 'Team: $teamName',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: const Color(0xFF355070),
                       fontWeight: FontWeight.w600,
@@ -271,7 +286,11 @@ class _TimeInfoChip extends StatelessWidget {
 }
 
 class _EmptyJobsState extends StatelessWidget {
-  const _EmptyJobsState();
+  const _EmptyJobsState({
+    required this.isAdmin,
+  });
+
+  final bool isAdmin;
 
   @override
   Widget build(BuildContext context) {
@@ -286,12 +305,14 @@ class _EmptyJobsState extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'No jobs assigned right now',
+            isAdmin ? 'No admin jobs available right now' : 'No jobs assigned right now',
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
           Text(
-            'Pull to refresh when new work is assigned.',
+            isAdmin
+                ? 'Pull to refresh when new jobs are scheduled.'
+                : 'Pull to refresh when new work is assigned.',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium,
           ),

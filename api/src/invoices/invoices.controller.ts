@@ -23,7 +23,7 @@ import { InvoicesService } from './invoices.service';
 
 @Controller('invoices')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
+@Roles(Role.ADMIN, Role.ADMIN_OWNER)
 export class InvoicesController {
   constructor(private readonly invoicesService: InvoicesService) {}
 

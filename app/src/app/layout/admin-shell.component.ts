@@ -58,6 +58,38 @@ export class AdminShellComponent {
   protected readonly navigation: readonly NavigationItem[] = [
     { label: 'Dashboard', route: '/dashboard', icon: 'pi pi-home' },
     {
+      label: 'Tracking',
+      icon: 'pi pi-map',
+      children: [
+        {
+          label: 'Live Map',
+          route: '/live-map',
+          icon: 'pi pi-map-marker',
+        },
+      ],
+    },
+    {
+      label: 'Operations',
+      icon: 'pi pi-briefcase',
+      children: [
+        {
+          label: 'Jobs',
+          route: '/jobs',
+          icon: 'pi pi-briefcase',
+        },
+        {
+          label: 'Technicians',
+          route: '/technicians',
+          icon: 'pi pi-wrench',
+        },
+        {
+          label: 'Reports',
+          route: '/reports',
+          icon: 'pi pi-chart-bar',
+        },
+      ],
+    },
+    {
       label: 'Invoice',
       icon: 'pi pi-receipt',
       children: [
@@ -213,6 +245,7 @@ export class AdminShellComponent {
       item.route === '/jobs' ||
       item.route === '/technicians' ||
       item.route === '/reports' ||
+      item.route === '/live-map' ||
       item.route === '/business/product-service' ||
       item.route?.startsWith('/settings')
     ) {

@@ -1,5 +1,7 @@
-import { JobStatus } from '@prisma/client';
+import { JobPriority, JobStatus } from '@prisma/client';
 import {
+  ArrayUnique,
+  IsArray,
   IsDateString,
   IsEnum,
   IsOptional,
@@ -25,7 +27,17 @@ export class UpdateAdminJobDto {
 
   @IsOptional()
   @IsString()
+  branchId?: string;
+
+  @IsOptional()
+  @IsString()
   technicianId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayUnique()
+  @IsString({ each: true })
+  assignedMemberIds?: string[];
 
   @IsOptional()
   @IsString()
@@ -34,6 +46,10 @@ export class UpdateAdminJobDto {
   @IsOptional()
   @IsDateString()
   scheduledDate?: string;
+
+  @IsOptional()
+  @IsEnum(JobPriority)
+  priority?: JobPriority;
 
   @IsOptional()
   @IsEnum(JobStatus)

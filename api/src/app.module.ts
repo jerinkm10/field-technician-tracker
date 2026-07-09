@@ -27,6 +27,7 @@ import { DashboardModule } from './dashboard/dashboard.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { EmployeeTasksModule } from './employee-tasks/employee-tasks.module';
 import { ComplaintsModule } from './complaints/complaints.module';
+import { AttendanceModule } from './attendance/attendance.module';
 
 @Module({
   imports: [
@@ -61,6 +62,7 @@ import { ComplaintsModule } from './complaints/complaints.module';
     NotificationsModule,
     EmployeeTasksModule,
     ComplaintsModule,
+    AttendanceModule,
   ],
   controllers: [HealthController],
 })

@@ -24,19 +24,19 @@ export class OutstandingsController {
   constructor(private readonly outstandingsService: OutstandingsService) {}
 
   @Get()
-  @Roles(Role.ADMIN, Role.EMPLOYEE)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER, Role.EMPLOYEE)
   async listOutstandings(@Query() query: ListOutstandingsQueryDto) {
     return this.outstandingsService.listOutstandings(query);
   }
 
   @Get(':id')
-  @Roles(Role.ADMIN, Role.EMPLOYEE)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER, Role.EMPLOYEE)
   async getOutstanding(@Param('id') outstandingId: string) {
     return this.outstandingsService.getOutstandingById(outstandingId);
   }
 
   @Patch(':id')
-  @Roles(Role.ADMIN, Role.EMPLOYEE)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER, Role.EMPLOYEE)
   async updateOutstanding(
     @Param('id') outstandingId: string,
     @Body() updateOutstandingDto: UpdateOutstandingDto,
@@ -50,7 +50,7 @@ export class OutstandingsController {
   }
 
   @Delete(':id')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER)
   async deleteOutstanding(@Param('id') outstandingId: string) {
     return this.outstandingsService.deleteOutstanding(outstandingId);
   }

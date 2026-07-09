@@ -15,7 +15,7 @@ import { JobsService } from './jobs.service';
 
 @Controller('jobs')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN, Role.TECHNICIAN)
+@Roles(Role.ADMIN, Role.ADMIN_OWNER, Role.TECHNICIAN)
 export class JobsController {
   constructor(private readonly jobsService: JobsService) {}
 

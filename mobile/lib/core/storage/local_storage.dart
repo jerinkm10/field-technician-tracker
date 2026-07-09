@@ -1,10 +1,12 @@
 import 'package:hive_flutter/hive_flutter.dart';
+import '../../shared/models/app_user.dart';
 
 class AppLocalStorage {
   AppLocalStorage._();
 
   static const _boxName = 'field_technician_tracker_box';
   static const _authTokenKey = 'auth_token';
+  static const _currentUserKey = 'current_user';
   static const _pendingTrackingLogsKey = 'pending_tracking_logs';
 
   static Future<void> initialize() async {
@@ -24,6 +26,30 @@ class AppLocalStorage {
 
   static Future<void> clearAuthToken() async {
     await _box.delete(_authTokenKey);
+  }
+
+  static AppUser? getCurrentUser() {
+    final rawUser = _box.get(_currentUserKey);
+    if (rawUser is! Map) {
+      return null;
+    }
+
+    return AppUser.fromJson(Map<String, dynamic>.from(rawUser));
+  }
+
+  static Future<void> saveCurrentUser(AppUser user) async {
+    await _box.put(_currentUserKey, user.toJson());
+  }
+
+  static Future<void> clearCurrentUser() async {
+    await _box.delete(_currentUserKey);
+  }
+
+  static Future<void> clearSession() async {
+    await Future.wait([
+      clearAuthToken(),
+      clearCurrentUser(),
+    ]);
   }
 
   static List<Map<String, dynamic>> getPendingTrackingLogs() {

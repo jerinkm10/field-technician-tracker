@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../features/location/current_position_provider.dart';
+import '../../core/storage/auth_session.dart';
 import '../../shared/models/technician_job.dart';
 import '../tracking/tracking_controller.dart';
 import 'jobs_provider.dart';
@@ -513,6 +514,8 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
     final trackingState = ref.watch(trackingControllerProvider);
     final jobDetails = ref.watch(jobDetailsProvider(widget.jobId));
     final currentPositionAsync = ref.watch(currentPositionProvider);
+    final currentUser = ref.watch(currentUserProvider);
+    final canControlJob = currentUser?.isTechnician == true;
 
     return Scaffold(
       appBar: AppBar(
@@ -535,20 +538,21 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
           );
           final latestVisit = job.latestVisit;
           final canStart = !_isStarting &&
+              canControlJob &&
               job.status != 'STARTED' &&
               job.status != 'COMPLETED' &&
               job.status != 'CANCELLED';
-          final canEnd = !_isEnding && job.status == 'STARTED';
-          final teamName = job.technician?.user.name.isNotEmpty == true
-              ? job.technician!.user.name
-              : 'Assigned team not set';
+          final canEnd = !_isEnding && canControlJob && job.status == 'STARTED';
+          final teamName = job.assignedMemberSummary;
           final routeSummaryDistance =
               _routeData?.distanceMeters ?? currentDistance;
 
-          ref.listen<AsyncValue<Position?>>(currentPositionProvider,
-              (previous, next) {
-            _handleAutomaticActions(job, next.valueOrNull);
-          });
+          if (canControlJob) {
+            ref.listen<AsyncValue<Position?>>(currentPositionProvider,
+                (previous, next) {
+              _handleAutomaticActions(job, next.valueOrNull);
+            });
+          }
 
           _maybeFitInitialCamera(job, currentPosition);
 
@@ -821,30 +825,32 @@ class _JobDetailScreenState extends ConsumerState<JobDetailScreen> {
                 ),
               ),
               const SizedBox(height: 16),
-              FilledButton.icon(
-                onPressed: canStart ? _startJob : null,
-                icon: _isStarting
-                    ? const SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.play_arrow_rounded),
-                label: Text(_isStarting ? 'Starting...' : 'Start Job'),
-              ),
-              const SizedBox(height: 12),
-              FilledButton.tonalIcon(
-                onPressed: canEnd ? _endJob : null,
-                icon: _isEnding
-                    ? const SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.stop_circle_outlined),
-                label: Text(_isEnding ? 'Ending...' : 'End Job'),
-              ),
-              const SizedBox(height: 12),
+              if (canControlJob) ...[
+                FilledButton.icon(
+                  onPressed: canStart ? _startJob : null,
+                  icon: _isStarting
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.play_arrow_rounded),
+                  label: Text(_isStarting ? 'Starting...' : 'Start Job'),
+                ),
+                const SizedBox(height: 12),
+                FilledButton.tonalIcon(
+                  onPressed: canEnd ? _endJob : null,
+                  icon: _isEnding
+                      ? const SizedBox(
+                          height: 18,
+                          width: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.stop_circle_outlined),
+                  label: Text(_isEnding ? 'Ending...' : 'End Job'),
+                ),
+                const SizedBox(height: 12),
+              ],
               OutlinedButton.icon(
                 onPressed: _isRouteLoading
                     ? null

@@ -1,10 +1,10 @@
 <section class="page">
   <header class="page-header">
     <div class="page-heading">
-      <p class="page-eyebrow">Jobs</p>
-      <h1 class="page-title">Dispatch and job planning board</h1>
+      <p class="page-eyebrow">Operations</p>
+      <h1 class="page-title">Jobs</h1>
       <p class="page-subtitle">
-        Assign today, tomorrow, and future service jobs while linking the right product or service from the same screen.
+        Plan service work, assign multiple technicians or employees, and keep the dispatch queue searchable from one workspace.
       </p>
     </div>
 
@@ -20,34 +20,125 @@
   <section class="panel section-shell">
     <div class="section-header">
       <div>
-        <h3>Filters</h3>
-        <p>Focus the dispatch queue by job number, customer, technician, or schedule bucket.</p>
+        <h3>Search and filters</h3>
+        <p>Use the shared search-plus-filter pattern to focus jobs by schedule, status, priority, customer, assigned member, or branch.</p>
       </div>
+
       <div class="toolbar-actions">
-        <button pButton type="button" text label="All" (click)="setScheduleFilter('ALL')"></button>
-        <button pButton type="button" text label="Today" (click)="setScheduleFilter('TODAY')"></button>
-        <button pButton type="button" text label="Tomorrow" (click)="setScheduleFilter('TOMORROW')"></button>
-        <button pButton type="button" text label="Future" (click)="setScheduleFilter('FUTURE')"></button>
+        <app-filter-dropdown>
+          <label class="field">
+            <span>From Date</span>
+            <input type="date" [(ngModel)]="fromDate" />
+          </label>
+
+          <label class="field">
+            <span>To Date</span>
+            <input type="date" [(ngModel)]="toDate" />
+          </label>
+
+          <label class="field">
+            <span>Status</span>
+            <p-select
+              [options]="statusOptions"
+              optionLabel="label"
+              optionValue="value"
+              appendTo="body"
+              [(ngModel)]="statusFilter">
+            </p-select>
+          </label>
+
+          <label class="field">
+            <span>Priority</span>
+            <p-select
+              [options]="priorityOptions"
+              optionLabel="label"
+              optionValue="value"
+              appendTo="body"
+              [(ngModel)]="priorityFilter">
+            </p-select>
+          </label>
+
+          <label class="field">
+            <span>Customer</span>
+            <p-select
+              [options]="customerOptions()"
+              optionLabel="label"
+              optionValue="value"
+              appendTo="body"
+              [(ngModel)]="customerIdFilter"
+              placeholder="Filter by customer">
+            </p-select>
+          </label>
+
+          <label class="field">
+            <span>Assigned Member</span>
+            <p-select
+              [options]="memberOptions()"
+              optionLabel="label"
+              optionValue="value"
+              appendTo="body"
+              [(ngModel)]="assignedUserIdFilter"
+              placeholder="Filter by assigned member">
+            </p-select>
+          </label>
+
+          <label class="field">
+            <span>Branch</span>
+            <p-select
+              [options]="branchOptions()"
+              optionLabel="label"
+              optionValue="value"
+              appendTo="body"
+              [(ngModel)]="branchIdFilter"
+              placeholder="Filter by branch">
+            </p-select>
+          </label>
+
+          <div class="filter-actions">
+            <button pButton type="button" label="Apply" icon="pi pi-filter" (click)="applyFilters()"></button>
+            <button pButton type="button" label="Reset" text (click)="resetFilters()"></button>
+          </div>
+        </app-filter-dropdown>
+
+        <button
+          pButton
+          type="button"
+          label="Refresh"
+          icon="pi pi-refresh"
+          text
+          [loading]="loading()"
+          (click)="loadJobs()">
+        </button>
       </div>
     </div>
 
-    <label class="field">
-      <span>Search</span>
-      <input
-        pInputText
-        [(ngModel)]="searchTerm"
-        placeholder="Search job number, title, customer, technician, or product/service" />
-    </label>
+    <div class="filters-grid compact-grid">
+      <label class="field">
+        <span>Search</span>
+        <input
+          pInputText
+          [(ngModel)]="searchTerm"
+          placeholder="Search job number, title, customer, or assigned member"
+          (keydown.enter)="applyFilters()" />
+      </label>
+
+      <div class="filter-actions">
+        <button pButton type="button" label="Search" icon="pi pi-search" (click)="applyFilters()"></button>
+        <button pButton type="button" label="Reset" text (click)="resetFilters()"></button>
+      </div>
+    </div>
   </section>
 
   <section class="panel section-shell">
-    <p-table [value]="filteredJobs()" responsiveLayout="scroll" [loading]="loading()">
+    <p-table [value]="jobs()" responsiveLayout="scroll" [loading]="loading()">
       <ng-template #header>
         <tr>
           <th>Job</th>
           <th>Customer</th>
-          <th>Technician</th>
+          <th>Branch</th>
+          <th>Assigned Members</th>
           <th>Product / Service</th>
+          <th>Priority</th>
           <th>Scheduled</th>
           <th>Status</th>
           <th></th>
@@ -69,14 +160,24 @@
             </div>
           </td>
           <td>
-            @if (job.technician) {
+            @if (job.branch) {
               <div class="table-title-cell">
-                <strong>{{ job.technician.user.name }}</strong>
-                <span>{{ job.technician.status.replaceAll('_', ' ') }}</span>
+                <strong>{{ job.branch.supplierName }}</strong>
+                <span>{{ job.branch.phone }}</span>
               </div>
             } @else {
-              <span class="muted-text">Unassigned</span>
+              <span class="muted-text">Not linked</span>
             }
+          </td>
+          <td>
+            <div class="table-title-cell">
+              <strong>{{ assignedMembersLabel(job) }}</strong>
+              @if (job.assignments.length > 0) {
+                <span>
+                  {{ job.assignments.length }} member(s) assigned
+                </span>
+              }
+            </div>
           </td>
           <td>
             @if (job.productService) {
@@ -87,6 +188,11 @@
             } @else {
               <span class="muted-text">Not linked</span>
             }
+          </td>
+          <td>
+            <span class="priority-chip priority-{{ job.priority.toLowerCase() }}">
+              {{ job.priority.replaceAll('_', ' ') }}
+            </span>
           </td>
           <td>
             <div class="table-title-cell">
@@ -116,22 +222,22 @@
   [closeOnEscape]="!saving()"
   [draggable]="false"
   [resizable]="false"
-  [style]="{ width: 'min(94vw, 62rem)' }"
+  [style]="{ width: 'min(94vw, 68rem)' }"
   [header]="dialogTitle()"
   (onHide)="closeDialog()">
-  <div class="filters-grid compact-grid">
+  <div class="job-form-grid">
     <label class="field">
-      <span>Job Number</span>
+      <span>Job Number <strong class="required-marker">*</strong></span>
       <input pInputText [(ngModel)]="draft.jobNumber" [disabled]="isReadOnly()" />
     </label>
 
     <label class="field">
-      <span>Title</span>
+      <span>Title <strong class="required-marker">*</strong></span>
       <input pInputText [(ngModel)]="draft.title" [disabled]="isReadOnly()" />
     </label>
 
     <label class="field">
-      <span>Customer</span>
+      <span>Customer <strong class="required-marker">*</strong></span>
       <p-select
         [options]="customerOptions()"
         optionLabel="label"
@@ -143,13 +249,57 @@
     </label>
 
     <label class="field">
-      <span>Technician</span>
+      <span>Branch</span>
       <p-select
-        [options]="technicianOptions()"
+        [options]="branchOptions()"
         optionLabel="label"
         optionValue="value"
         appendTo="body"
-        [(ngModel)]="draft.technicianId"
+        [(ngModel)]="draft.branchId"
+        [disabled]="isReadOnly()"
+        placeholder="Select branch">
+      </p-select>
+    </label>
+
+    <label class="field">
+      <span>Scheduled Date <strong class="required-marker">*</strong></span>
+      <input type="date" [(ngModel)]="draft.scheduledDate" [disabled]="isReadOnly()" />
+    </label>
+
+    <label class="field field-span-2">
+      <span>Assigned Members</span>
+      <p-multiselect
+        [options]="memberOptions()"
+        optionLabel="label"
+        optionValue="value"
+        display="chip"
+        appendTo="body"
+        [disabled]="isReadOnly()"
+        [(ngModel)]="draft.assignedMemberIds"
+        placeholder="Select technicians or employees">
+      </p-multiselect>
+    </label>
+
+    <label class="field">
+      <span>Priority</span>
+      <p-select
+        [options]="priorityOptions.slice(1)"
+        optionLabel="label"
+        optionValue="value"
+        appendTo="body"
+        [(ngModel)]="draft.priority"
+        [disabled]="isReadOnly()">
+      </p-select>
+    </label>
+
+    <label class="field">
+      <span>Status</span>
+      <p-select
+        [options]="statusOptions.slice(1)"
+        optionLabel="label"
+        optionValue="value"
+        appendTo="body"
+        [(ngModel)]="draft.status"
         [disabled]="isReadOnly()">
       </p-select>
     </label>
@@ -165,28 +315,31 @@
       </app-product-service-autocomplete>
     </label>
 
-    <label class="field">
-      <span>Scheduled Date</span>
-      <input type="date" [(ngModel)]="draft.scheduledDate" [disabled]="isReadOnly()" />
+    <label class="field field-span-2">
+      <span>Description <strong class="required-marker">*</strong></span>
+      <textarea rows="5" [(ngModel)]="draft.description" [disabled]="isReadOnly()"></textarea>
     </label>
 
-    <label class="field">
-      <span>Status</span>
-      <p-select
-        [options]="statusOptions"
-        optionLabel="label"
-        optionValue="value"
-        appendTo="body"
-        [(ngModel)]="draft.status"
-        [disabled]="isReadOnly()">
-      </p-select>
-    </label>
+    @if (isReadOnly() && selectedJob?.assignments?.length) {
+      <div class="field field-span-2">
+        <span>Assignment Status</span>
+        <div class="assignment-status-list">
+          @for (assignment of selectedJob!.assignments; track assignment.id) {
+            <div class="assignment-status-row">
+              <div class="table-title-cell">
+                <strong>{{ assignment.user.name }}</strong>
+                <span>{{ assignment.roleType.replaceAll('_', ' ') }}</span>
+              </div>
+              <p-tag
+                [value]="memberStatusLabel(assignment)"
+                [severity]="statusSeverity(selectedJob!.status)">
+              </p-tag>
+            </div>
+          }
+        </div>
+      </div>
+    }
   </div>
-
-  <label class="field">
-    <span>Description</span>
-    <textarea rows="5" [(ngModel)]="draft.description" [disabled]="isReadOnly()"></textarea>
-  </label>
 
   <ng-template #footer>
     <div class="dialog-actions">

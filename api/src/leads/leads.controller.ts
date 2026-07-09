@@ -34,7 +34,7 @@ export class LeadsController {
   constructor(private readonly leadsService: LeadsService) {}
 
   @Get()
-  @Roles(Role.ADMIN, Role.EMPLOYEE)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER, Role.EMPLOYEE)
   async listLeads(
     @Query() query: ListLeadsQueryDto,
     @CurrentUser() currentUser: JwtPayload,
@@ -43,19 +43,19 @@ export class LeadsController {
   }
 
   @Get('suggestions')
-  @Roles(Role.ADMIN, Role.EMPLOYEE)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER, Role.EMPLOYEE)
   async listLeadSuggestions(@Query('query') query?: string) {
     return this.leadsService.listLeadSuggestions(query);
   }
 
   @Get('performance')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER)
   async getLeadPerformance(@Query() query: ListLeadsQueryDto) {
     return this.leadsService.getLeadPerformance(query);
   }
 
   @Get('demo-excel')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER)
   async downloadDemoExcel(
     @Res({ passthrough: true }) response: Response,
   ) {
@@ -70,7 +70,7 @@ export class LeadsController {
   }
 
   @Post('import')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER)
   @UseInterceptors(FileInterceptor('file'))
   async importLeads(
     @UploadedFile() file: any,
@@ -85,7 +85,7 @@ export class LeadsController {
   }
 
   @Get(':id/notes')
-  @Roles(Role.ADMIN, Role.EMPLOYEE)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER, Role.EMPLOYEE)
   async getLeadNotes(
     @Param('id') leadId: string,
     @CurrentUser() currentUser: JwtPayload,
@@ -94,7 +94,7 @@ export class LeadsController {
   }
 
   @Post(':id/notes')
-  @Roles(Role.ADMIN, Role.EMPLOYEE)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER, Role.EMPLOYEE)
   async addLeadNote(
     @Param('id') leadId: string,
     @Body() addLeadNoteDto: AddLeadNoteDto,
@@ -104,7 +104,7 @@ export class LeadsController {
   }
 
   @Get(':id')
-  @Roles(Role.ADMIN, Role.EMPLOYEE)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER, Role.EMPLOYEE)
   async getLead(
     @Param('id') leadId: string,
     @CurrentUser() currentUser: JwtPayload,
@@ -113,7 +113,7 @@ export class LeadsController {
   }
 
   @Post()
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER)
   async createLead(
     @Body() createLeadDto: CreateLeadDto,
     @CurrentUser() currentUser: JwtPayload,
@@ -122,7 +122,7 @@ export class LeadsController {
   }
 
   @Patch(':id/status')
-  @Roles(Role.ADMIN, Role.EMPLOYEE)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER, Role.EMPLOYEE)
   async updateLeadStatus(
     @Param('id') leadId: string,
     @Body() updateLeadStatusDto: UpdateLeadStatusDto,
@@ -136,7 +136,7 @@ export class LeadsController {
   }
 
   @Patch(':id')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER)
   async updateLead(
     @Param('id') leadId: string,
     @Body() updateLeadDto: UpdateLeadDto,
@@ -146,7 +146,7 @@ export class LeadsController {
   }
 
   @Delete(':id')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER)
   async deleteLead(@Param('id') leadId: string) {
     return this.leadsService.deleteLead(leadId);
   }

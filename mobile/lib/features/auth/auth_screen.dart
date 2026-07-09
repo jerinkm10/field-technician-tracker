@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/config/app_config.dart';
+import '../../core/storage/auth_session.dart';
 import 'auth_controller.dart';
 
 class AuthScreen extends ConsumerStatefulWidget {
@@ -48,7 +49,8 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
         );
 
     if (didLogin && mounted) {
-      context.go('/jobs');
+      final currentUser = ref.read(currentUserProvider);
+      context.go(currentUser?.isAdmin == true ? '/admin' : '/map');
     }
   }
 

@@ -23,7 +23,7 @@ import { QuotationsService } from './quotations.service';
 
 @Controller('quotations')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
+@Roles(Role.ADMIN, Role.ADMIN_OWNER)
 export class QuotationsController {
   constructor(private readonly quotationsService: QuotationsService) {}
 

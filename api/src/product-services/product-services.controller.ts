@@ -22,7 +22,7 @@ import { ProductServicesService } from './product-services.service';
 
 @Controller('products-services')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
+@Roles(Role.ADMIN, Role.ADMIN_OWNER)
 export class ProductServicesController {
   constructor(
     private readonly productServicesService: ProductServicesService,

@@ -29,14 +29,14 @@ export class CompanySettingsController {
 
   @Get()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER)
   async getCompanySettings() {
     return this.companySettingsService.getCompanySettings();
   }
 
   @Post()
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER)
   async createCompanySettings(
     @Body() createCompanySettingsDto: CreateCompanySettingsDto,
   ) {
@@ -47,7 +47,7 @@ export class CompanySettingsController {
 
   @Patch(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER)
   async updateCompanySettings(
     @Param('id') companyId: string,
     @Body() updateCompanySettingsDto: UpdateCompanySettingsDto,
@@ -60,7 +60,7 @@ export class CompanySettingsController {
 
   @Post('logo')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER)
   @UseInterceptors(FileInterceptor('file'))
   async uploadCompanyLogo(
     @UploadedFile() file: any,
@@ -75,7 +75,7 @@ export class CompanySettingsController {
 
   @Post('signature')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER)
   @UseInterceptors(FileInterceptor('file'))
   async uploadCompanySignature(
     @UploadedFile() file: any,
@@ -90,7 +90,7 @@ export class CompanySettingsController {
 
   @Post('seal')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER)
   @UseInterceptors(FileInterceptor('file'))
   async uploadCompanySeal(
     @UploadedFile() file: any,

@@ -20,7 +20,7 @@ import { SuppliersService } from './suppliers.service';
 
 @Controller('suppliers')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
+@Roles(Role.ADMIN, Role.ADMIN_OWNER)
 export class SuppliersController {
   constructor(private readonly suppliersService: SuppliersService) {}
 

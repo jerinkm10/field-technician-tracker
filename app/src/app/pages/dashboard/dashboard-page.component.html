@@ -14,10 +14,8 @@
       </p>
     </div>
 
-    <div class="header-actions">
-      @if (isAdminView()) {
-        <button pButton type="button" label="Open Live Map" icon="pi pi-map" routerLink="/live-map"></button>
-      } @else {
+    @if (!isAdminView()) {
+      <div class="header-actions">
         <button
           pButton
           type="button"
@@ -25,8 +23,8 @@
           icon="pi pi-list-check"
           routerLink="/business/tasks">
         </button>
-      }
-    </div>
+      </div>
+    }
   </header>
 
   @if (errorMessage()) {
@@ -56,79 +54,71 @@
     }
   </div>
 
-  <div class="two-column-layout">
-    <section class="panel hero-panel">
-      <div class="hero-copy">
-        <p class="hero-label">Realtime Status</p>
-        <h2>Socket.IO channel is {{ realtime.connected() ? 'connected' : 'waiting for connection' }}</h2>
+  <section class="panel section-shell">
+    <div class="section-header">
+      <div>
+        <h3>Quick Routing</h3>
         <p>
           {{
             isAdminView()
-              ? 'Use this live status together with the widgets below to track job readiness, complaint pressure, and collection follow-ups.'
-              : 'Use this workspace to keep up with your assigned follow-ups, complaints, and collection tasks throughout the day.'
+              ? 'Jump into the active business workspaces without keeping duplicate live map or jobs widgets on the dashboard.'
+              : 'Open the workspaces that need action today.'
           }}
         </p>
       </div>
 
-      <div class="hero-actions">
-        <p-tag [severity]="socketSeverity()" [value]="realtime.connected() ? 'Online' : 'Offline'"></p-tag>
-        <span>{{ realtime.lastEvent() }}</span>
-      </div>
-    </section>
+      <p-tag
+        [severity]="socketSeverity()"
+        [value]="realtime.connected() ? 'Realtime Online' : 'Realtime Offline'">
+      </p-tag>
+    </div>
 
-    <section class="panel section-shell">
-      <div class="section-header">
-        <h3>Quick Routing</h3>
-      </div>
-
-      <div class="action-list">
+    <div class="action-list">
+      <button
+        pButton
+        type="button"
+        label="Complaints"
+        icon="pi pi-exclamation-circle"
+        text
+        routerLink="/business/complaints"
+        [queryParams]="isAdminView() ? { status: 'PENDING' } : undefined">
+      </button>
+      <button
+        pButton
+        type="button"
+        label="Outstanding Workspace"
+        icon="pi pi-wallet"
+        text
+        routerLink="/business/outstanding">
+      </button>
+      <button
+        pButton
+        type="button"
+        label="Lead Workspace"
+        icon="pi pi-megaphone"
+        text
+        routerLink="/business/lead">
+      </button>
+      <button
+        pButton
+        type="button"
+        label="Task Workspace"
+        icon="pi pi-list-check"
+        text
+        routerLink="/business/tasks">
+      </button>
+      @if (isAdminView()) {
         <button
           pButton
           type="button"
-          label="Complaints"
-          icon="pi pi-exclamation-circle"
+          label="AMC Workspace"
+          icon="pi pi-calendar"
           text
-          routerLink="/business/complaints"
-          [queryParams]="isAdminView() ? { status: 'PENDING' } : undefined">
+          routerLink="/business/amc">
         </button>
-        <button
-          pButton
-          type="button"
-          label="Outstanding Workspace"
-          icon="pi pi-wallet"
-          text
-          routerLink="/business/outstanding">
-        </button>
-        <button
-          pButton
-          type="button"
-          label="Lead Workspace"
-          icon="pi pi-megaphone"
-          text
-          routerLink="/business/lead">
-        </button>
-        <button
-          pButton
-          type="button"
-          label="Task Workspace"
-          icon="pi pi-list-check"
-          text
-          routerLink="/business/tasks">
-        </button>
-        @if (isAdminView()) {
-          <button pButton type="button" label="Jobs Queue" icon="pi pi-briefcase" text routerLink="/jobs"></button>
-          <button
-            pButton
-            type="button"
-            label="AMC Workspace"
-            icon="pi pi-calendar"
-            text
-            routerLink="/business/amc">
-          </button>
-        }
-      </div>
-    </section>
-  </div>
+      }
+    </div>
+  </section>
 
   @if (isAdminView()) {
     <section class="alerts-grid">
@@ -280,15 +270,29 @@
       <div class="section-header">
         <div>
           <h3>Employee Performance</h3>
-          <p>Company-wide performance charting for leads, jobs, and revenue.</p>
+          <p>Company-wide performance charting for leads, jobs, collections, and service delivery.</p>
         </div>
-        <button
-          pButton
-          type="button"
-          label="Open Complaints"
-          text
-          routerLink="/business/complaints">
-        </button>
+        <div class="toolbar-actions">
+          <label class="field compact-field">
+            <span>From Date</span>
+            <input type="date" [(ngModel)]="performanceFromDate" />
+          </label>
+          <label class="field compact-field">
+            <span>To Date</span>
+            <input type="date" [(ngModel)]="performanceToDate" />
+          </label>
+          <div class="filter-actions">
+            <button
+              pButton
+              type="button"
+              label="Apply"
+              icon="pi pi-filter"
+              [loading]="performanceLoading()"
+              (click)="applyPerformanceFilters()">
+            </button>
+            <button pButton type="button" label="Reset" text (click)="resetPerformanceFilters()"></button>
+          </div>
+        </div>
       </div>
 
       @if (performance(); as performanceData) {
@@ -442,90 +446,96 @@
                         [value]="employee.technicianPerformance.availability.replaceAll('_', ' ')">
                       </p-tag>
                     }
+                    <button
+                      pButton
+                      type="button"
+                      text
+                      [icon]="isEmployeeCardCollapsed(employee.employeeId) ? 'pi pi-chevron-down' : 'pi pi-chevron-up'"
+                      [label]="isEmployeeCardCollapsed(employee.employeeId) ? 'Expand' : 'Collapse'"
+                      (click)="toggleEmployeeCard(employee.employeeId)">
+                    </button>
                   </div>
                 </div>
 
-                <div class="employee-highlight-grid">
-                  <article class="employee-highlight-card">
-                    <span>Leads Converted</span>
-                    <strong>{{ employee.leadsConverted }}</strong>
-                  </article>
-                  <article class="employee-highlight-card">
-                    <span>Jobs Completed</span>
-                    <strong>{{ employee.jobsCompleted }}</strong>
-                  </article>
-                  <article class="employee-highlight-card">
-                    <span>Revenue</span>
-                    <strong>{{ employee.revenueGenerated | currency: 'INR' : 'symbol' : '1.0-0' }}</strong>
-                  </article>
-                  <article class="employee-highlight-card">
-                    <span>Collections</span>
-                    <strong>{{ employee.outstandingCollected | currency: 'INR' : 'symbol' : '1.0-0' }}</strong>
-                  </article>
-                </div>
+                @if (!isEmployeeCardCollapsed(employee.employeeId)) {
+                  <div class="employee-highlight-grid">
+                    <article class="employee-highlight-card">
+                      <span>Leads Assigned</span>
+                      <strong>{{ employee.leadsAssigned }}</strong>
+                    </article>
+                    <article class="employee-highlight-card">
+                      <span>Leads Converted</span>
+                      <strong>{{ employee.leadsConverted }}</strong>
+                    </article>
+                    <article class="employee-highlight-card">
+                      <span>Outstanding Collected</span>
+                      <strong>{{ employee.outstandingCollected | currency: 'INR' : 'symbol' : '1.0-0' }}</strong>
+                    </article>
+                    <article class="employee-highlight-card">
+                      <span>Revenue Generated</span>
+                      <strong>{{ employee.revenueGenerated | currency: 'INR' : 'symbol' : '1.0-0' }}</strong>
+                    </article>
+                    <article class="employee-highlight-card">
+                      <span>Average Response Time</span>
+                      <strong>{{ employee.averageResponseTimeHours | number: '1.0-2' }}h</strong>
+                    </article>
+                  </div>
 
-                <div class="employee-performance-stats">
-                  <div>
-                    <span>Leads Assigned</span>
-                    <strong>{{ employee.leadsAssigned }}</strong>
-                  </div>
-                  <div>
-                    <span>AMC Renewals</span>
-                    <strong>{{ employee.amcRenewals }}</strong>
-                  </div>
-                  <div>
-                    <span>Avg Response</span>
-                    <strong>{{ employee.averageResponseTimeHours | number: '1.0-2' }}h</strong>
-                  </div>
-                  <div>
-                    <span>Complaints Assigned</span>
-                    <strong>{{ employee.pendingComplaintsAssigned }}</strong>
-                  </div>
-                  <div>
-                    <span>Today's Tasks</span>
-                    <strong>{{ employee.todayTasks }}</strong>
-                  </div>
-                  <div>
-                    <span>Completed Tasks</span>
-                    <strong>{{ employee.completedTasks }}</strong>
-                  </div>
-                </div>
-
-                <div class="employee-progress-grid">
-                  <article class="progress-card">
-                    <div class="progress-copy">
-                      <span>Lead Conversion Rate</span>
-                      <strong>{{ employeeLeadConversionRate(employee) | number: '1.0-2' }}%</strong>
+                  <div class="employee-performance-stats">
+                    <div>
+                      <span>AMC Renewals</span>
+                      <strong>{{ employee.amcRenewals }}</strong>
                     </div>
-                    <div class="progress-track">
-                      <div class="progress-fill" [style.width]="percentageWidth(employeeLeadConversionRate(employee))"></div>
+                    <div>
+                      <span>Complaints Assigned</span>
+                      <strong>{{ employee.pendingComplaintsAssigned }}</strong>
                     </div>
-                  </article>
+                    <div>
+                      <span>Today's Tasks</span>
+                      <strong>{{ employee.todayTasks }}</strong>
+                    </div>
+                    <div>
+                      <span>Completed Tasks</span>
+                      <strong>{{ employee.completedTasks }}</strong>
+                    </div>
+                  </div>
 
-                  <article class="progress-card">
-                    <div class="progress-copy">
-                      <span>Technician Completion Rate</span>
-                      <strong>{{ employee.technicianPerformance.completionRate | number: '1.0-2' }}%</strong>
-                    </div>
-                    <div class="progress-track">
-                      <div class="progress-fill" [style.width]="percentageWidth(employee.technicianPerformance.completionRate)"></div>
-                    </div>
-                  </article>
-                </div>
+                  <div class="employee-progress-grid">
+                    <article class="progress-card">
+                      <div class="progress-copy">
+                        <span>Lead Conversion Rate</span>
+                        <strong>{{ employeeLeadConversionRate(employee) | number: '1.0-2' }}%</strong>
+                      </div>
+                      <div class="progress-track">
+                        <div class="progress-fill" [style.width]="percentageWidth(employeeLeadConversionRate(employee))"></div>
+                      </div>
+                    </article>
 
-                <div class="employee-performance-meta">
-                  <span>
-                    Technician Link:
-                    {{
-                      employee.technicianPerformance.availability
-                        ? employee.technicianPerformance.availability.replaceAll('_', ' ')
-                        : 'Not linked'
-                    }}
-                  </span>
-                  <span>Assigned Jobs: {{ employee.technicianPerformance.assignedJobs }}</span>
-                  <span>Completed Jobs: {{ employee.technicianPerformance.completedJobs }}</span>
-                  <span>Task Delivery Snapshot: {{ employee.completedTasks }}/{{ employee.todayTasks || 0 }}</span>
-                </div>
+                    <article class="progress-card">
+                      <div class="progress-copy">
+                        <span>Technician Completion Rate</span>
+                        <strong>{{ employee.technicianPerformance.completionRate | number: '1.0-2' }}%</strong>
+                      </div>
+                      <div class="progress-track">
+                        <div class="progress-fill" [style.width]="percentageWidth(employee.technicianPerformance.completionRate)"></div>
+                      </div>
+                    </article>
+                  </div>
+
+                  <div class="employee-performance-meta">
+                    <span>
+                      Technician Link:
+                      {{
+                        employee.technicianPerformance.availability
+                          ? employee.technicianPerformance.availability.replaceAll('_', ' ')
+                          : 'Not linked'
+                      }}
+                    </span>
+                    <span>Assigned Jobs: {{ employee.technicianPerformance.assignedJobs }}</span>
+                    <span>Completed Jobs: {{ employee.technicianPerformance.completedJobs }}</span>
+                    <span>Task Delivery Snapshot: {{ employee.completedTasks }}/{{ employee.assignedTaskCount }}</span>
+                  </div>
+                }
               </article>
             }
           </div>

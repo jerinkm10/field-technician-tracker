@@ -54,6 +54,13 @@ export type NotificationReferenceType =
   | 'TASK'
   | 'COMPLAINT';
 export type JobStatus = 'PENDING' | 'ASSIGNED' | 'STARTED' | 'COMPLETED' | 'CANCELLED';
+export type JobPriority = 'LOW' | 'MEDIUM' | 'HIGH';
+export type JobAssignmentRoleType = 'TECHNICIAN' | 'EMPLOYEE';
+export type JobAssignmentStatus =
+  | 'ASSIGNED'
+  | 'ACCEPTED'
+  | 'IN_PROGRESS'
+  | 'COMPLETED';
 export type LedgerDocumentType =
   | 'PROFORMA_INVOICE'
   | 'TAX_INVOICE'
@@ -541,12 +548,31 @@ export type JobRecord = {
   jobNumber: string;
   title: string;
   description: string;
+  priority: JobPriority;
+  branchId: string | null;
   customer: {
     id: string;
     name: string;
     phone: string;
     address: string;
   };
+  branch:
+    | Pick<
+        SupplierRecord,
+        | 'id'
+        | 'supplierName'
+        | 'phone'
+        | 'email'
+        | 'gstin'
+        | 'address'
+        | 'bankName'
+        | 'accountNumber'
+        | 'ifscCode'
+        | 'status'
+        | 'createdAt'
+        | 'updatedAt'
+      >
+    | null;
   technician:
     | {
         id: string;
@@ -558,10 +584,26 @@ export type JobRecord = {
   productService:
     | Pick<ProductServiceRecord, 'id' | 'name' | 'type' | 'hsnSacCode'>
     | null;
+  assignments: JobAssignmentRecord[];
   status: JobStatus;
   scheduledDate: string;
   startedAt: string | null;
   completedAt: string | null;
+};
+
+export type JobAssignmentRecord = {
+  id: string;
+  userId: string;
+  roleType: JobAssignmentRoleType;
+  status: JobAssignmentStatus;
+  assignedAt: string;
+  user: Pick<
+    EmployeeRecord,
+    'id' | 'name' | 'username' | 'email' | 'phone' | 'role' | 'status'
+  > & {
+    technicianProfileId: string | null;
+    technicianStatus: 'AVAILABLE' | 'ON_JOB' | 'OFFLINE' | null;
+  };
 };
 
 export type JobUpsertPayload = {
@@ -569,9 +611,12 @@ export type JobUpsertPayload = {
   title: string;
   description: string;
   customerId: string;
+  branchId?: string | null;
   technicianId?: string | null;
+  assignedMemberIds?: string[];
   productServiceId?: string | null;
   scheduledDate: string;
+  priority?: JobPriority;
   status?: JobStatus;
 };
 
@@ -936,6 +981,14 @@ export type LeadListFilters = {
 };
 
 export type JobListFilters = {
+  search?: string;
+  fromDate?: string;
+  toDate?: string;
+  status?: JobStatus;
+  priority?: JobPriority;
+  customerId?: string;
+  assignedUserId?: string;
+  branchId?: string;
   page?: number;
   limit?: number;
 };
@@ -1097,6 +1150,7 @@ export type DashboardPerformanceEmployeeRecord = {
   pendingComplaintsAssigned: number;
   todayTasks: number;
   completedTasks: number;
+  assignedTaskCount: number;
   technicianPerformance: {
     availability: 'AVAILABLE' | 'ON_JOB' | 'OFFLINE' | null;
     assignedJobs: number;

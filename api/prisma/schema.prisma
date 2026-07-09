@@ -33,6 +33,24 @@ enum JobStatus {
   CANCELLED
 }
 
+enum JobPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum JobAssignmentRoleType {
+  TECHNICIAN
+  EMPLOYEE
+}
+
+enum JobAssignmentStatus {
+  ASSIGNED
+  ACCEPTED
+  IN_PROGRESS
+  COMPLETED
+}
+
 enum AttachmentType {
   PHOTO
   SIGNATURE
@@ -183,9 +201,11 @@ model User {
   assignedLeads     Lead[]             @relation("LeadAssignedEmployee")
   assignedComplaints Complaint[]       @relation("ComplaintAssignedEmployee")
   employeeTasks     EmployeeTask[]     @relation("EmployeeAssignedTasks")
+  jobAssignments    JobAssignment[]
   leadNotes         LeadNote[]
   leadStatusHistory LeadStatusHistory[]
   notifications     Notification[]
+  attendances       Attendance[]
   productServiceHistory ProductServiceHistory[]
 
   @@index([role])
@@ -243,25 +263,48 @@ model Job {
   title         String
   description   String
   customerId    String
+  branchId      String?
   technicianId  String?
   productServiceId String?
   status        JobStatus       @default(PENDING)
+  priority      JobPriority     @default(MEDIUM)
   scheduledDate DateTime
   startedAt     DateTime?
   completedAt   DateTime?
   customer      Customer        @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  branch        Supplier?       @relation(fields: [branchId], references: [id], onDelete: SetNull)
   technician    Technician?     @relation(fields: [technicianId], references: [id], onDelete: SetNull)
   productService ProductService? @relation(fields: [productServiceId], references: [id], onDelete: SetNull)
   complaint     Complaint?
+  assignments   JobAssignment[]
   visits        JobVisit[]
   locationLogs  LocationLog[]
   attachments   JobAttachment[]
 
   @@index([customerId])
+  @@index([branchId])
   @@index([technicianId])
   @@index([productServiceId])
   @@index([status])
+  @@index([priority])
   @@index([scheduledDate])
+}
+
+model JobAssignment {
+  id         String                @id @default(cuid())
+  jobId       String
+  userId      String
+  roleType    JobAssignmentRoleType
+  status      JobAssignmentStatus   @default(ASSIGNED)
+  assignedAt  DateTime              @default(now())
+  job         Job                   @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  user        User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, userId])
+  @@index([jobId])
+  @@index([userId])
+  @@index([roleType])
+  @@index([status])
 }
 
 model JobVisit {
@@ -332,6 +375,7 @@ model Supplier {
   quotations    Quotation[]
   amcs          Amc[]
   leads         Lead[]
+  jobs          Job[]
 
   @@index([supplierName])
   @@index([phone])
@@ -708,6 +752,26 @@ model Notification {
   @@index([userId])
   @@index([isRead])
   @@index([createdAt])
+}
+
+model Attendance {
+  id                String    @id @default(cuid())
+  userId            String
+  checkInAt         DateTime
+  checkOutAt        DateTime?
+  checkInLatitude   Float?
+  checkInLongitude  Float?
+  checkInAccuracy   Float?
+  checkOutLatitude  Float?
+  checkOutLongitude Float?
+  checkOutAccuracy  Float?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([checkInAt])
+  @@index([checkOutAt])
 }
 
 model LeadNote {

@@ -10,6 +10,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { ButtonModule } from 'primeng/button';
 import { TagModule } from 'primeng/tag';
@@ -46,7 +47,15 @@ type DashboardMetric = {
 
 @Component({
   selector: 'app-dashboard-page',
-  imports: [ButtonModule, CurrencyPipe, DatePipe, DecimalPipe, RouterLink, TagModule],
+  imports: [
+    ButtonModule,
+    CurrencyPipe,
+    DatePipe,
+    DecimalPipe,
+    FormsModule,
+    RouterLink,
+    TagModule,
+  ],
   templateUrl: './dashboard-page.component.html',
   styleUrl: './dashboard-page.component.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -65,6 +74,11 @@ export class DashboardPageComponent {
   protected readonly employeeSummary = signal<DashboardEmployeeSummaryResponse | null>(null);
   protected readonly performance = signal<DashboardPerformanceResponse | null>(null);
   protected readonly errorMessage = signal<string | null>(null);
+  protected readonly performanceLoading = signal(false);
+  protected readonly collapsedEmployeeCards = signal<Record<string, boolean>>({});
+
+  protected performanceFromDate = '';
+  protected performanceToDate = '';
 
   protected readonly metrics = computed(() => {
     return this.authService.isAdmin()
@@ -258,6 +272,27 @@ export class DashboardPageComponent {
     return this.businessSummary()?.alerts.leadsNeedingFollowUp ?? [];
   }
 
+  protected applyPerformanceFilters(): void {
+    this.loadPerformance();
+  }
+
+  protected resetPerformanceFilters(): void {
+    this.performanceFromDate = '';
+    this.performanceToDate = '';
+    this.loadPerformance();
+  }
+
+  protected toggleEmployeeCard(employeeId: string): void {
+    this.collapsedEmployeeCards.update((state) => ({
+      ...state,
+      [employeeId]: !state[employeeId],
+    }));
+  }
+
+  protected isEmployeeCardCollapsed(employeeId: string): boolean {
+    return this.collapsedEmployeeCards()[employeeId] ?? false;
+  }
+
   private loadDashboard(): void {
     this.errorMessage.set(null);
 
@@ -282,14 +317,7 @@ export class DashboardPageComponent {
       },
     });
 
-    this.dashboardApiService.getPerformance().subscribe({
-      next: (performance) => {
-        this.performance.set(performance);
-      },
-      error: () => {
-        this.performance.set(null);
-      },
-    });
+    this.loadPerformance();
   }
 
   private loadEmployeeDashboard(): void {
@@ -345,11 +373,14 @@ export class DashboardPageComponent {
         route: '/business/outstanding',
       },
       {
-        label: "Today's Jobs",
-        value: String(summary.todayJobsCount),
-        note: 'Scheduled jobs visible to the field team today',
-        severity: summary.todayJobsCount > 0 ? 'info' : 'secondary',
-        route: '/jobs',
+        label: "Today's Follow-ups",
+        value: String(summary.followUpsDueTodayCount),
+        note: `${summary.overdueFollowUpsCount} follow-up(s) are already overdue`,
+        severity:
+          summary.followUpsDueTodayCount > 0 || summary.overdueFollowUpsCount > 0
+            ? 'warn'
+            : 'success',
+        route: '/business/lead',
       },
       {
         label: 'AMC Expiring',
@@ -385,6 +416,26 @@ export class DashboardPageComponent {
         route: '/business/complaints',
       },
     ];
+  }
+
+  private loadPerformance(): void {
+    this.performanceLoading.set(true);
+
+    this.dashboardApiService
+      .getPerformance({
+        fromDate: this.performanceFromDate || undefined,
+        toDate: this.performanceToDate || undefined,
+      })
+      .subscribe({
+        next: (performance) => {
+          this.performance.set(performance);
+          this.performanceLoading.set(false);
+        },
+        error: () => {
+          this.performance.set(null);
+          this.performanceLoading.set(false);
+        },
+      });
   }
 
   private buildEmployeeMetrics(): readonly DashboardMetric[] {

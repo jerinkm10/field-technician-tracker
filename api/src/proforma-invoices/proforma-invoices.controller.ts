@@ -23,7 +23,7 @@ import { ProformaInvoicesService } from './proforma-invoices.service';
 
 @Controller('proforma-invoices')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
+@Roles(Role.ADMIN, Role.ADMIN_OWNER)
 export class ProformaInvoicesController {
   constructor(
     private readonly proformaInvoicesService: ProformaInvoicesService,

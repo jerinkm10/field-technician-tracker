@@ -6,6 +6,8 @@ import {
 import {
   AmcStatus,
   ComplaintStatus,
+  JobAssignmentRoleType,
+  JobAssignmentStatus,
   JobStatus,
   LeadStatus,
   NotificationReferenceType,
@@ -328,6 +330,13 @@ export class EmployeeTasksService {
         customerId: true,
         scheduledDate: true,
         status: true,
+        assignments: {
+          select: {
+            userId: true,
+            roleType: true,
+            status: true,
+          },
+        },
         technician: {
           select: {
             user: {
@@ -349,8 +358,23 @@ export class EmployeeTasksService {
       return;
     }
 
-    const assignedUserId = job.technician?.user.id ?? null;
-    if (!assignedUserId) {
+    const assignments =
+      job.assignments.length > 0
+        ? job.assignments
+        : job.technician?.user.id
+          ? [
+              {
+                userId: job.technician.user.id,
+                roleType: JobAssignmentRoleType.TECHNICIAN,
+                status:
+                  job.status === JobStatus.STARTED
+                    ? JobAssignmentStatus.IN_PROGRESS
+                    : JobAssignmentStatus.ASSIGNED,
+              },
+            ]
+          : [];
+
+    if (assignments.length === 0) {
       await this.prismaService.employeeTask.deleteMany({
         where: {
           referenceType: TaskReferenceType.JOB,
@@ -360,24 +384,24 @@ export class EmployeeTasksService {
       return;
     }
 
-    await this.syncSingleOwnerTask({
-      assignedEmployeeId: assignedUserId,
-      customerId: job.customerId,
-      dueDate: job.scheduledDate,
-      priority: TaskPriority.MEDIUM,
-      referenceType: TaskReferenceType.JOB,
-      referenceId: job.id,
-      sourceSnapshot: {
-        jobNumber: job.jobNumber,
-        jobTitle: job.title,
-        module: 'job',
-      },
-      status:
-        job.status === JobStatus.STARTED
-          ? this.deriveDateStatus(job.scheduledDate, true)
-          : this.deriveDateStatus(job.scheduledDate, false),
-      title: `Today's job: ${job.jobNumber}`,
-    });
+    await this.syncMultiOwnerTasks(
+      assignments.map((assignment) => ({
+        assignedEmployeeId: assignment.userId,
+        customerId: job.customerId,
+        dueDate: job.scheduledDate,
+        priority: TaskPriority.MEDIUM,
+        referenceType: TaskReferenceType.JOB,
+        referenceId: job.id,
+        sourceSnapshot: {
+          jobNumber: job.jobNumber,
+          jobTitle: job.title,
+          module: 'job',
+          assignmentRoleType: assignment.roleType,
+        },
+        status: this.toJobTaskStatus(job.scheduledDate, assignment.status),
+        title: `Today's job: ${job.jobNumber}`,
+      })),
+    );
   }
 
   async refreshSharedTasks(): Promise<void> {
@@ -747,6 +771,79 @@ export class EmployeeTasksService {
     }
   }
 
+  private async syncMultiOwnerTasks(inputs: TaskUpsertInput[]): Promise<void> {
+    if (inputs.length === 0) {
+      return;
+    }
+
+    const [firstInput] = inputs;
+    const activeUserIds = inputs.map((input) => input.assignedEmployeeId);
+    const existingTasks = await this.prismaService.employeeTask.findMany({
+      where: {
+        referenceType: firstInput.referenceType,
+        referenceId: firstInput.referenceId,
+        assignedEmployeeId: {
+          in: activeUserIds,
+        },
+      },
+      select: {
+        assignedEmployeeId: true,
+      },
+    });
+    const existingUserIds = new Set(
+      existingTasks.map((task) => task.assignedEmployeeId),
+    );
+
+    await this.prismaService.employeeTask.deleteMany({
+      where: {
+        referenceType: firstInput.referenceType,
+        referenceId: firstInput.referenceId,
+        assignedEmployeeId: {
+          notIn: activeUserIds,
+        },
+      },
+    });
+
+    for (const input of inputs) {
+      await this.prismaService.employeeTask.upsert({
+        where: {
+          assignedEmployeeId_referenceType_referenceId: {
+            assignedEmployeeId: input.assignedEmployeeId,
+            referenceType: input.referenceType,
+            referenceId: input.referenceId,
+          },
+        },
+        update: {
+          title: input.title,
+          dueDate: input.dueDate,
+          customerId: input.customerId,
+          priority: input.priority,
+          status: input.status,
+          sourceSnapshot: input.sourceSnapshot,
+        },
+        create: {
+          assignedEmployeeId: input.assignedEmployeeId,
+          customerId: input.customerId,
+          dueDate: input.dueDate,
+          priority: input.priority,
+          referenceType: input.referenceType,
+          referenceId: input.referenceId,
+          status: input.status,
+          sourceSnapshot: input.sourceSnapshot,
+          title: input.title,
+        },
+      });
+
+      if (!existingUserIds.has(input.assignedEmployeeId)) {
+        await this.notifyTaskCreated(
+          input.assignedEmployeeId,
+          input.title,
+          input.referenceId,
+        );
+      }
+    }
+  }
+
   private async markTasksCompleted(
     referenceType: TaskReferenceType,
     referenceId: string,
@@ -919,6 +1016,21 @@ export class EmployeeTasksService {
     }
 
     return isInProgress ? TaskStatus.IN_PROGRESS : TaskStatus.PENDING;
+  }
+
+  private toJobTaskStatus(
+    dueDate: Date,
+    assignmentStatus: JobAssignmentStatus,
+  ): TaskStatus {
+    if (assignmentStatus === JobAssignmentStatus.COMPLETED) {
+      return TaskStatus.COMPLETED;
+    }
+
+    return this.deriveDateStatus(
+      dueDate,
+      assignmentStatus === JobAssignmentStatus.ACCEPTED ||
+        assignmentStatus === JobAssignmentStatus.IN_PROGRESS,
+    );
   }
 
   private startOfDay(value: Date): Date {

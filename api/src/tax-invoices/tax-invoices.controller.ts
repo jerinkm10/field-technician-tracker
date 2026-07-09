@@ -23,7 +23,7 @@ import { TaxInvoicesService } from './tax-invoices.service';
 
 @Controller('tax-invoices')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
+@Roles(Role.ADMIN, Role.ADMIN_OWNER)
 export class TaxInvoicesController {
   constructor(private readonly taxInvoicesService: TaxInvoicesService) {}
 

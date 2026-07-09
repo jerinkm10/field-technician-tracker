@@ -19,7 +19,7 @@ import { EmployeeTasksService } from './employee-tasks.service';
 
 @Controller('employee-tasks')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN, Role.EMPLOYEE, Role.TECHNICIAN)
+@Roles(Role.ADMIN, Role.ADMIN_OWNER, Role.EMPLOYEE, Role.TECHNICIAN)
 export class EmployeeTasksController {
   constructor(private readonly employeeTasksService: EmployeeTasksService) {}
 

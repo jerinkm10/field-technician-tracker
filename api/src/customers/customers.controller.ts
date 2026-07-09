@@ -24,25 +24,25 @@ export class CustomersController {
   constructor(private readonly customersService: CustomersService) {}
 
   @Get()
-  @Roles(Role.ADMIN, Role.EMPLOYEE)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER, Role.EMPLOYEE)
   async listCustomers(@Query() query: ListCustomersQueryDto) {
     return this.customersService.listCustomers(query);
   }
 
   @Get(':id')
-  @Roles(Role.ADMIN, Role.EMPLOYEE)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER, Role.EMPLOYEE)
   async getCustomer(@Param('id') customerId: string) {
     return this.customersService.getCustomerById(customerId);
   }
 
   @Post()
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER)
   async createCustomer(@Body() createCustomerDto: CreateCustomerDto) {
     return this.customersService.createCustomer(createCustomerDto);
   }
 
   @Patch(':id')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER)
   async updateCustomer(
     @Param('id') customerId: string,
     @Body() updateCustomerDto: UpdateCustomerDto,
@@ -51,7 +51,7 @@ export class CustomersController {
   }
 
   @Delete(':id')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER)
   async deleteCustomer(@Param('id') customerId: string) {
     return this.customersService.deleteCustomer(customerId);
   }

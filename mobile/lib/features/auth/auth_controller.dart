@@ -39,8 +39,19 @@ class AuthController extends StateNotifier<AuthState> {
         password: password,
       );
 
+      if (!result.user.canUseMobileApp) {
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage:
+              'Mobile access is currently available only for admin and technician accounts.',
+        );
+        return false;
+      }
+
       await AppLocalStorage.saveAuthToken(result.accessToken);
+      await AppLocalStorage.saveCurrentUser(result.user);
       _ref.read(authTokenProvider.notifier).state = result.accessToken;
+      _ref.read(currentUserProvider.notifier).state = result.user;
 
       state = state.copyWith(
         isLoading: false,

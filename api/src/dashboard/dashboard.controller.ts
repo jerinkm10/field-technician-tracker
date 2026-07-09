@@ -19,19 +19,19 @@ export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
   @Get('business-summary')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER)
   async getBusinessSummary() {
     return this.dashboardService.getBusinessSummary();
   }
 
   @Get('employee-summary')
-  @Roles(Role.ADMIN, Role.EMPLOYEE)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER, Role.EMPLOYEE)
   async getEmployeeSummary(@CurrentUser() currentUser: JwtPayload) {
     return this.dashboardService.getEmployeeSummary(currentUser);
   }
 
   @Get('performance')
-  @Roles(Role.ADMIN)
+  @Roles(Role.ADMIN, Role.ADMIN_OWNER)
   async getPerformanceDashboard(
     @Query() query: PerformanceDashboardQueryDto,
   ) {

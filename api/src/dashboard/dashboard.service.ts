@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import {
   AmcStatus,
   ComplaintStatus,
+  JobAssignmentRoleType,
+  JobAssignmentStatus,
   JobStatus,
   LeadStatus,
   OutstandingStatus,
@@ -546,7 +548,8 @@ export class DashboardService {
     const range = this.buildRange(query.fromDate, query.toDate);
     const today = this.startOfDay(new Date());
 
-    const [leads, complaints, tasks, jobs, invoices, technicians] = await Promise.all([
+    const [leads, complaints, tasks, jobAssignments, invoices, technicians] =
+      await Promise.all([
       this.prismaService.lead.findMany({
         where: {
           assignedToEmployeeId: {
@@ -595,22 +598,21 @@ export class DashboardService {
           sourceSnapshot: true,
         },
       }),
-      this.prismaService.job.findMany({
+      this.prismaService.jobAssignment.findMany({
         where: {
-          technician: {
-            userId: {
-              in: userIds,
-            },
+          userId: {
+            in: userIds,
           },
+          roleType: JobAssignmentRoleType.TECHNICIAN,
         },
         select: {
+          userId: true,
           status: true,
-          scheduledDate: true,
-          completedAt: true,
-          technician: {
+          job: {
             select: {
-              userId: true,
               status: true,
+              scheduledDate: true,
+              completedAt: true,
             },
           },
         },
@@ -633,7 +635,7 @@ export class DashboardService {
           _all: true,
         },
       }),
-    ]);
+      ]);
 
     const employees = users
       .map((user) => {
@@ -680,15 +682,19 @@ export class DashboardService {
             task.status === TaskStatus.COMPLETED &&
             this.isWithinRange(task.dueDate, range),
         );
-        const technicianJobs = jobs.filter(
-          (job) =>
-            job.technician?.userId === user.id &&
-            this.isWithinRange(job.scheduledDate, range),
+        const technicianAssignments = jobAssignments.filter(
+          (assignment) =>
+            assignment.userId === user.id &&
+            this.isWithinRange(assignment.job.scheduledDate, range),
         );
-        const completedJobs = technicianJobs.filter(
-          (job) =>
-            job.status === JobStatus.COMPLETED &&
-            this.isWithinRange(job.completedAt ?? job.scheduledDate, range),
+        const completedJobs = technicianAssignments.filter(
+          (assignment) =>
+            (assignment.status === JobAssignmentStatus.COMPLETED ||
+              assignment.job.status === JobStatus.COMPLETED) &&
+            this.isWithinRange(
+              assignment.job.completedAt ?? assignment.job.scheduledDate,
+              range,
+            ),
         );
         const openComplaints = complaints.filter(
           (complaint) =>
@@ -725,13 +731,14 @@ export class DashboardService {
           pendingComplaintsAssigned: openComplaints.length,
           todayTasks,
           completedTasks,
+          assignedTaskCount: userTasks.length,
           technicianPerformance: {
             availability: user.technician?.status ?? null,
-            assignedJobs: technicianJobs.length,
+            assignedJobs: technicianAssignments.length,
             completedJobs: completedJobs.length,
             completionRate: this.toPercentage(
               completedJobs.length,
-              technicianJobs.length,
+              technicianAssignments.length,
             ),
           },
         };

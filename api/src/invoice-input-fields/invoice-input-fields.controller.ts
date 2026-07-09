@@ -20,7 +20,7 @@ import { InvoiceInputFieldsService } from './invoice-input-fields.service';
 
 @Controller('invoice-input-fields')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(Role.ADMIN)
+@Roles(Role.ADMIN, Role.ADMIN_OWNER)
 export class InvoiceInputFieldsController {
   constructor(
     private readonly invoiceInputFieldsService: InvoiceInputFieldsService,
