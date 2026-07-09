@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  computed,
   inject,
   signal,
 } from '@angular/core';
@@ -43,9 +44,23 @@ type Option<T> = {
 
 type TagSeverity = 'success' | 'info' | 'warn' | 'danger' | 'secondary';
 
-type JobDraft = Omit<JobUpsertPayload, 'assignedMemberIds'> & {
+type SummaryCardTone = 'blue' | 'amber' | 'green' | 'slate';
+
+type SummaryCard = {
+  label: string;
+  value: string;
+  note: string;
+  tone: SummaryCardTone;
+};
+
+type JobDraft = Omit<
+  JobUpsertPayload,
+  'assignedMemberIds' | 'priority' | 'status'
+> & {
   assignedMemberIds: string[];
   productServiceName: string;
+  priority: JobPriority;
+  status: JobStatus;
 };
 
 @Component({
@@ -88,6 +103,43 @@ export class JobsPageComponent {
   protected readonly selectedProductService = signal<ProductServiceRecord | null>(
     null,
   );
+  protected readonly summaryCards = computed<SummaryCard[]>(() => {
+    const jobs = this.jobs();
+    const activeJobs = jobs.filter((job) =>
+      ['PENDING', 'ASSIGNED', 'STARTED'].includes(job.status),
+    ).length;
+    const completedJobs = jobs.filter((job) => job.status === 'COMPLETED').length;
+    const unassignedJobs = jobs.filter(
+      (job) => job.assignments.length === 0 && !job.technician,
+    ).length;
+
+    return [
+      {
+        label: 'Jobs in View',
+        value: String(jobs.length),
+        note: 'Current result count for your search scope',
+        tone: 'blue',
+      },
+      {
+        label: 'Active Queue',
+        value: String(activeJobs),
+        note: 'Pending, assigned, and started work items',
+        tone: 'amber',
+      },
+      {
+        label: 'Completed',
+        value: String(completedJobs),
+        note: 'Jobs already finished in this result set',
+        tone: 'green',
+      },
+      {
+        label: 'Needs Assignment',
+        value: String(unassignedJobs),
+        note: 'Jobs without a linked technician or assigned member',
+        tone: 'slate',
+      },
+    ];
+  });
 
   protected searchTerm = '';
   protected fromDate = '';
@@ -308,6 +360,59 @@ export class JobsPageComponent {
     }));
   }
 
+  protected activeFilterChips(): string[] {
+    const chips: string[] = [];
+
+    if (this.searchTerm.trim()) {
+      chips.push(`Search: ${this.searchTerm.trim()}`);
+    }
+
+    if (this.statusFilter) {
+      chips.push(`Status: ${this.formatEnumLabel(this.statusFilter)}`);
+    }
+
+    if (this.priorityFilter) {
+      chips.push(`Priority: ${this.formatEnumLabel(this.priorityFilter)}`);
+    }
+
+    if (this.fromDate) {
+      chips.push(`From: ${this.fromDate}`);
+    }
+
+    if (this.toDate) {
+      chips.push(`To: ${this.toDate}`);
+    }
+
+    if (this.customerIdFilter) {
+      const customer = this.customers().find(
+        (record) => record.id === this.customerIdFilter,
+      );
+      if (customer) {
+        chips.push(`Customer: ${customer.customerName}`);
+      }
+    }
+
+    if (this.assignedUserIdFilter) {
+      const member = this.assignableMembers().find(
+        (record) => record.id === this.assignedUserIdFilter,
+      );
+      if (member) {
+        chips.push(`Assigned: ${member.name}`);
+      }
+    }
+
+    if (this.branchIdFilter) {
+      const branch = this.branches().find(
+        (record) => record.id === this.branchIdFilter,
+      );
+      if (branch) {
+        chips.push(`Branch: ${branch.supplierName}`);
+      }
+    }
+
+    return chips;
+  }
+
   protected dialogTitle(): string {
     switch (this.dialogMode) {
       case 'edit':
@@ -323,6 +428,28 @@ export class JobsPageComponent {
     return this.dialogMode === 'view';
   }
 
+  protected dialogEyebrow(): string {
+    switch (this.dialogMode) {
+      case 'edit':
+        return 'Refine dispatch details';
+      case 'view':
+        return 'Read-only job overview';
+      default:
+        return 'Create a new service job';
+    }
+  }
+
+  protected dialogDescription(): string {
+    switch (this.dialogMode) {
+      case 'edit':
+        return 'Update customer, branch, assignment, product/service, and schedule details without losing the existing job context.';
+      case 'view':
+        return 'Review the full job snapshot, assignment state, and service scope before making dispatch changes.';
+      default:
+        return 'Set up a clean job record with schedule, ownership, and service scope in one place.';
+    }
+  }
+
   protected canSubmit(): boolean {
     return (
       !this.isReadOnly() &&
@@ -334,6 +461,14 @@ export class JobsPageComponent {
           this.draft.scheduledDate,
       )
     );
+  }
+
+  protected formatEnumLabel(value: string): string {
+    return value.replaceAll('_', ' ');
+  }
+
+  protected technicianStatusLabel(status: string | null | undefined): string {
+    return status ? this.formatEnumLabel(status) : 'Not linked';
   }
 
   protected handleProductServiceSelected(
@@ -398,6 +533,21 @@ export class JobsPageComponent {
 
   protected memberStatusLabel(assignment: JobAssignmentRecord): string {
     return assignment.status.replaceAll('_', ' ');
+  }
+
+  protected assignmentStatusSeverity(
+    assignment: JobAssignmentRecord,
+  ): TagSeverity {
+    switch (assignment.status) {
+      case 'COMPLETED':
+        return 'success';
+      case 'IN_PROGRESS':
+        return 'info';
+      case 'ACCEPTED':
+        return 'warn';
+      default:
+        return 'secondary';
+    }
   }
 
   private loadCustomers(): void {

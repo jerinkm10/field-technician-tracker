@@ -4,29 +4,88 @@
       <p class="page-eyebrow">Technicians</p>
       <h1 class="page-title">Roster and field readiness</h1>
       <p class="page-subtitle">
-        Technician cards can later expand into availability controls, assignment history, and
-        profile-level performance data.
+        View the real technician roster, current availability, and setup gaps without dead
+        invite or profile actions.
       </p>
     </div>
 
-    <button pButton type="button" label="Invite Technician" icon="pi pi-user-plus" outlined></button>
+    <button
+      pButton
+      type="button"
+      label="Refresh Roster"
+      icon="pi pi-refresh"
+      text
+      [loading]="loading()"
+      (click)="loadTechnicians()">
+    </button>
   </header>
 
-  <div class="card-grid">
-    @for (technician of technicians; track technician.phone) {
-      <article class="panel roster-card">
-        <div class="roster-head">
-          <div>
-            <h3>{{ technician.name }}</h3>
-            <p>{{ technician.zone }}</p>
-          </div>
-          <p-tag [value]="technician.status" [severity]="statusSeverity(technician.status)"></p-tag>
-        </div>
+  @if (errorMessage()) {
+    <div class="panel section-shell error-banner">
+      {{ errorMessage() }}
+    </div>
+  }
 
-        <p class="contact-line">{{ technician.phone }}</p>
-
-        <button pButton type="button" label="View Profile" icon="pi pi-arrow-right" text></button>
+  <section class="card-grid roster-metrics">
+    @for (metric of metrics(); track metric.label) {
+      <article class="panel metric-card">
+        <span>{{ metric.label }}</span>
+        <p class="metric-value">{{ metric.value }}</p>
+        <p class="metric-note">{{ metric.note }}</p>
       </article>
     }
-  </div>
+  </section>
+
+  @if (loading()) {
+    <section class="panel section-shell roster-state">
+      <h3>Loading technicians...</h3>
+      <p>Pulling the latest technician roster from the backend.</p>
+    </section>
+  } @else if (technicians().length === 0) {
+    <section class="panel section-shell roster-state">
+      <h3>No technicians found</h3>
+      <p>
+        No technician accounts were returned by the API yet. Create technicians from
+        Settings → Employees if needed.
+      </p>
+    </section>
+  } @else {
+    <div class="card-grid">
+      @for (technician of technicians(); track technician.id) {
+        <article class="panel roster-card">
+          <div class="roster-head">
+            <div>
+              <p class="roster-username">{{ technician.username }}</p>
+              <h3>{{ technician.name }}</h3>
+              <p>{{ technician.email || 'No email linked' }}</p>
+            </div>
+
+            <p-tag
+              [value]="statusLabel(technician.technicianStatus)"
+              [severity]="statusSeverity(technician.technicianStatus)">
+            </p-tag>
+          </div>
+
+          <div class="roster-meta">
+            <div>
+              <span>Phone</span>
+              <strong>{{ technician.phone }}</strong>
+            </div>
+            <div>
+              <span>Account</span>
+              <strong>{{ technician.status }}</strong>
+            </div>
+            <div>
+              <span>Profile</span>
+              <strong>{{ technicianProfileLabel(technician) }}</strong>
+            </div>
+            <div>
+              <span>Work State</span>
+              <strong>{{ workStateLabel(technician) }}</strong>
+            </div>
+          </div>
+        </article>
+      }
+    </div>
+  }
 </section>
