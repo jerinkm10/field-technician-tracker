@@ -24,6 +24,14 @@ final dioProvider = Provider<Dio>((ref) {
   dio.interceptors.add(
     InterceptorsWrapper(
       onRequest: (options, handler) {
+        final baseUri = Uri.tryParse(options.baseUrl);
+        final hasBasePath =
+            baseUri != null && baseUri.path.isNotEmpty && baseUri.path != '/';
+
+        if (hasBasePath && options.path.startsWith('/')) {
+          options.path = options.path.substring(1);
+        }
+
         final authToken = ref.read(authTokenProvider);
         if (authToken != null && authToken.isNotEmpty) {
           options.headers['Authorization'] = 'Bearer $authToken';

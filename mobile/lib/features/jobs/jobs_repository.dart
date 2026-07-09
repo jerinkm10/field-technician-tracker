@@ -13,7 +13,7 @@ class JobsRepository {
   final Dio _dio;
 
   Future<List<TechnicianJob>> getAdminJobs() async {
-    final response = await _dio.get<List<dynamic>>('/admin/jobs');
+    final response = await _dio.get<List<dynamic>>('admin/jobs');
     final data = response.data ?? const [];
 
     return data
@@ -27,7 +27,7 @@ class JobsRepository {
   }
 
   Future<List<TechnicianJob>> getTechnicianJobs() async {
-    final response = await _dio.get<List<dynamic>>('/technician/jobs');
+    final response = await _dio.get<List<dynamic>>('technician/jobs');
     final data = response.data ?? const [];
 
     return data
@@ -41,7 +41,7 @@ class JobsRepository {
   }
 
   Future<TechnicianJob> getJobDetails(String jobId) async {
-    final response = await _dio.get<Map<String, dynamic>>('/jobs/$jobId');
+    final response = await _dio.get<Map<String, dynamic>>('jobs/$jobId');
     final data = response.data;
 
     if (data == null) {
@@ -52,7 +52,7 @@ class JobsRepository {
   }
 
   Future<TechnicianJob> startJob(String jobId) async {
-    final response = await _dio.post<Map<String, dynamic>>('/jobs/$jobId/start');
+    final response = await _dio.post<Map<String, dynamic>>('jobs/$jobId/start');
     final data = response.data;
 
     if (data == null) {
@@ -63,7 +63,7 @@ class JobsRepository {
   }
 
   Future<TechnicianJob> endJob(String jobId) async {
-    final response = await _dio.post<Map<String, dynamic>>('/jobs/$jobId/end');
+    final response = await _dio.post<Map<String, dynamic>>('jobs/$jobId/end');
     final data = response.data;
 
     if (data == null) {
@@ -85,7 +85,7 @@ class JobsRepository {
     String? status,
   }) async {
     final response = await _dio.post<Map<String, dynamic>>(
-      '/admin/jobs',
+      'admin/jobs',
       data: {
         'jobNumber': jobNumber.trim(),
         'title': title.trim(),

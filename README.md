@@ -85,6 +85,20 @@ flutter pub get
 flutter run
 ```
 
+The mobile app defaults to the deployed API at `http://13.126.89.105/api`.
+
+For local Android emulator testing, override it with:
+
+```bash
+flutter run --dart-define=API_BASE_URL=http://10.0.2.2:3007
+```
+
+For the deployed server, you can also pass it explicitly:
+
+```bash
+flutter run --dart-define=API_BASE_URL=http://13.126.89.105/api
+```
+
 If you are using the Docker Flutter container and need Linux desktop build support, rebuild the `mob` image after dependency changes:
 
 ```bash

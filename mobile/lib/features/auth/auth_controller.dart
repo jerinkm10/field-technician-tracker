@@ -77,6 +77,13 @@ class AuthController extends StateNotifier<AuthState> {
 
   String _resolveErrorMessage(Object error) {
     if (error is DioException) {
+      if (error.type == DioExceptionType.connectionError ||
+          error.type == DioExceptionType.connectionTimeout ||
+          error.type == DioExceptionType.receiveTimeout ||
+          error.type == DioExceptionType.sendTimeout) {
+        return 'Unable to reach the server. Check the API URL and internet connection.';
+      }
+
       final responseData = error.response?.data;
 
       if (responseData is Map) {

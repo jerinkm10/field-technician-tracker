@@ -22,7 +22,7 @@ class TrackingRepository {
     int? batteryLevel,
   }) async {
     await _dio.post<void>(
-      '/tracking/location',
+      'tracking/location',
       data: {
         if (jobId != null) 'jobId': jobId,
         'latitude': latitude,

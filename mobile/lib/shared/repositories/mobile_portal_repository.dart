@@ -15,7 +15,7 @@ class MobilePortalRepository {
 
   Future<List<CustomerLookup>> getCustomers() async {
     final response = await _dio.get<Map<String, dynamic>>(
-      '/customers',
+      'customers',
       queryParameters: _queryParameters({
         'status': 'ACTIVE',
         'page': 1,
@@ -28,7 +28,7 @@ class MobilePortalRepository {
 
   Future<List<EmployeeLookup>> getEmployees() async {
     final response = await _dio.get<Map<String, dynamic>>(
-      '/employees',
+      'employees',
       queryParameters: _queryParameters({
         'status': 'ACTIVE',
         'page': 1,
@@ -41,7 +41,7 @@ class MobilePortalRepository {
 
   Future<List<BranchLookup>> getBranches() async {
     final response = await _dio.get<Map<String, dynamic>>(
-      '/suppliers',
+      'suppliers',
       queryParameters: _queryParameters({
         'status': 'ACTIVE',
         'page': 1,
@@ -53,7 +53,7 @@ class MobilePortalRepository {
   }
 
   Future<List<LiveMapTechnician>> getLiveMap() async {
-    final response = await _dio.get<List<dynamic>>('/admin/live-map');
+    final response = await _dio.get<List<dynamic>>('admin/live-map');
     final data = response.data ?? const <dynamic>[];
 
     return data
@@ -67,7 +67,7 @@ class MobilePortalRepository {
     String? status,
   }) async {
     final response = await _dio.get<Map<String, dynamic>>(
-      '/outstandings',
+      'outstandings',
       queryParameters: _queryParameters({
         'search': search,
         'status': status,
@@ -84,7 +84,7 @@ class MobilePortalRepository {
     String? status,
   }) async {
     final response = await _dio.get<Map<String, dynamic>>(
-      '/amc',
+      'amc',
       queryParameters: _queryParameters({
         'search': search,
         'status': status,
@@ -101,7 +101,7 @@ class MobilePortalRepository {
     String? status,
   }) async {
     final response = await _dio.get<Map<String, dynamic>>(
-      '/leads',
+      'leads',
       queryParameters: _queryParameters({
         'search': search,
         'status': status,
@@ -120,7 +120,7 @@ class MobilePortalRepository {
     String? nextFollowUpDate,
   }) async {
     final response = await _dio.patch<Map<String, dynamic>>(
-      '/leads/$leadId/status',
+      'leads/$leadId/status',
       data: {
         'status': status,
         if (note != null && note.trim().isNotEmpty) 'note': note.trim(),
@@ -142,7 +142,7 @@ class MobilePortalRepository {
     required String note,
   }) async {
     await _dio.post<void>(
-      '/leads/$leadId/notes',
+      'leads/$leadId/notes',
       data: {
         'note': note.trim(),
       },
@@ -155,7 +155,7 @@ class MobilePortalRepository {
     String? toDate,
   }) async {
     final response = await _dio.get<Map<String, dynamic>>(
-      '/ledger',
+      'ledger',
       queryParameters: _queryParameters({
         'search': search,
         'fromDate': fromDate,
@@ -179,7 +179,7 @@ class MobilePortalRepository {
     int limit = 20,
   }) async {
     final response = await _dio.get<Map<String, dynamic>>(
-      '/notifications',
+      'notifications',
       queryParameters: _queryParameters({
         'unreadOnly': unreadOnly,
         'page': page,
@@ -196,15 +196,15 @@ class MobilePortalRepository {
   }
 
   Future<void> markNotificationRead(String notificationId) async {
-    await _dio.patch<void>('/notifications/$notificationId/read', data: {});
+    await _dio.patch<void>('notifications/$notificationId/read', data: {});
   }
 
   Future<void> markAllNotificationsRead() async {
-    await _dio.patch<void>('/notifications/read-all', data: {});
+    await _dio.patch<void>('notifications/read-all', data: {});
   }
 
   Future<AttendanceOverview> getAttendance() async {
-    final response = await _dio.get<Map<String, dynamic>>('/attendance/mine');
+    final response = await _dio.get<Map<String, dynamic>>('attendance/mine');
     final data = response.data;
 
     if (data == null) {
@@ -220,7 +220,7 @@ class MobilePortalRepository {
     double? accuracy,
   }) async {
     final response = await _dio.post<Map<String, dynamic>>(
-      '/attendance/check-in',
+      'attendance/check-in',
       data: {
         if (latitude != null) 'latitude': latitude,
         if (longitude != null) 'longitude': longitude,
@@ -242,7 +242,7 @@ class MobilePortalRepository {
     double? accuracy,
   }) async {
     final response = await _dio.post<Map<String, dynamic>>(
-      '/attendance/check-out',
+      'attendance/check-out',
       data: {
         if (latitude != null) 'latitude': latitude,
         if (longitude != null) 'longitude': longitude,

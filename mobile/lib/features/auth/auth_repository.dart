@@ -20,7 +20,7 @@ class AuthRepository {
     final isEmail = normalizedIdentifier.contains('@');
 
     final response = await _dio.post<Map<String, dynamic>>(
-      '/auth/login',
+      'auth/login',
       data: {
         if (isEmail) 'email': normalizedIdentifier,
         if (!isEmail) 'username': normalizedIdentifier,
