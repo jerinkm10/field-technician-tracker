@@ -84,6 +84,8 @@ class AuthController extends StateNotifier<AuthState> {
         return 'Unable to reach the server. Check the API URL and internet connection.';
       }
 
+      final statusCode = error.response?.statusCode;
+      final statusMessage = error.response?.statusMessage;
       final responseData = error.response?.data;
 
       if (responseData is Map) {
@@ -96,7 +98,20 @@ class AuthController extends StateNotifier<AuthState> {
         }
       }
 
-      return error.response?.statusMessage ?? 'Login failed';
+      if (responseData is String && responseData.trim().isNotEmpty) {
+        final body = responseData.trim();
+        return statusCode == null ? body : 'HTTP $statusCode: $body';
+      }
+
+      if (statusCode != null && statusMessage != null && statusMessage.isNotEmpty) {
+        return 'HTTP $statusCode: $statusMessage';
+      }
+
+      if (statusCode != null) {
+        return 'HTTP $statusCode: Login failed';
+      }
+
+      return statusMessage ?? 'Login failed';
     }
 
     if (error is AuthRepositoryException) {

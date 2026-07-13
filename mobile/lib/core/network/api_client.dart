@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,9 +10,13 @@ final connectivityProvider = Provider<Connectivity>((ref) {
 });
 
 final dioProvider = Provider<Dio>((ref) {
+  final normalizedBaseUrl = AppConfig.apiBaseUrl.endsWith('/')
+      ? AppConfig.apiBaseUrl
+      : '${AppConfig.apiBaseUrl}/';
+
   final dio = Dio(
     BaseOptions(
-      baseUrl: AppConfig.apiBaseUrl,
+      baseUrl: normalizedBaseUrl,
       connectTimeout: const Duration(seconds: 20),
       receiveTimeout: const Duration(seconds: 20),
       headers: const {
@@ -40,6 +45,18 @@ final dioProvider = Provider<Dio>((ref) {
       },
     ),
   );
+
+  if (kDebugMode) {
+    dio.interceptors.add(
+      LogInterceptor(
+        requestBody: true,
+        responseBody: true,
+        requestHeader: true,
+        responseHeader: false,
+        error: true,
+      ),
+    );
+  }
 
   return dio;
 });
