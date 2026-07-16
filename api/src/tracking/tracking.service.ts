@@ -12,6 +12,8 @@ import {
 import { TrackingGateway } from './tracking.gateway';
 import { PostLocationDto } from './dto/post-location.dto';
 import { PrismaService } from '../prisma/prisma.service';
+import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
+import { getScopedBranchId } from '../auth/utils/branch-access.util';
 
 const locationLogSelect = Prisma.validator<Prisma.LocationLogSelect>()({
   id: true,
@@ -174,10 +176,31 @@ export class TrackingService {
     return payload;
   }
 
-  async getLiveMap() {
+  async getLiveMap(currentUser: JwtPayload) {
+    const scopedBranchId = getScopedBranchId(currentUser);
     const today = this.startOfDay(new Date());
     const tomorrow = this.addDays(today, 1);
     const technicians = await this.prismaService.technician.findMany({
+      where: {
+        ...(scopedBranchId
+          ? {
+              OR: [
+                { user: { branchId: scopedBranchId } },
+                { jobs: { some: { branchId: scopedBranchId } } },
+                {
+                  user: {
+                    jobAssignments: {
+                      some: {
+                        roleType: JobAssignmentRoleType.TECHNICIAN,
+                        job: { branchId: scopedBranchId },
+                      },
+                    },
+                  },
+                },
+              ],
+            }
+          : {}),
+      },
       orderBy: [
         {
           lastSeenAt: 'desc',
@@ -203,6 +226,7 @@ export class TrackingService {
         },
         jobs: {
           where: {
+            ...(scopedBranchId ? { branchId: scopedBranchId } : {}),
             status: {
               in: ['ASSIGNED', 'STARTED'],
             },
@@ -346,10 +370,32 @@ export class TrackingService {
     }));
   }
 
-  async getTechnicianHistory(technicianId: string) {
-    const technician = await this.prismaService.technician.findUnique({
+  async getTechnicianHistory(
+    technicianId: string,
+    currentUser: JwtPayload,
+  ) {
+    const scopedBranchId = getScopedBranchId(currentUser);
+    const technician = await this.prismaService.technician.findFirst({
       where: {
         id: technicianId,
+        ...(scopedBranchId
+          ? {
+              OR: [
+                { user: { branchId: scopedBranchId } },
+                { jobs: { some: { branchId: scopedBranchId } } },
+                {
+                  user: {
+                    jobAssignments: {
+                      some: {
+                        roleType: JobAssignmentRoleType.TECHNICIAN,
+                        job: { branchId: scopedBranchId },
+                      },
+                    },
+                  },
+                },
+              ],
+            }
+          : {}),
       },
       select: technicianLocationSnapshotSelect,
     });
@@ -361,6 +407,17 @@ export class TrackingService {
     const history = await this.prismaService.locationLog.findMany({
       where: {
         technicianId,
+        ...(scopedBranchId
+          ? {
+              OR: [
+                { job: { branchId: scopedBranchId } },
+                {
+                  jobId: null,
+                  technician: { user: { branchId: scopedBranchId } },
+                },
+              ],
+            }
+          : {}),
       },
       orderBy: {
         recordedAt: 'desc',

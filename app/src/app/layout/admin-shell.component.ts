@@ -246,9 +246,16 @@ export class AdminShellComponent {
       item.route === '/technicians' ||
       item.route === '/reports' ||
       item.route === '/live-map' ||
-      item.route === '/business/product-service' ||
-      item.route?.startsWith('/settings')
+      item.route === '/business/product-service'
     ) {
+      return this.authService.hasDashboardAccess(role);
+    }
+
+    if (item.route === '/settings/company' || item.route?.startsWith('/settings/branch')) {
+      return this.authService.isSuperAdmin();
+    }
+
+    if (item.route?.startsWith('/settings/employees')) {
       return this.authService.hasDashboardAccess(role);
     }
 

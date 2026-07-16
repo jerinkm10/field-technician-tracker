@@ -70,7 +70,7 @@
   padding: 1rem 1.1rem;
   border: 1px solid rgba(61, 107, 134, 0.18);
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(var(--ftt-card-rgb), 0.72);
 }
 
 .preview-card p {

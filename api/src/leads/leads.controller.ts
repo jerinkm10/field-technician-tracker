@@ -44,14 +44,20 @@ export class LeadsController {
 
   @Get('suggestions')
   @Roles(Role.ADMIN, Role.ADMIN_OWNER, Role.EMPLOYEE)
-  async listLeadSuggestions(@Query('query') query?: string) {
-    return this.leadsService.listLeadSuggestions(query);
+  async listLeadSuggestions(
+    @Query('query') query: string | undefined,
+    @CurrentUser() currentUser: JwtPayload,
+  ) {
+    return this.leadsService.listLeadSuggestions(query, currentUser);
   }
 
   @Get('performance')
   @Roles(Role.ADMIN, Role.ADMIN_OWNER)
-  async getLeadPerformance(@Query() query: ListLeadsQueryDto) {
-    return this.leadsService.getLeadPerformance(query);
+  async getLeadPerformance(
+    @Query() query: ListLeadsQueryDto,
+    @CurrentUser() currentUser: JwtPayload,
+  ) {
+    return this.leadsService.getLeadPerformance(query, currentUser);
   }
 
   @Get('demo-excel')
@@ -147,7 +153,10 @@ export class LeadsController {
 
   @Delete(':id')
   @Roles(Role.ADMIN, Role.ADMIN_OWNER)
-  async deleteLead(@Param('id') leadId: string) {
-    return this.leadsService.deleteLead(leadId);
+  async deleteLead(
+    @Param('id') leadId: string,
+    @CurrentUser() currentUser: JwtPayload,
+  ) {
+    return this.leadsService.deleteLead(leadId, currentUser);
   }
 }

@@ -46,7 +46,7 @@
   border: 1px solid var(--ftt-border);
   border-radius: var(--ftt-radius-md);
   padding: 1rem;
-  background: rgba(255, 255, 255, 0.6);
+  background: rgba(var(--ftt-card-rgb), 0.6);
 }
 
 .history-card__header h4,

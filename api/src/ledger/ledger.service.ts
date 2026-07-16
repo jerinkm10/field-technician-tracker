@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InvoiceType, Prisma, ProductServiceType } from '@prisma/client';
+import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
+import { getScopedBranchId } from '../auth/utils/branch-access.util';
 import {
   createPaginationMeta,
   normalizePagination,
@@ -328,7 +330,8 @@ const outstandingSelect = Prisma.validator<Prisma.OutstandingSelect>()({
 export class LedgerService {
   constructor(private readonly prismaService: PrismaService) {}
 
-  async listLedgerEntries(query: ListLedgerQueryDto) {
+  async listLedgerEntries(query: ListLedgerQueryDto, currentUser: JwtPayload) {
+    const scopedBranchId = getScopedBranchId(currentUser);
     const { page, limit, skip } = normalizePagination(query.page, query.limit);
 
     const productServiceFilter = query.productServiceId
@@ -371,6 +374,7 @@ export class LedgerService {
               normalizedStatus,
               normalizedHsnSacCode,
               productServiceFilter,
+              scopedBranchId,
             )
           : Promise.resolve([]),
         this.shouldIncludeQuotations(normalizedDocumentType)
@@ -380,6 +384,7 @@ export class LedgerService {
               normalizedStatus,
               normalizedHsnSacCode,
               productServiceFilter,
+              scopedBranchId,
             )
           : Promise.resolve([]),
         this.shouldIncludeOutstandings(normalizedDocumentType)
@@ -389,6 +394,7 @@ export class LedgerService {
               normalizedStatus,
               normalizedHsnSacCode,
               productServiceFilter,
+              scopedBranchId,
             )
           : Promise.resolve([]),
       ]);
@@ -418,7 +424,11 @@ export class LedgerService {
     };
   }
 
-  async listLedgerSuggestions(query?: string): Promise<LedgerSearchSuggestion[]> {
+  async listLedgerSuggestions(
+    query: string | undefined,
+    currentUser: JwtPayload,
+  ): Promise<LedgerSearchSuggestion[]> {
+    const scopedBranchId = getScopedBranchId(currentUser);
     const normalizedQuery = query?.trim();
 
     if (!normalizedQuery) {
@@ -469,6 +479,7 @@ export class LedgerService {
       }),
       this.prismaService.invoice.findMany({
         where: {
+          ...(scopedBranchId ? { supplierId: scopedBranchId } : {}),
           invoiceNumber: {
             contains: normalizedQuery,
             mode: 'insensitive',
@@ -484,6 +495,7 @@ export class LedgerService {
       }),
       this.prismaService.quotation.findMany({
         where: {
+          ...(scopedBranchId ? { supplierId: scopedBranchId } : {}),
           quotationNumber: {
             contains: normalizedQuery,
             mode: 'insensitive',
@@ -553,16 +565,21 @@ export class LedgerService {
     return suggestions.slice(0, 20);
   }
 
-  async getLedgerEntryById(ledgerEntryId: string) {
+  async getLedgerEntryById(
+    ledgerEntryId: string,
+    currentUser: JwtPayload,
+  ) {
+    const scopedBranchId = getScopedBranchId(currentUser);
     const { type, sourceId } = this.parseLedgerId(ledgerEntryId);
 
     switch (type) {
       case 'PROFORMA_INVOICE':
       case 'TAX_INVOICE':
       case 'AMC_INVOICE': {
-        const invoice = await this.prismaService.invoice.findUnique({
+        const invoice = await this.prismaService.invoice.findFirst({
           where: {
             id: sourceId,
+            ...(scopedBranchId ? { supplierId: scopedBranchId } : {}),
           },
           select: invoiceSelect,
         });
@@ -575,9 +592,10 @@ export class LedgerService {
       }
 
       case 'QUOTATION': {
-        const quotation = await this.prismaService.quotation.findUnique({
+        const quotation = await this.prismaService.quotation.findFirst({
           where: {
             id: sourceId,
+            ...(scopedBranchId ? { supplierId: scopedBranchId } : {}),
           },
           select: quotationSelect,
         });
@@ -590,9 +608,12 @@ export class LedgerService {
       }
 
       case 'OUTSTANDING': {
-        const outstanding = await this.prismaService.outstanding.findUnique({
+        const outstanding = await this.prismaService.outstanding.findFirst({
           where: {
             id: sourceId,
+            ...(scopedBranchId
+              ? { invoice: { supplierId: scopedBranchId } }
+              : {}),
           },
           select: outstandingSelect,
         });
@@ -616,8 +637,10 @@ export class LedgerService {
     status: string | undefined,
     hsnSacCode: string | undefined,
     productServiceFilter: { name: string; hsnSacCode: string } | null,
+    scopedBranchId: string | null,
   ): Promise<LedgerEntry[]> {
     const where: Prisma.InvoiceWhereInput = {
+      ...(scopedBranchId ? { supplierId: scopedBranchId } : {}),
       ...(query.customerId ? { customerId: query.customerId } : {}),
       ...(query.fromDate || query.toDate
         ? {
@@ -717,8 +740,10 @@ export class LedgerService {
     status: string | undefined,
     hsnSacCode: string | undefined,
     productServiceFilter: { name: string; hsnSacCode: string } | null,
+    scopedBranchId: string | null,
   ): Promise<LedgerEntry[]> {
     const where: Prisma.QuotationWhereInput = {
+      ...(scopedBranchId ? { supplierId: scopedBranchId } : {}),
       ...(query.customerId ? { customerId: query.customerId } : {}),
       ...(query.fromDate || query.toDate
         ? {
@@ -799,8 +824,12 @@ export class LedgerService {
     status: string | undefined,
     hsnSacCode: string | undefined,
     productServiceFilter: { name: string; hsnSacCode: string } | null,
+    scopedBranchId: string | null,
   ): Promise<LedgerEntry[]> {
     const where: Prisma.OutstandingWhereInput = {
+      ...(scopedBranchId
+        ? { invoice: { supplierId: scopedBranchId } }
+        : {}),
       ...(query.customerId ? { customerId: query.customerId } : {}),
       ...(query.fromDate || query.toDate
         ? {

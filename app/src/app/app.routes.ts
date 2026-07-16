@@ -391,6 +391,7 @@ export const routes: Routes = [
               ),
             data: {
               roles: ['ADMIN_OWNER', 'ADMIN'],
+              superAdminOnly: true,
             }
           },
           {
@@ -403,6 +404,7 @@ export const routes: Routes = [
             data: {
               pageMode: 'list',
               roles: ['ADMIN_OWNER', 'ADMIN'],
+              superAdminOnly: true,
             }
           },
           {
@@ -415,6 +417,7 @@ export const routes: Routes = [
             data: {
               pageMode: 'create',
               roles: ['ADMIN_OWNER', 'ADMIN'],
+              superAdminOnly: true,
             }
           },
           {
@@ -427,6 +430,7 @@ export const routes: Routes = [
             data: {
               pageMode: 'view',
               roles: ['ADMIN_OWNER', 'ADMIN'],
+              superAdminOnly: true,
             }
           },
           {
@@ -439,6 +443,7 @@ export const routes: Routes = [
             data: {
               pageMode: 'edit',
               roles: ['ADMIN_OWNER', 'ADMIN'],
+              superAdminOnly: true,
             }
           },
           {

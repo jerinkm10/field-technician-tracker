@@ -50,18 +50,22 @@ export const roleAccessGuard: CanActivateFn = (route, state) => {
   const router = inject(Router);
   const uiFeedback = inject(UiFeedbackService);
   const allowedRoles = (route.data?.['roles'] as readonly AppUserRole[] | undefined) ?? [];
+  const superAdminOnly = route.data?.['superAdminOnly'] === true;
   const currentRole = authService.currentUser()?.role;
 
   if (
     authService.isAuthenticated() &&
     authService.canAccessShell() &&
-    (allowedRoles.length === 0 || authService.hasRole(allowedRoles, currentRole))
+    (allowedRoles.length === 0 || authService.hasRole(allowedRoles, currentRole)) &&
+    (!superAdminOnly || authService.isSuperAdmin())
   ) {
     return true;
   }
 
   uiFeedback.showPermissionDenied(
-    'You do not have permission to open that page.',
+    superAdminOnly
+      ? 'Only the super admin can open that page.'
+      : 'You do not have permission to open that page.',
   );
 
   return router.createUrlTree(['/dashboard'], {

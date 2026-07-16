@@ -30,6 +30,11 @@ type StatusOption = {
   value: UserStatus;
 };
 
+type BranchOption = {
+  label: string;
+  value: string;
+};
+
 type EmployeeDraft = {
   name: string;
   username: string;
@@ -38,6 +43,7 @@ type EmployeeDraft = {
   role: EmployeeRole;
   status: UserStatus;
   password: string;
+  branchId: string;
 };
 
 @Component({
@@ -58,15 +64,20 @@ export class EmployeeFormDialogComponent implements OnChanges {
   @Input() saving = false;
   @Input() mode: 'create' | 'edit' | 'view' = 'create';
   @Input() employee: EmployeeRecord | null = null;
+  @Input() branches: BranchOption[] = [];
+  @Input() superAdmin = false;
+  @Input() currentBranchName: string | null = null;
 
   @Output() readonly cancel = new EventEmitter<void>();
   @Output() readonly save = new EventEmitter<EmployeeUpsertPayload>();
 
-  protected readonly roleOptions: RoleOption[] = [
-    { label: 'Admin', value: 'ADMIN' },
-    { label: 'Employee', value: 'EMPLOYEE' },
-    { label: 'Technician', value: 'TECHNICIAN' },
-  ];
+  protected get roleOptions(): RoleOption[] {
+    return [
+      ...(this.superAdmin ? [{ label: 'Branch Admin', value: 'ADMIN' as EmployeeRole }] : []),
+      { label: 'Employee', value: 'EMPLOYEE' },
+      { label: 'Technician', value: 'TECHNICIAN' },
+    ];
+  }
 
   protected readonly statusOptions: StatusOption[] = [
     { label: 'Active', value: 'ACTIVE' },
@@ -92,6 +103,7 @@ export class EmployeeFormDialogComponent implements OnChanges {
             role: this.employee.role,
             status: this.employee.status,
             password: '',
+            branchId: this.employee.branchId ?? '',
           }
         : this.emptyDraft();
     }
@@ -110,6 +122,7 @@ export class EmployeeFormDialogComponent implements OnChanges {
       role: this.draft.role,
       status: this.draft.status,
       password: this.draft.password.trim() || undefined,
+      branchId: this.superAdmin ? this.draft.branchId || undefined : undefined,
     });
   }
 
@@ -127,6 +140,7 @@ export class EmployeeFormDialogComponent implements OnChanges {
           this.draft.phone.trim() &&
           this.draft.role &&
           this.draft.status &&
+          (!this.superAdmin || this.draft.branchId) &&
           passwordValid,
       )
     );
@@ -192,6 +206,7 @@ export class EmployeeFormDialogComponent implements OnChanges {
       role: 'EMPLOYEE',
       status: 'ACTIVE',
       password: '',
+      branchId: '',
     };
   }
 }

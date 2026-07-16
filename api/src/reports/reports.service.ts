@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { JobStatus, Prisma } from '@prisma/client';
+import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
+import { getScopedBranchId } from '../auth/utils/branch-access.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { TechnicianDailyReportQueryDto } from './dto/technician-daily-report-query.dto';
 
@@ -40,13 +42,15 @@ export class ReportsService {
 
   async getTechnicianDailyReport(
     query: TechnicianDailyReportQueryDto,
+    currentUser: JwtPayload,
   ): Promise<TechnicianDailyReportRow[]> {
+    const scopedBranchId = getScopedBranchId(currentUser);
     const date = query.date ?? this.formatDateOnly(new Date());
     const { startOfDay, endOfDay } = this.getUtcDateRange(date);
 
     const technicianRecords = query.technicianId
-      ? [await this.getTechnicianRecordById(query.technicianId, query.status, startOfDay, endOfDay)]
-      : await this.getTechnicianRecords(query.status, startOfDay, endOfDay);
+      ? [await this.getTechnicianRecordById(query.technicianId, query.status, startOfDay, endOfDay, scopedBranchId)]
+      : await this.getTechnicianRecords(query.status, startOfDay, endOfDay, scopedBranchId);
 
     return technicianRecords
       .map((technician) => this.toDailyReportRow(technician, startOfDay, endOfDay))
@@ -58,12 +62,15 @@ export class ReportsService {
     status: JobStatus | undefined,
     startOfDay: Date,
     endOfDay: Date,
+    scopedBranchId: string | null,
   ): Promise<ReportTechnicianRecord> {
-    const technician = await this.prismaService.technician.findUnique({
+    const jobFilter = this.jobActivityWhere(status, startOfDay, endOfDay, scopedBranchId);
+    const technician = await this.prismaService.technician.findFirst({
       where: {
         id: technicianId,
+        jobs: { some: jobFilter },
       },
-      select: this.reportTechnicianSelect(status, startOfDay, endOfDay),
+      select: this.reportTechnicianSelect(status, startOfDay, endOfDay, scopedBranchId),
     });
 
     if (!technician) {
@@ -77,9 +84,10 @@ export class ReportsService {
     status: JobStatus | undefined,
     startOfDay: Date,
     endOfDay: Date,
+    scopedBranchId: string | null,
   ): Promise<ReportTechnicianRecord[]> {
-    const jobFilter = this.jobActivityWhere(status, startOfDay, endOfDay);
-    const locationFilter = this.locationLogWhere(status, startOfDay, endOfDay);
+    const jobFilter = this.jobActivityWhere(status, startOfDay, endOfDay, scopedBranchId);
+    const locationFilter = this.locationLogWhere(status, startOfDay, endOfDay, scopedBranchId);
 
     return this.prismaService.technician.findMany({
       where: {
@@ -96,7 +104,7 @@ export class ReportsService {
           },
         ],
       },
-      select: this.reportTechnicianSelect(status, startOfDay, endOfDay),
+      select: this.reportTechnicianSelect(status, startOfDay, endOfDay, scopedBranchId),
     });
   }
 
@@ -104,6 +112,7 @@ export class ReportsService {
     status: JobStatus | undefined,
     startOfDay: Date,
     endOfDay: Date,
+    scopedBranchId: string | null,
   ): Prisma.TechnicianSelect {
     return {
       id: true,
@@ -113,7 +122,7 @@ export class ReportsService {
         },
       },
       jobs: {
-        where: this.jobActivityWhere(status, startOfDay, endOfDay),
+        where: this.jobActivityWhere(status, startOfDay, endOfDay, scopedBranchId),
         select: {
           id: true,
           status: true,
@@ -138,7 +147,7 @@ export class ReportsService {
               checkOutAt: null,
             },
           ],
-          job: this.jobActivityWhere(status, startOfDay, endOfDay),
+          job: this.jobActivityWhere(status, startOfDay, endOfDay, scopedBranchId),
         },
         orderBy: {
           checkInAt: 'asc',
@@ -149,7 +158,7 @@ export class ReportsService {
         },
       },
       locationLogs: {
-        where: this.locationLogWhere(status, startOfDay, endOfDay),
+        where: this.locationLogWhere(status, startOfDay, endOfDay, scopedBranchId),
         orderBy: {
           recordedAt: 'asc',
         },
@@ -166,9 +175,11 @@ export class ReportsService {
     status: JobStatus | undefined,
     startOfDay: Date,
     endOfDay: Date,
+    scopedBranchId: string | null,
   ): Prisma.JobWhereInput {
     return {
       ...(status ? { status } : {}),
+      ...(scopedBranchId ? { branchId: scopedBranchId } : {}),
       OR: [
         {
           scheduledDate: {
@@ -219,17 +230,19 @@ export class ReportsService {
     status: JobStatus | undefined,
     startOfDay: Date,
     endOfDay: Date,
+    scopedBranchId: string | null,
   ): Prisma.LocationLogWhereInput {
     return {
       recordedAt: {
         gte: startOfDay,
         lte: endOfDay,
       },
-      ...(status
+      ...(status || scopedBranchId
         ? {
             job: {
               is: {
-                status,
+                ...(status ? { status } : {}),
+                ...(scopedBranchId ? { branchId: scopedBranchId } : {}),
               },
             },
           }

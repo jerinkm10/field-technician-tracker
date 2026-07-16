@@ -18,6 +18,10 @@ import {
 } from 'xlsx';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import {
+  assertBranchAccess,
+  getScopedBranchId,
+} from '../auth/utils/branch-access.util';
+import {
   createPaginationMeta,
   normalizePagination,
 } from '../common/utils/pagination.util';
@@ -102,6 +106,7 @@ const employeeSummarySelect = Prisma.validator<Prisma.UserSelect>()({
   phone: true,
   role: true,
   status: true,
+  branchId: true,
 });
 
 const leadListSelect = Prisma.validator<Prisma.LeadSelect>()({
@@ -229,9 +234,10 @@ export class LeadsService {
     const { page, limit, skip } = normalizePagination(query.page, query.limit);
     const search = query.search?.trim();
     const dateRange = this.buildCreatedAtRange(query.fromDate, query.toDate);
+    const scopedBranchId = getScopedBranchId(currentUser);
     const where: Prisma.LeadWhereInput = {
       ...(query.status ? { status: query.status } : {}),
-      ...(query.branchId ? { branchId: query.branchId } : {}),
+      ...(scopedBranchId ? { branchId: scopedBranchId } : query.branchId ? { branchId: query.branchId } : {}),
       ...(query.assignedToEmployeeId
         ? { assignedToEmployeeId: query.assignedToEmployeeId }
         : {}),
@@ -346,7 +352,9 @@ export class LeadsService {
     createLeadDto: CreateLeadDto,
     currentUser: JwtPayload,
   ) {
-    const branch = await this.getSupplierOrThrow(createLeadDto.branchId);
+    const scopedBranchId = getScopedBranchId(currentUser);
+    const branchId = scopedBranchId ?? createLeadDto.branchId;
+    const branch = await this.getSupplierOrThrow(branchId);
     const interestedProductService = await this.getProductServiceOrThrow(
       createLeadDto.interestedProductServiceId,
     );
@@ -356,6 +364,7 @@ export class LeadsService {
     const assignedEmployee = assignedEmployeeId
       ? await this.getAssignableEmployeeOrThrow(assignedEmployeeId)
       : null;
+    this.ensureAssignableEmployeeInBranch(assignedEmployee, currentUser);
     const note = this.normalizeOptionalString(createLeadDto.note);
     const nextFollowUpDate = this.toDateOrNull(createLeadDto.nextFollowUpDate);
     const status = createLeadDto.status ?? LeadStatus.NEW;
@@ -419,9 +428,13 @@ export class LeadsService {
     currentUser: JwtPayload,
   ) {
     const existingLead = await this.getLeadDetailsOrThrow(leadId);
-    const branch = updateLeadDto.branchId
-      ? await this.getSupplierOrThrow(updateLeadDto.branchId)
-      : null;
+    this.ensureLeadAccessible(existingLead, currentUser);
+    const scopedBranchId = getScopedBranchId(currentUser);
+    const branchId =
+      updateLeadDto.branchId !== undefined
+        ? scopedBranchId ?? updateLeadDto.branchId
+        : null;
+    const branch = branchId ? await this.getSupplierOrThrow(branchId) : null;
     const interestedProductService = updateLeadDto.interestedProductServiceId
       ? await this.getProductServiceOrThrow(
           updateLeadDto.interestedProductServiceId,
@@ -438,6 +451,7 @@ export class LeadsService {
       hasAssignedEmployeeField && assignedEmployeeId
         ? await this.getAssignableEmployeeOrThrow(assignedEmployeeId)
         : null;
+    this.ensureAssignableEmployeeInBranch(assignedEmployee, currentUser);
     const normalizedNote = this.normalizeOptionalString(updateLeadDto.note);
     const hasNoteField = Object.prototype.hasOwnProperty.call(
       updateLeadDto,
@@ -631,8 +645,9 @@ export class LeadsService {
     return updatedLead;
   }
 
-  async listLeadSuggestions(query?: string) {
+  async listLeadSuggestions(query: string | undefined, currentUser: JwtPayload) {
     const search = query?.trim();
+    const scopedBranchId = getScopedBranchId(currentUser);
 
     if (!search || search.length < 2) {
       return [] as LeadSuggestionRecord[];
@@ -640,6 +655,7 @@ export class LeadsService {
 
     return this.prismaService.lead.findMany({
       where: {
+        ...(scopedBranchId ? { branchId: scopedBranchId } : {}),
         OR: [
           {
             leadName: {
@@ -667,13 +683,17 @@ export class LeadsService {
     });
   }
 
-  async getLeadPerformance(query: ListLeadsQueryDto) {
+  async getLeadPerformance(
+    query: ListLeadsQueryDto,
+    currentUser: JwtPayload,
+  ) {
     const search = query.search?.trim();
     const dateRange = this.buildCreatedAtRange(query.fromDate, query.toDate);
     const today = this.startOfDay(new Date());
+    const scopedBranchId = getScopedBranchId(currentUser);
     const where: Prisma.LeadWhereInput = {
       ...(query.status ? { status: query.status } : {}),
-      ...(query.branchId ? { branchId: query.branchId } : {}),
+      ...(scopedBranchId ? { branchId: scopedBranchId } : query.branchId ? { branchId: query.branchId } : {}),
       ...(query.assignedToEmployeeId
         ? { assignedToEmployeeId: query.assignedToEmployeeId }
         : {}),
@@ -863,8 +883,9 @@ export class LeadsService {
     };
   }
 
-  async deleteLead(leadId: string) {
-    await this.getLeadDetailsOrThrow(leadId);
+  async deleteLead(leadId: string, currentUser: JwtPayload) {
+    const lead = await this.getLeadDetailsOrThrow(leadId);
+    this.ensureLeadAccessible(lead, currentUser);
 
     await this.prismaService.employeeTask.deleteMany({
       where: {
@@ -961,9 +982,16 @@ export class LeadsService {
     }
 
     const validRows = preview.rows.filter((row) => row.isValid);
+    const scopedBranchId = getScopedBranchId(currentUser);
+    const scopedBranch = scopedBranchId
+      ? await this.getSupplierOrThrow(scopedBranchId)
+      : null;
 
     await this.prismaService.$transaction(async (transaction) => {
       for (const row of validRows) {
+        const branchId = scopedBranchId ?? row.branchId!;
+        const branchName = scopedBranch?.supplierName ?? row.branchName!;
+        assertBranchAccess(currentUser, branchId);
         const nextFollowUpDate = row.nextFollowUpDate
           ? new Date(row.nextFollowUpDate)
           : null;
@@ -975,8 +1003,8 @@ export class LeadsService {
             phone: row.phone,
             email: row.email,
             location: row.location,
-            branchId: row.branchId!,
-            branchName: row.branchName!,
+            branchId,
+            branchName,
             source: row.source,
             interestedProductServiceId: row.interestedProductServiceId!,
             status: row.status,
@@ -1103,6 +1131,8 @@ export class LeadsService {
     lead: Awaited<ReturnType<LeadsService['getLeadDetailsOrThrow']>>,
     currentUser: JwtPayload,
   ): void {
+    assertBranchAccess(currentUser, lead.branchId, 'Lead not found');
+
     if (
       currentUser.role === Role.EMPLOYEE &&
       lead.assignedToEmployeeId !== currentUser.sub
@@ -1164,6 +1194,21 @@ export class LeadsService {
     }
 
     return employee;
+  }
+
+  private ensureAssignableEmployeeInBranch(
+    employee: { branchId: string | null } | null,
+    currentUser: JwtPayload,
+  ): void {
+    if (!employee) {
+      return;
+    }
+
+    assertBranchAccess(
+      currentUser,
+      employee.branchId,
+      'Assigned employee must belong to your branch',
+    );
   }
 
   private buildCreatedAtRange(

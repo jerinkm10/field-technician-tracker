@@ -194,9 +194,11 @@ model User {
   phone             String             @unique
   password          String
   role              Role
+  branchId          String?
   status            UserStatus         @default(ACTIVE)
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
+  branch            Supplier?          @relation(fields: [branchId], references: [id], onDelete: SetNull)
   technician        Technician?
   assignedLeads     Lead[]             @relation("LeadAssignedEmployee")
   assignedComplaints Complaint[]       @relation("ComplaintAssignedEmployee")
@@ -209,6 +211,7 @@ model User {
   productServiceHistory ProductServiceHistory[]
 
   @@index([role])
+  @@index([branchId])
   @@index([status])
 }
 
@@ -376,6 +379,7 @@ model Supplier {
   amcs          Amc[]
   leads         Lead[]
   jobs          Job[]
+  users         User[]
 
   @@index([supplierName])
   @@index([phone])

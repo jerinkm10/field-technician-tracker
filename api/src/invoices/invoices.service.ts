@@ -5,6 +5,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InvoiceStatus, InvoiceType, Prisma } from '@prisma/client';
+import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
+import {
+  assertBranchAccess,
+  getScopedBranchId,
+} from '../auth/utils/branch-access.util';
 import { BillingDocumentPdfData, BillingDocumentsService } from '../billing-documents/billing-documents.service';
 import { CompanySettingsService } from '../company-settings/company-settings.service';
 import { createPaginationMeta, normalizePagination } from '../common/utils/pagination.util';
@@ -101,12 +106,17 @@ export class InvoicesService {
     private readonly outstandingsService: OutstandingsService,
   ) {}
 
-  async listInvoices(query: ListInvoicesQueryDto) {
+  async listInvoices(
+    query: ListInvoicesQueryDto,
+    currentUser: JwtPayload,
+  ) {
     const { page, limit, skip } = normalizePagination(query.page, query.limit);
     const search = query.search?.trim();
+    const scopedBranchId = getScopedBranchId(currentUser);
 
     const where: Prisma.InvoiceWhereInput = {
       ...(query.type ? { invoiceType: query.type } : {}),
+      ...(scopedBranchId ? { supplierId: scopedBranchId } : {}),
       ...(query.customerId ? { customerId: query.customerId } : {}),
       ...(query.status ? { status: query.status } : {}),
       ...(query.dateFrom || query.dateTo
@@ -162,15 +172,19 @@ export class InvoicesService {
     };
   }
 
-  async getInvoiceById(invoiceId: string): Promise<InvoiceRecord> {
-    return this.getInvoiceOrThrow(invoiceId);
+  async getInvoiceById(
+    invoiceId: string,
+    currentUser?: JwtPayload,
+  ): Promise<InvoiceRecord> {
+    return this.getInvoiceOrThrow(invoiceId, currentUser);
   }
 
   async getInvoiceByIdAndType(
     invoiceId: string,
     invoiceType: 'PROFORMA' | 'TAX',
+    currentUser?: JwtPayload,
   ): Promise<InvoiceRecord> {
-    const invoice = await this.getInvoiceOrThrow(invoiceId);
+    const invoice = await this.getInvoiceOrThrow(invoiceId, currentUser);
 
     if (invoice.invoiceType !== invoiceType) {
       throw new NotFoundException('Invoice not found');
@@ -196,8 +210,13 @@ export class InvoicesService {
 
   async createInvoice(
     createInvoiceDto: CreateInvoiceDto,
+    currentUser: JwtPayload,
   ): Promise<InvoiceRecord> {
-    await this.ensureSupplierExists(createInvoiceDto.supplierId);
+    const scopedBranchId = getScopedBranchId(currentUser);
+    const supplierId = scopedBranchId ?? createInvoiceDto.supplierId;
+
+    assertBranchAccess(currentUser, supplierId);
+    await this.ensureSupplierExists(supplierId);
     await this.ensureCustomerExists(createInvoiceDto.customerId);
 
     const company = await this.companySettingsService.getCompanySettings();
@@ -222,7 +241,7 @@ export class InvoicesService {
               invoiceType: createInvoiceDto.invoiceType,
               invoiceNumber,
               invoiceDate,
-              supplierId: createInvoiceDto.supplierId,
+              supplierId,
               customerId: createInvoiceDto.customerId,
               customerName: createInvoiceDto.customerName,
               customerAddress: createInvoiceDto.customerAddress,
@@ -276,11 +295,18 @@ export class InvoicesService {
   async updateInvoice(
     invoiceId: string,
     updateInvoiceDto: UpdateInvoiceDto,
+    currentUser: JwtPayload,
   ): Promise<InvoiceRecord> {
-    await this.getInvoiceOrThrow(invoiceId);
+    await this.getInvoiceOrThrow(invoiceId, currentUser);
+    const scopedBranchId = getScopedBranchId(currentUser);
+    const supplierId =
+      updateInvoiceDto.supplierId !== undefined
+        ? scopedBranchId ?? updateInvoiceDto.supplierId
+        : undefined;
 
-    if (updateInvoiceDto.supplierId) {
-      await this.ensureSupplierExists(updateInvoiceDto.supplierId);
+    if (supplierId) {
+      assertBranchAccess(currentUser, supplierId);
+      await this.ensureSupplierExists(supplierId);
     }
 
     if (updateInvoiceDto.customerId) {
@@ -298,7 +324,7 @@ export class InvoicesService {
             invoiceDate: updateInvoiceDto.invoiceDate
               ? this.normalizeDocumentDate(updateInvoiceDto.invoiceDate)
               : undefined,
-            supplierId: updateInvoiceDto.supplierId,
+            supplierId,
             customerId: updateInvoiceDto.customerId,
             customerName: updateInvoiceDto.customerName,
             customerAddress: updateInvoiceDto.customerAddress,
@@ -345,8 +371,11 @@ export class InvoicesService {
     }
   }
 
-  async deleteInvoice(invoiceId: string): Promise<InvoiceRecord> {
-    await this.getInvoiceOrThrow(invoiceId);
+  async deleteInvoice(
+    invoiceId: string,
+    currentUser?: JwtPayload,
+  ): Promise<InvoiceRecord> {
+    await this.getInvoiceOrThrow(invoiceId, currentUser);
 
     return this.prismaService.invoice.delete({
       where: {
@@ -359,25 +388,37 @@ export class InvoicesService {
   async deleteInvoiceByType(
     invoiceId: string,
     invoiceType: 'PROFORMA' | 'TAX',
+    currentUser?: JwtPayload,
   ): Promise<InvoiceRecord> {
-    await this.getInvoiceByIdAndType(invoiceId, invoiceType);
-    return this.deleteInvoice(invoiceId);
+    await this.getInvoiceByIdAndType(invoiceId, invoiceType, currentUser);
+    return this.deleteInvoice(invoiceId, currentUser);
   }
 
-  async getInvoicePdf(invoiceId: string): Promise<Buffer> {
-    const invoice = await this.getInvoiceById(invoiceId);
+  async getInvoicePdf(
+    invoiceId: string,
+    currentUser?: JwtPayload,
+  ): Promise<Buffer> {
+    const invoice = await this.getInvoiceById(invoiceId, currentUser);
     return this.buildInvoicePdf(invoice);
   }
 
   async getInvoicePdfByType(
     invoiceId: string,
     invoiceType: 'PROFORMA' | 'TAX',
+    currentUser?: JwtPayload,
   ): Promise<Buffer> {
-    const invoice = await this.getInvoiceByIdAndType(invoiceId, invoiceType);
+    const invoice = await this.getInvoiceByIdAndType(
+      invoiceId,
+      invoiceType,
+      currentUser,
+    );
     return this.buildInvoicePdf(invoice);
   }
 
-  private async getInvoiceOrThrow(invoiceId: string): Promise<InvoiceRecord> {
+  private async getInvoiceOrThrow(
+    invoiceId: string,
+    currentUser?: JwtPayload,
+  ): Promise<InvoiceRecord> {
     const invoice = await this.prismaService.invoice.findUnique({
       where: {
         id: invoiceId,
@@ -387,6 +428,10 @@ export class InvoicesService {
 
     if (!invoice) {
       throw new NotFoundException('Invoice not found');
+    }
+
+    if (currentUser) {
+      assertBranchAccess(currentUser, invoice.supplierId, 'Invoice not found');
     }
 
     return invoice;

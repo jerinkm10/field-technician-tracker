@@ -57,6 +57,8 @@ export class AuthService {
       username: userRecord.username,
       email: userRecord.email,
       role: userRecord.role,
+      branchId: userRecord.branch?.id ?? null,
+      branchName: userRecord.branch?.supplierName ?? null,
     };
 
     const accessToken = await this.signAccessToken({
@@ -65,6 +67,8 @@ export class AuthService {
       username: user.username,
       email: user.email,
       role: user.role,
+      branchId: user.branchId,
+      branchName: user.branchName,
     });
 
     return {

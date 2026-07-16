@@ -6,6 +6,10 @@ import {
 } from '@prisma/client';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import {
+  assertBranchAccess,
+  getScopedBranchId,
+} from '../auth/utils/branch-access.util';
+import {
   createPaginationMeta,
   normalizePagination,
 } from '../common/utils/pagination.util';
@@ -31,6 +35,11 @@ const outstandingSelect = Prisma.validator<Prisma.OutstandingSelect>()({
   note: true,
   createdAt: true,
   updatedAt: true,
+  invoice: {
+    select: {
+      supplierId: true,
+    },
+  },
 });
 
 type OutstandingRecord = Prisma.OutstandingGetPayload<{
@@ -57,11 +66,22 @@ export class OutstandingsService {
     private readonly employeeTasksService: EmployeeTasksService,
   ) {}
 
-  async listOutstandings(query: ListOutstandingsQueryDto) {
+  async listOutstandings(
+    query: ListOutstandingsQueryDto,
+    currentUser: JwtPayload,
+  ) {
     const { page, limit, skip } = normalizePagination(query.page, query.limit);
     const search = query.search?.trim();
+    const scopedBranchId = getScopedBranchId(currentUser);
 
     const where: Prisma.OutstandingWhereInput = {
+      ...(scopedBranchId
+        ? {
+            invoice: {
+              supplierId: scopedBranchId,
+            },
+          }
+        : {}),
       ...(query.status
         ? { status: query.status }
         : {
@@ -137,8 +157,11 @@ export class OutstandingsService {
     };
   }
 
-  async getOutstandingById(outstandingId: string): Promise<OutstandingRecord> {
-    return this.getOutstandingOrThrow(outstandingId);
+  async getOutstandingById(
+    outstandingId: string,
+    currentUser: JwtPayload,
+  ): Promise<OutstandingRecord> {
+    return this.getOutstandingOrThrow(outstandingId, currentUser);
   }
 
   async updateOutstanding(
@@ -146,7 +169,10 @@ export class OutstandingsService {
     updateOutstandingDto: UpdateOutstandingDto,
     _currentUser?: JwtPayload,
   ): Promise<OutstandingRecord> {
-    const outstanding = await this.getOutstandingOrThrow(outstandingId);
+    const outstanding = await this.getOutstandingOrThrow(
+      outstandingId,
+      _currentUser,
+    );
 
     const paidAmount = this.roundCurrency(
       updateOutstandingDto.paidAmount ?? outstanding.paidAmount,
@@ -187,8 +213,11 @@ export class OutstandingsService {
     return updatedOutstanding;
   }
 
-  async deleteOutstanding(outstandingId: string): Promise<OutstandingRecord> {
-    await this.getOutstandingOrThrow(outstandingId);
+  async deleteOutstanding(
+    outstandingId: string,
+    currentUser: JwtPayload,
+  ): Promise<OutstandingRecord> {
+    await this.getOutstandingOrThrow(outstandingId, currentUser);
 
     return this.prismaService.outstanding.delete({
       where: {
@@ -279,6 +308,7 @@ export class OutstandingsService {
 
   private async getOutstandingOrThrow(
     outstandingId: string,
+    currentUser?: JwtPayload,
   ): Promise<OutstandingRecord> {
     const outstanding = await this.prismaService.outstanding.findUnique({
       where: {
@@ -289,6 +319,14 @@ export class OutstandingsService {
 
     if (!outstanding) {
       throw new NotFoundException('Outstanding not found');
+    }
+
+    if (currentUser) {
+      assertBranchAccess(
+        currentUser,
+        outstanding.invoice.supplierId,
+        'Outstanding not found',
+      );
     }
 
     return outstanding;

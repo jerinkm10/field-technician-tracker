@@ -14,6 +14,7 @@ import {
   TechnicianStatus,
 } from '@prisma/client';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
+import { getScopedBranchId } from '../auth/utils/branch-access.util';
 import { EmployeeTasksService } from '../employee-tasks/employee-tasks.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { PerformanceDashboardQueryDto } from './dto/performance-dashboard-query.dto';
@@ -76,7 +77,22 @@ export class DashboardService {
     private readonly employeeTasksService: EmployeeTasksService,
   ) {}
 
-  async getBusinessSummary() {
+  async getBusinessSummary(currentUser: JwtPayload) {
+    const scopedBranchId = getScopedBranchId(currentUser);
+    const outstandingScope = scopedBranchId
+      ? { invoice: { supplierId: scopedBranchId } }
+      : {};
+    const amcScope = scopedBranchId ? { branchId: scopedBranchId } : {};
+    const leadScope = scopedBranchId ? { branchId: scopedBranchId } : {};
+    const jobScope = scopedBranchId ? { branchId: scopedBranchId } : {};
+    const complaintScope = scopedBranchId
+      ? {
+          OR: [
+            { assignedEmployee: { is: { branchId: scopedBranchId } } },
+            { job: { is: { branchId: scopedBranchId } } },
+          ],
+        }
+      : {};
     await this.expirePastAmcContracts();
     await this.employeeTasksService.refreshSharedTasks();
 
@@ -111,6 +127,7 @@ export class DashboardService {
     ] = await Promise.all([
       this.prismaService.outstanding.aggregate({
         where: {
+          ...outstandingScope,
           outstandingAmount: {
             gt: 0,
           },
@@ -131,6 +148,7 @@ export class DashboardService {
       }),
       this.prismaService.outstanding.aggregate({
         where: {
+          ...outstandingScope,
           outstandingAmount: {
             gt: 0,
           },
@@ -145,11 +163,13 @@ export class DashboardService {
       }),
       this.prismaService.amc.count({
         where: {
+          ...amcScope,
           status: AmcStatus.ACTIVE,
         },
       }),
       this.prismaService.amc.count({
         where: {
+          ...amcScope,
           status: AmcStatus.ACTIVE,
           endDate: {
             gte: today,
@@ -159,11 +179,13 @@ export class DashboardService {
       }),
       this.prismaService.amc.count({
         where: {
+          ...amcScope,
           status: AmcStatus.EXPIRED,
         },
       }),
       this.prismaService.amc.count({
         where: {
+          ...amcScope,
           status: AmcStatus.ACTIVE,
           nextBillingDate: {
             not: null,
@@ -173,6 +195,7 @@ export class DashboardService {
       }),
       this.prismaService.amc.count({
         where: {
+          ...amcScope,
           status: AmcStatus.ACTIVE,
           nextBillingDate: {
             not: null,
@@ -182,6 +205,7 @@ export class DashboardService {
       }),
       this.prismaService.lead.count({
         where: {
+          ...leadScope,
           createdAt: {
             gte: monthStart,
             lt: nextMonthStart,
@@ -190,6 +214,7 @@ export class DashboardService {
       }),
       this.prismaService.lead.count({
         where: {
+          ...leadScope,
           createdAt: {
             gte: monthStart,
             lt: nextMonthStart,
@@ -199,6 +224,7 @@ export class DashboardService {
       }),
       this.prismaService.lead.count({
         where: {
+          ...leadScope,
           nextFollowUpDate: {
             gte: today,
             lt: tomorrow,
@@ -210,6 +236,7 @@ export class DashboardService {
       }),
       this.prismaService.lead.count({
         where: {
+          ...leadScope,
           nextFollowUpDate: {
             lt: today,
           },
@@ -220,6 +247,7 @@ export class DashboardService {
       }),
       this.prismaService.complaint.count({
         where: {
+          ...complaintScope,
           status: {
             in: [...OPEN_COMPLAINT_STATUSES],
           },
@@ -227,6 +255,7 @@ export class DashboardService {
       }),
       this.prismaService.complaint.count({
         where: {
+          ...complaintScope,
           status: {
             in: [...OPEN_COMPLAINT_STATUSES],
           },
@@ -237,6 +266,7 @@ export class DashboardService {
       }),
       this.prismaService.job.count({
         where: {
+          ...jobScope,
           scheduledDate: {
             gte: today,
             lt: tomorrow,
@@ -245,12 +275,14 @@ export class DashboardService {
       }),
       this.prismaService.technician.groupBy({
         by: ['status'],
+        where: scopedBranchId ? { user: { branchId: scopedBranchId } } : {},
         _count: {
           _all: true,
         },
       }),
       this.prismaService.outstanding.findMany({
         where: {
+          ...outstandingScope,
           outstandingAmount: {
             gt: 0,
           },
@@ -262,6 +294,7 @@ export class DashboardService {
       }),
       this.prismaService.amc.findMany({
         where: {
+          ...amcScope,
           status: AmcStatus.ACTIVE,
           endDate: {
             gte: today,
@@ -274,6 +307,7 @@ export class DashboardService {
       }),
       this.prismaService.amc.findMany({
         where: {
+          ...amcScope,
           status: AmcStatus.ACTIVE,
           nextBillingDate: {
             not: null,
@@ -286,6 +320,7 @@ export class DashboardService {
       }),
       this.prismaService.lead.findMany({
         where: {
+          ...leadScope,
           nextFollowUpDate: {
             not: null,
             lt: tomorrow,
@@ -300,6 +335,7 @@ export class DashboardService {
       }),
       this.prismaService.complaint.findMany({
         where: {
+          ...complaintScope,
           status: {
             in: [...OPEN_COMPLAINT_STATUSES],
           },
@@ -308,7 +344,7 @@ export class DashboardService {
         take: 5,
         select: complaintAlertSelect,
       }),
-      this.buildPerformanceDashboard(),
+      this.buildPerformanceDashboard({}, scopedBranchId),
     ]);
 
     const technicianAvailability = {
@@ -490,15 +526,19 @@ export class DashboardService {
     };
   }
 
-  async getPerformanceDashboard(query: PerformanceDashboardQueryDto) {
+  async getPerformanceDashboard(
+    query: PerformanceDashboardQueryDto,
+    currentUser: JwtPayload,
+  ) {
     await this.expirePastAmcContracts();
     await this.employeeTasksService.refreshSharedTasks();
 
-    return this.buildPerformanceDashboard(query);
+    return this.buildPerformanceDashboard(query, getScopedBranchId(currentUser));
   }
 
   private async buildPerformanceDashboard(
     query: PerformanceDashboardQueryDto = {},
+    scopedBranchId: string | null = null,
   ) {
     const users = await this.prismaService.user.findMany({
       where: {
@@ -506,6 +546,14 @@ export class DashboardService {
           in: [Role.ADMIN, Role.EMPLOYEE, Role.TECHNICIAN],
         },
         ...(query.employeeId ? { id: query.employeeId } : {}),
+        ...(scopedBranchId
+          ? {
+              OR: [
+                { branchId: scopedBranchId },
+                { jobAssignments: { some: { job: { branchId: scopedBranchId } } } },
+              ],
+            }
+          : {}),
       },
       orderBy: [{ role: 'asc' }, { name: 'asc' }],
       select: {
@@ -555,6 +603,7 @@ export class DashboardService {
           assignedToEmployeeId: {
             in: userIds,
           },
+          ...(scopedBranchId ? { branchId: scopedBranchId } : {}),
         },
         select: {
           assignedToEmployeeId: true,
@@ -604,6 +653,7 @@ export class DashboardService {
             in: userIds,
           },
           roleType: JobAssignmentRoleType.TECHNICIAN,
+          ...(scopedBranchId ? { job: { branchId: scopedBranchId } } : {}),
         },
         select: {
           userId: true,
@@ -618,11 +668,10 @@ export class DashboardService {
         },
       }),
       this.prismaService.invoice.findMany({
-        where: range
-          ? {
-              invoiceDate: range,
-            }
-          : {},
+        where: {
+          ...(range ? { invoiceDate: range } : {}),
+          ...(scopedBranchId ? { supplierId: scopedBranchId } : {}),
+        },
         select: {
           customerName: true,
           totalAmount: true,
@@ -631,6 +680,7 @@ export class DashboardService {
       }),
       this.prismaService.technician.groupBy({
         by: ['status'],
+        where: scopedBranchId ? { user: { branchId: scopedBranchId } } : {},
         _count: {
           _all: true,
         },

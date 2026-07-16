@@ -13,6 +13,8 @@ export type AuthenticatedUser = {
   username: string;
   email: string | null;
   role: AppUserRole;
+  branchId: string | null;
+  branchName: string | null;
 };
 
 export type LoginRequest = {
@@ -32,6 +34,8 @@ type JwtPayload = {
   username?: string;
   email?: string | null;
   role?: AppUserRole;
+  branchId?: string | null;
+  branchName?: string | null;
   exp?: number;
 };
 
@@ -60,6 +64,9 @@ export class AuthService {
   readonly isAdmin = computed(
     () => this.isAuthenticated() && this.hasDashboardAccess(this.currentUserState()?.role),
   );
+  readonly isSuperAdmin = computed(
+    () => this.isAuthenticated() && this.currentUserState()?.role === 'ADMIN_OWNER',
+  );
   readonly isEmployee = computed(
     () => this.isAuthenticated() && this.currentUserState()?.role === 'EMPLOYEE',
   );
@@ -81,6 +88,14 @@ export class AuthService {
 
   hasLedgerAccess(role: AppUserRole | null | undefined): boolean {
     return role === 'ADMIN' || role === 'ADMIN_OWNER';
+  }
+
+  canManageBranches(): boolean {
+    return this.currentUserState()?.role === 'ADMIN_OWNER';
+  }
+
+  canManageCompanySettings(): boolean {
+    return this.currentUserState()?.role === 'ADMIN_OWNER';
   }
 
   hasRole(
@@ -134,7 +149,16 @@ export class AuthService {
 
     if (storedUser) {
       try {
-        return JSON.parse(storedUser) as AuthenticatedUser;
+        const user = JSON.parse(storedUser) as Partial<AuthenticatedUser>;
+        if (!user.id || !user.name || !user.username || !user.role) {
+          return null;
+        }
+        return {
+          ...user,
+          email: user.email ?? null,
+          branchId: user.branchId ?? null,
+          branchName: user.branchName ?? null,
+        } as AuthenticatedUser;
       } catch {
         localStorage.removeItem(CURRENT_USER_KEY);
       }
@@ -151,6 +175,8 @@ export class AuthService {
       username: payload.username,
       email: payload.email ?? null,
       role: payload.role,
+      branchId: payload.branchId ?? null,
+      branchName: payload.branchName ?? null,
     };
   }
 

@@ -64,7 +64,7 @@
   padding: 0.85rem 0.95rem;
   border: 1px solid rgba(22, 45, 67, 0.08);
   border-radius: 1rem;
-  background: rgba(255, 255, 255, 0.68);
+  background: rgba(var(--ftt-card-rgb), 0.68);
 }
 
 .roster-meta strong {

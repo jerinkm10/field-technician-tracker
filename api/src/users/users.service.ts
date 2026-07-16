@@ -11,6 +11,10 @@ import {
   UserStatus,
 } from '@prisma/client';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
+import {
+  getScopedBranchId,
+  isSuperAdmin,
+} from '../auth/utils/branch-access.util';
 import { createPaginationMeta, normalizePagination } from '../common/utils/pagination.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
@@ -26,6 +30,12 @@ const authUserSelect = Prisma.validator<Prisma.UserSelect>()({
   password: true,
   role: true,
   status: true,
+  branch: {
+    select: {
+      id: true,
+      supplierName: true,
+    },
+  },
 });
 
 const employeeSelect = Prisma.validator<Prisma.UserSelect>()({
@@ -38,6 +48,12 @@ const employeeSelect = Prisma.validator<Prisma.UserSelect>()({
   status: true,
   createdAt: true,
   updatedAt: true,
+  branch: {
+    select: {
+      id: true,
+      supplierName: true,
+    },
+  },
   technician: {
     select: {
       id: true,
@@ -90,46 +106,81 @@ export class UsersService {
     });
   }
 
-  async listEmployees(query: ListEmployeesQueryDto) {
+  async listEmployees(
+    query: ListEmployeesQueryDto,
+    currentUser: JwtPayload,
+  ) {
     const { page, limit, skip } = normalizePagination(query.page, query.limit);
     const search = query.search?.trim();
-
+    const scopedBranchId = getScopedBranchId(currentUser);
     const where: Prisma.UserWhereInput = {
-      role: {
-        not: Role.ADMIN_OWNER,
-      },
-      ...(query.role ? { role: query.role } : {}),
-      ...(query.status ? { status: query.status } : {}),
-      ...(search
-        ? {
-            OR: [
+      AND: [
+        {
+          role: {
+            not: Role.ADMIN_OWNER,
+          },
+        },
+        ...(query.role ? [{ role: query.role }] : []),
+        ...(query.status ? [{ status: query.status }] : []),
+        ...(scopedBranchId
+          ? [
+              query.includeCrossBranchTechnicians
+                ? {
+                    OR: [
+                      {
+                        branchId: scopedBranchId,
+                      },
+                      {
+                        role: Role.TECHNICIAN,
+                      },
+                    ],
+                  }
+                : {
+                    branchId: scopedBranchId,
+                  },
+            ]
+          : []),
+        ...(search
+          ? [
               {
-                name: {
-                  contains: search,
-                  mode: 'insensitive',
-                },
+                OR: [
+                  {
+                    name: {
+                      contains: search,
+                      mode: 'insensitive',
+                    },
+                  },
+                  {
+                    username: {
+                      contains: search,
+                      mode: 'insensitive',
+                    },
+                  },
+                  {
+                    email: {
+                      contains: search,
+                      mode: 'insensitive',
+                    },
+                  },
+                  {
+                    phone: {
+                      contains: search,
+                      mode: 'insensitive',
+                    },
+                  },
+                  {
+                    branch: {
+                      supplierName: {
+                        contains: search,
+                        mode: 'insensitive',
+                      },
+                    },
+                  },
+                ],
               },
-              {
-                username: {
-                  contains: search,
-                  mode: 'insensitive',
-                },
-              },
-              {
-                email: {
-                  contains: search,
-                  mode: 'insensitive',
-                },
-              },
-              {
-                phone: {
-                  contains: search,
-                  mode: 'insensitive',
-                },
-              },
-            ],
-          }
-        : {}),
+            ]
+          : []),
+      ] as Prisma.UserWhereInput[],
     };
 
     const [total, users] = await Promise.all([
@@ -149,8 +200,8 @@ export class UsersService {
     };
   }
 
-  async getEmployeeById(userId: string) {
-    return this.toApiEmployee(await this.getEmployeeOrThrow(userId));
+  async getEmployeeById(userId: string, currentUser: JwtPayload) {
+    return this.toApiEmployee(await this.getEmployeeOrThrow(userId, this.prismaService, currentUser));
   }
 
   async createEmployee(
@@ -158,6 +209,11 @@ export class UsersService {
     currentUser: JwtPayload,
   ) {
     await this.assertEmployeeRole(createEmployeeDto.role, currentUser);
+    const branchId = await this.resolveManagedBranchId(
+      createEmployeeDto.branchId,
+      createEmployeeDto.role,
+      currentUser,
+    );
     await this.ensureUniqueUserFields({
       username: createEmployeeDto.username,
       email: createEmployeeDto.email,
@@ -176,6 +232,7 @@ export class UsersService {
             phone: createEmployeeDto.phone.trim(),
             password: passwordHash,
             role: createEmployeeDto.role,
+            branchId,
             status: createEmployeeDto.status ?? UserStatus.ACTIVE,
           },
           select: {
@@ -192,7 +249,7 @@ export class UsersService {
         });
 
         return this.toApiEmployee(
-          await this.getEmployeeOrThrow(createdUser.id, transaction),
+          await this.getEmployeeOrThrow(createdUser.id, transaction, currentUser),
         );
       });
     } catch (error) {
@@ -205,7 +262,11 @@ export class UsersService {
     updateEmployeeDto: UpdateEmployeeDto,
     currentUser: JwtPayload,
   ) {
-    const existingUser = await this.getEmployeeOrThrow(userId);
+    const existingUser = await this.getEmployeeOrThrow(
+      userId,
+      this.prismaService,
+      currentUser,
+    );
 
     const nextRole = updateEmployeeDto.role ?? existingUser.role;
     const nextStatus = updateEmployeeDto.status ?? existingUser.status;
@@ -215,6 +276,11 @@ export class UsersService {
         ? this.normalizeOptionalString(updateEmployeeDto.email)
         : existingUser.email;
     const nextPhone = updateEmployeeDto.phone?.trim() ?? existingUser.phone;
+    const nextBranchId = await this.resolveManagedBranchId(
+      updateEmployeeDto.branchId ?? existingUser.branch?.id ?? null,
+      nextRole,
+      currentUser,
+    );
 
     await this.assertEmployeeRole(nextRole, currentUser);
     await this.ensureUniqueUserFields(
@@ -246,6 +312,7 @@ export class UsersService {
             phone: updateEmployeeDto.phone?.trim(),
             password: passwordHash,
             role: updateEmployeeDto.role,
+            branchId: nextBranchId,
             status: updateEmployeeDto.status,
           },
         });
@@ -258,7 +325,9 @@ export class UsersService {
           existingTechnicianId: existingUser.technician?.id ?? null,
         });
 
-        return this.toApiEmployee(await this.getEmployeeOrThrow(userId, transaction));
+        return this.toApiEmployee(
+          await this.getEmployeeOrThrow(userId, transaction, currentUser),
+        );
       });
     } catch (error) {
       this.rethrowUniqueConstraint(error);
@@ -268,6 +337,7 @@ export class UsersService {
   private async getEmployeeOrThrow(
     userId: string,
     transaction: Prisma.TransactionClient | PrismaService = this.prismaService,
+    currentUser?: JwtPayload,
   ): Promise<EmployeeRecord> {
     const user = await transaction.user.findFirst({
       where: {
@@ -281,6 +351,14 @@ export class UsersService {
 
     if (!user) {
       throw new NotFoundException('Employee not found');
+    }
+
+    if (currentUser && !isSuperAdmin(currentUser)) {
+      const scopedBranchId = getScopedBranchId(currentUser);
+
+      if (user.branch?.id !== scopedBranchId) {
+        throw new NotFoundException('Employee not found');
+      }
     }
 
     return user;
@@ -365,6 +443,58 @@ export class UsersService {
         'Admin owner accounts are seeded separately and cannot be created from Employees',
       );
     }
+
+    if (!isSuperAdmin(currentUser) && role === Role.ADMIN) {
+      throw new ConflictException(
+        'Only the super admin can create or update branch admin accounts.',
+      );
+    }
+  }
+
+  private async resolveManagedBranchId(
+    requestedBranchId: string | null | undefined,
+    role: Role,
+    currentUser: JwtPayload,
+  ): Promise<string | null> {
+    if (role === Role.ADMIN_OWNER) {
+      return null;
+    }
+
+    if (!isSuperAdmin(currentUser)) {
+      const scopedBranchId = getScopedBranchId(currentUser);
+      if (!scopedBranchId) {
+        throw new ConflictException('A branch assignment is required for branch admins.');
+      }
+      await this.ensureBranchExists(scopedBranchId);
+      return scopedBranchId;
+    }
+
+    const normalizedBranchId = this.normalizeOptionalId(requestedBranchId);
+
+    if (!normalizedBranchId) {
+      throw new ConflictException(
+        'Branch selection is required for branch admins, employees, and technicians.',
+      );
+    }
+
+    await this.ensureBranchExists(normalizedBranchId);
+
+    return normalizedBranchId;
+  }
+
+  private async ensureBranchExists(branchId: string): Promise<void> {
+    const branch = await this.prismaService.supplier.findUnique({
+      where: {
+        id: branchId,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!branch) {
+      throw new NotFoundException('Branch not found');
+    }
   }
 
   private async syncTechnicianProfile(
@@ -448,6 +578,8 @@ export class UsersService {
       email: user.email,
       phone: user.phone,
       role: user.role,
+      branchId: user.branch?.id ?? null,
+      branchName: user.branch?.supplierName ?? null,
       status: user.status,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
@@ -463,6 +595,11 @@ export class UsersService {
     }
 
     return normalized.toLowerCase();
+  }
+
+  private normalizeOptionalId(value?: string | null): string | null {
+    const normalized = value?.trim();
+    return normalized ? normalized : null;
   }
 
   private rethrowUniqueConstraint(error: unknown): never {

@@ -7,6 +7,7 @@ import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
 
+import { AuthService } from '../../core/services/auth.service';
 import { BillingDocumentsApiService } from '../../core/services/billing-documents-api.service';
 import { CompanySettingsApiService } from '../../core/services/company-settings-api.service';
 import { CustomersApiService } from '../../core/services/customers-api.service';
@@ -75,6 +76,7 @@ type SaveFilePickerHandle = {
 })
 export class BillingDocumentEditorPageComponent {
   private readonly uiFeedback = inject(UiFeedbackService);
+  protected readonly authService = inject(AuthService);
   private nextNumberRequestId = 0;
 
   protected readonly loading = signal(false);

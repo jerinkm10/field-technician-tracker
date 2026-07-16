@@ -29,7 +29,7 @@
   padding: 0.8rem 0.9rem;
   border: 1px solid var(--ftt-border);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.9);
+  background: rgba(var(--ftt-card-rgb), 0.9);
   color: var(--ftt-text);
 }
 
@@ -67,7 +67,7 @@
   padding: 0.9rem;
   border: 1px solid var(--ftt-border);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(var(--ftt-card-rgb), 0.72);
 }
 
 .invoice-helper {

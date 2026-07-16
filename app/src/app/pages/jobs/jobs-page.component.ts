@@ -565,7 +565,12 @@ export class JobsPageComponent {
 
   private loadAssignableMembers(): void {
     this.employeesApiService
-      .getEmployeesPage({ status: 'ACTIVE', page: 1, limit: 200 })
+      .getEmployeesPage({
+        status: 'ACTIVE',
+        page: 1,
+        limit: 200,
+        includeCrossBranchTechnicians: true,
+      })
       .subscribe({
         next: (response) => {
           this.assignableMembers.set(

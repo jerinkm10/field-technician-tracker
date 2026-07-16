@@ -108,7 +108,7 @@
   padding: 1rem;
   border: 1px solid var(--ftt-border);
   border-radius: var(--ftt-radius-md);
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(var(--ftt-card-rgb), 0.7);
 }
 
 .summary-card strong {

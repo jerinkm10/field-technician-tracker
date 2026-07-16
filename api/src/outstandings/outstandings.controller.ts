@@ -25,14 +25,23 @@ export class OutstandingsController {
 
   @Get()
   @Roles(Role.ADMIN, Role.ADMIN_OWNER, Role.EMPLOYEE)
-  async listOutstandings(@Query() query: ListOutstandingsQueryDto) {
-    return this.outstandingsService.listOutstandings(query);
+  async listOutstandings(
+    @Query() query: ListOutstandingsQueryDto,
+    @CurrentUser() currentUser: JwtPayload,
+  ) {
+    return this.outstandingsService.listOutstandings(query, currentUser);
   }
 
   @Get(':id')
   @Roles(Role.ADMIN, Role.ADMIN_OWNER, Role.EMPLOYEE)
-  async getOutstanding(@Param('id') outstandingId: string) {
-    return this.outstandingsService.getOutstandingById(outstandingId);
+  async getOutstanding(
+    @Param('id') outstandingId: string,
+    @CurrentUser() currentUser: JwtPayload,
+  ) {
+    return this.outstandingsService.getOutstandingById(
+      outstandingId,
+      currentUser,
+    );
   }
 
   @Patch(':id')
@@ -51,7 +60,13 @@ export class OutstandingsController {
 
   @Delete(':id')
   @Roles(Role.ADMIN, Role.ADMIN_OWNER)
-  async deleteOutstanding(@Param('id') outstandingId: string) {
-    return this.outstandingsService.deleteOutstanding(outstandingId);
+  async deleteOutstanding(
+    @Param('id') outstandingId: string,
+    @CurrentUser() currentUser: JwtPayload,
+  ) {
+    return this.outstandingsService.deleteOutstanding(
+      outstandingId,
+      currentUser,
+    );
   }
 }

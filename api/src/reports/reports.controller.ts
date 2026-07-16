@@ -1,8 +1,10 @@
 import { Controller, Get, Query, UseGuards } from '@nestjs/common';
 import { Role } from '@prisma/client';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { TechnicianDailyReportQueryDto } from './dto/technician-daily-report-query.dto';
 import { ReportsService } from './reports.service';
 
@@ -15,9 +17,11 @@ export class ReportsController {
   @Get('technician-daily')
   async getTechnicianDailyReport(
     @Query() technicianDailyReportQueryDto: TechnicianDailyReportQueryDto,
+    @CurrentUser() currentUser: JwtPayload,
   ) {
     return this.reportsService.getTechnicianDailyReport(
       technicianDailyReportQueryDto,
+      currentUser,
     );
   }
 }

@@ -22,7 +22,7 @@
 .detail-card {
   border: 1px solid var(--ftt-border);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(var(--ftt-card-rgb), 0.8);
   padding: 1rem 1.1rem;
 }
 

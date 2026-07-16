@@ -26,13 +26,19 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @Get()
-  async listEmployees(@Query() query: ListEmployeesQueryDto) {
-    return this.usersService.listEmployees(query);
+  async listEmployees(
+    @Query() query: ListEmployeesQueryDto,
+    @CurrentUser() currentUser: JwtPayload,
+  ) {
+    return this.usersService.listEmployees(query, currentUser);
   }
 
   @Get(':id')
-  async getEmployee(@Param('id') userId: string) {
-    return this.usersService.getEmployeeById(userId);
+  async getEmployee(
+    @Param('id') userId: string,
+    @CurrentUser() currentUser: JwtPayload,
+  ) {
+    return this.usersService.getEmployeeById(userId, currentUser);
   }
 
   @Post()

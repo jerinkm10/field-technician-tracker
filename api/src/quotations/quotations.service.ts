@@ -5,6 +5,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, QuotationStatus } from '@prisma/client';
+import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
+import {
+  assertBranchAccess,
+  getScopedBranchId,
+} from '../auth/utils/branch-access.util';
 import { BillingDocumentPdfData, BillingDocumentsService } from '../billing-documents/billing-documents.service';
 import { CompanySettingsService } from '../company-settings/company-settings.service';
 import {
@@ -101,11 +106,16 @@ export class QuotationsService {
     private readonly companySettingsService: CompanySettingsService,
   ) {}
 
-  async listQuotations(query: ListQuotationsQueryDto) {
+  async listQuotations(
+    query: ListQuotationsQueryDto,
+    currentUser: JwtPayload,
+  ) {
     const { page, limit, skip } = normalizePagination(query.page, query.limit);
     const search = query.search?.trim();
+    const scopedBranchId = getScopedBranchId(currentUser);
 
     const where: Prisma.QuotationWhereInput = {
+      ...(scopedBranchId ? { supplierId: scopedBranchId } : {}),
       ...(query.customerId ? { customerId: query.customerId } : {}),
       ...(query.status ? { status: query.status } : {}),
       ...(query.dateFrom || query.dateTo
@@ -161,8 +171,11 @@ export class QuotationsService {
     };
   }
 
-  async getQuotationById(quotationId: string): Promise<QuotationRecord> {
-    return this.getQuotationOrThrow(quotationId);
+  async getQuotationById(
+    quotationId: string,
+    currentUser?: JwtPayload,
+  ): Promise<QuotationRecord> {
+    return this.getQuotationOrThrow(quotationId, currentUser);
   }
 
   async getNextQuotationNumber(documentDate?: string) {
@@ -176,8 +189,15 @@ export class QuotationsService {
     };
   }
 
-  async createQuotation(createQuotationDto: CreateQuotationDto) {
-    await this.ensureSupplierExists(createQuotationDto.supplierId);
+  async createQuotation(
+    createQuotationDto: CreateQuotationDto,
+    currentUser: JwtPayload,
+  ) {
+    const scopedBranchId = getScopedBranchId(currentUser);
+    const supplierId = scopedBranchId ?? createQuotationDto.supplierId;
+
+    assertBranchAccess(currentUser, supplierId);
+    await this.ensureSupplierExists(supplierId);
     await this.ensureCustomerExists(createQuotationDto.customerId);
 
     const company = await this.companySettingsService.getCompanySettings();
@@ -199,7 +219,7 @@ export class QuotationsService {
             ),
             quotationDate,
             validUntil: new Date(createQuotationDto.validUntil),
-            supplierId: createQuotationDto.supplierId,
+            supplierId,
             customerId: createQuotationDto.customerId,
             customerName: createQuotationDto.customerName,
             customerAddress: createQuotationDto.customerAddress,
@@ -235,11 +255,18 @@ export class QuotationsService {
   async updateQuotation(
     quotationId: string,
     updateQuotationDto: UpdateQuotationDto,
+    currentUser: JwtPayload,
   ) {
-    await this.getQuotationOrThrow(quotationId);
+    await this.getQuotationOrThrow(quotationId, currentUser);
+    const scopedBranchId = getScopedBranchId(currentUser);
+    const supplierId =
+      updateQuotationDto.supplierId !== undefined
+        ? scopedBranchId ?? updateQuotationDto.supplierId
+        : undefined;
 
-    if (updateQuotationDto.supplierId) {
-      await this.ensureSupplierExists(updateQuotationDto.supplierId);
+    if (supplierId) {
+      assertBranchAccess(currentUser, supplierId);
+      await this.ensureSupplierExists(supplierId);
     }
 
     if (updateQuotationDto.customerId) {
@@ -256,7 +283,7 @@ export class QuotationsService {
           validUntil: updateQuotationDto.validUntil
             ? new Date(updateQuotationDto.validUntil)
             : undefined,
-          supplierId: updateQuotationDto.supplierId,
+          supplierId,
           customerId: updateQuotationDto.customerId,
           customerName: updateQuotationDto.customerName,
           customerAddress: updateQuotationDto.customerAddress,
@@ -285,8 +312,11 @@ export class QuotationsService {
     }
   }
 
-  async deleteQuotation(quotationId: string) {
-    await this.getQuotationOrThrow(quotationId);
+  async deleteQuotation(
+    quotationId: string,
+    currentUser: JwtPayload,
+  ) {
+    await this.getQuotationOrThrow(quotationId, currentUser);
 
     return this.prismaService.quotation.delete({
       where: { id: quotationId },
@@ -294,13 +324,17 @@ export class QuotationsService {
     });
   }
 
-  async getQuotationPdf(quotationId: string): Promise<Buffer> {
-    const quotation = await this.getQuotationOrThrow(quotationId);
+  async getQuotationPdf(
+    quotationId: string,
+    currentUser: JwtPayload,
+  ): Promise<Buffer> {
+    const quotation = await this.getQuotationOrThrow(quotationId, currentUser);
     return this.buildQuotationPdf(quotation);
   }
 
   private async getQuotationOrThrow(
     quotationId: string,
+    currentUser?: JwtPayload,
   ): Promise<QuotationRecord> {
     const quotation = await this.prismaService.quotation.findUnique({
       where: { id: quotationId },
@@ -309,6 +343,10 @@ export class QuotationsService {
 
     if (!quotation) {
       throw new NotFoundException('Quotation not found');
+    }
+
+    if (currentUser) {
+      assertBranchAccess(currentUser, quotation.supplierId, 'Quotation not found');
     }
 
     return quotation;

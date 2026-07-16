@@ -47,7 +47,7 @@
   padding: 0.75rem 0.9rem;
   border: 1px solid rgba(22, 45, 67, 0.12);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.72);
+  background: rgba(var(--ftt-card-rgb), 0.72);
   color: var(--ftt-text);
 }
 

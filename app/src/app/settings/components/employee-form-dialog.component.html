@@ -54,6 +54,26 @@
           appendTo="body">
         </p-select>
       </label>
+
+      @if (superAdmin) {
+        <label class="field field-span-6">
+          <span>Branch</span>
+          <p-select
+            [options]="branches"
+            optionLabel="label"
+            optionValue="value"
+            placeholder="Select TCR or PAL branch"
+            [(ngModel)]="draft.branchId"
+            [disabled]="isReadOnly()"
+            appendTo="body">
+          </p-select>
+        </label>
+      } @else {
+        <label class="field field-span-6">
+          <span>Branch</span>
+          <input pInputText [value]="currentBranchName || employee?.branchName || 'Assigned branch'" disabled />
+        </label>
+      }
     </div>
 
     @if (isReadOnly()) {

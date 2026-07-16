@@ -13,6 +13,11 @@ import {
 } from '@prisma/client';
 import { existsSync } from 'fs';
 import PDFDocument = require('pdfkit');
+import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
+import {
+  assertBranchAccess,
+  getScopedBranchId,
+} from '../auth/utils/branch-access.util';
 import { BillingDocumentsService } from '../billing-documents/billing-documents.service';
 import { CompanySettingsService } from '../company-settings/company-settings.service';
 import {
@@ -154,13 +159,15 @@ export class AmcService {
     private readonly outstandingsService: OutstandingsService,
   ) {}
 
-  async listAmcs(query: ListAmcQueryDto) {
+  async listAmcs(query: ListAmcQueryDto, currentUser: JwtPayload) {
     await this.expirePastContracts();
 
     const { page, limit, skip } = normalizePagination(query.page, query.limit);
     const search = query.search?.trim();
+    const scopedBranchId = getScopedBranchId(currentUser);
 
     const where: Prisma.AmcWhereInput = {
+      ...(scopedBranchId ? { branchId: scopedBranchId } : {}),
       ...(query.status ? { status: query.status } : {}),
       ...(query.customerId ? { customerId: query.customerId } : {}),
       ...(query.billingPeriod ? { billingPeriod: query.billingPeriod } : {}),
@@ -229,19 +236,23 @@ export class AmcService {
     };
   }
 
-  async getAmcById(amcId: string) {
+  async getAmcById(amcId: string, currentUser: JwtPayload) {
     await this.expirePastContracts();
-    return this.toApiAmc(await this.getAmcOrThrow(amcId));
+    return this.toApiAmc(await this.getAmcOrThrow(amcId, currentUser));
   }
 
-  async createAmc(createAmcDto: CreateAmcDto) {
+  async createAmc(createAmcDto: CreateAmcDto, currentUser: JwtPayload) {
     const customer = await this.getCustomerOrThrow(createAmcDto.customerId);
-    await this.ensureBranchExists(createAmcDto.branchId);
+    const scopedBranchId = getScopedBranchId(currentUser);
+    const branchId = scopedBranchId ?? createAmcDto.branchId;
+
+    assertBranchAccess(currentUser, branchId);
+    await this.ensureBranchExists(branchId);
     const defaultTermsAndConditions = await this.resolveDefaultAmcTerms();
 
     const normalized = this.normalizeCreateInput({
       amcNumber: createAmcDto.amcNumber,
-      branchId: createAmcDto.branchId,
+      branchId,
       contractAmount: createAmcDto.contractAmount,
       customerId: customer.id,
       customerName: customer.name,
@@ -271,20 +282,31 @@ export class AmcService {
     }
   }
 
-  async updateAmc(amcId: string, updateAmcDto: UpdateAmcDto) {
-    const existingAmc = await this.getAmcOrThrow(amcId);
+  async updateAmc(
+    amcId: string,
+    updateAmcDto: UpdateAmcDto,
+    currentUser: JwtPayload,
+  ) {
+    const existingAmc = await this.getAmcOrThrow(amcId, currentUser);
 
     const customer = updateAmcDto.customerId
       ? await this.getCustomerOrThrow(updateAmcDto.customerId)
       : existingAmc.customer;
 
-    if (updateAmcDto.branchId) {
-      await this.ensureBranchExists(updateAmcDto.branchId);
+    const scopedBranchId = getScopedBranchId(currentUser);
+    const branchId =
+      updateAmcDto.branchId !== undefined
+        ? scopedBranchId ?? updateAmcDto.branchId
+        : existingAmc.branchId;
+
+    if (branchId) {
+      assertBranchAccess(currentUser, branchId);
+      await this.ensureBranchExists(branchId);
     }
 
     const normalized = this.normalizeUpdateInput({
       amcNumber: updateAmcDto.amcNumber ?? existingAmc.amcNumber,
-      branchId: updateAmcDto.branchId ?? existingAmc.branchId,
+      branchId,
       contractAmount: updateAmcDto.contractAmount ?? existingAmc.contractAmount,
       customerId: customer.id,
       customerName: updateAmcDto.customerName?.trim() || customer.name,
@@ -324,8 +346,8 @@ export class AmcService {
     }
   }
 
-  async deleteAmc(amcId: string) {
-    await this.getAmcOrThrow(amcId);
+  async deleteAmc(amcId: string, currentUser: JwtPayload) {
+    await this.getAmcOrThrow(amcId, currentUser);
 
     const linkedInvoiceCount = await this.prismaService.amcInvoice.count({
       where: {
@@ -349,21 +371,27 @@ export class AmcService {
     return this.toApiAmc(amc);
   }
 
-  async getDashboardSummary() {
+  async getDashboardSummary(currentUser: JwtPayload) {
     await this.expirePastContracts();
 
     const today = this.toDateOnly(new Date());
     const nextThirtyDays = this.addDays(today, 30);
+    const scopedBranchId = getScopedBranchId(currentUser);
+    const branchWhere: Prisma.AmcWhereInput = scopedBranchId
+      ? { branchId: scopedBranchId }
+      : {};
 
     const [activeCount, expiringSoonCount, expiredCount, paymentDueCount, overduePaymentCount] =
       await Promise.all([
         this.prismaService.amc.count({
           where: {
+            ...branchWhere,
             status: AmcStatus.ACTIVE,
           },
         }),
         this.prismaService.amc.count({
           where: {
+            ...branchWhere,
             status: AmcStatus.ACTIVE,
             endDate: {
               gte: today,
@@ -373,11 +401,13 @@ export class AmcService {
         }),
         this.prismaService.amc.count({
           where: {
+            ...branchWhere,
             status: AmcStatus.EXPIRED,
           },
         }),
         this.prismaService.amc.count({
           where: {
+            ...branchWhere,
             status: AmcStatus.ACTIVE,
             nextBillingDate: {
               lte: nextThirtyDays,
@@ -386,6 +416,7 @@ export class AmcService {
         }),
         this.prismaService.amc.count({
           where: {
+            ...branchWhere,
             status: AmcStatus.ACTIVE,
             nextBillingDate: {
               lt: today,
@@ -403,10 +434,10 @@ export class AmcService {
     };
   }
 
-  async createInvoiceForAmc(amcId: string) {
+  async createInvoiceForAmc(amcId: string, currentUser: JwtPayload) {
     await this.expirePastContracts();
 
-    const amc = await this.getAmcOrThrow(amcId);
+    const amc = await this.getAmcOrThrow(amcId, currentUser);
 
     if (amc.status === AmcStatus.CANCELLED) {
       throw new BadRequestException(
@@ -588,8 +619,11 @@ export class AmcService {
     }
   }
 
-  async getAmcPdf(amcId: string): Promise<{ amcNumber: string; pdfBuffer: Buffer }> {
-    const amc = await this.getAmcOrThrow(amcId);
+  async getAmcPdf(
+    amcId: string,
+    currentUser: JwtPayload,
+  ): Promise<{ amcNumber: string; pdfBuffer: Buffer }> {
+    const amc = await this.getAmcOrThrow(amcId, currentUser);
     const company = await this.companySettingsService.getCompanyBranding();
     const document = new PDFDocument({
       size: 'A4',
@@ -725,7 +759,10 @@ export class AmcService {
     };
   }
 
-  private async getAmcOrThrow(amcId: string): Promise<AmcRecord> {
+  private async getAmcOrThrow(
+    amcId: string,
+    currentUser?: JwtPayload,
+  ): Promise<AmcRecord> {
     const amc = await this.prismaService.amc.findUnique({
       where: {
         id: amcId,
@@ -735,6 +772,10 @@ export class AmcService {
 
     if (!amc) {
       throw new NotFoundException('AMC not found');
+    }
+
+    if (currentUser) {
+      assertBranchAccess(currentUser, amc.branchId, 'AMC not found');
     }
 
     return amc;

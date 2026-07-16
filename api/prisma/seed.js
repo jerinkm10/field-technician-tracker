@@ -58,7 +58,7 @@ async function main() {
         email: null,
         phone: '+91-9000001001',
         password: adminOwnerTcrPasswordHash,
-        role: Role.ADMIN_OWNER,
+        role: Role.ADMIN,
         status: UserStatus.ACTIVE,
       },
     }),
@@ -69,7 +69,7 @@ async function main() {
         email: null,
         phone: '+91-9000001002',
         password: adminOwnerPalPasswordHash,
-        role: Role.ADMIN_OWNER,
+        role: Role.ADMIN,
         status: UserStatus.ACTIVE,
       },
     }),
@@ -82,7 +82,7 @@ async function main() {
       email: 'admin@example.com',
       phone: '+91-9000001003',
       password: passwordHash,
-      role: Role.ADMIN,
+      role: Role.ADMIN_OWNER,
       status: UserStatus.ACTIVE,
     },
   });
@@ -285,11 +285,11 @@ async function main() {
   const suppliers = await Promise.all([
     prisma.supplier.create({
       data: {
-        supplierName: 'Southline Industrial Services',
+        supplierName: 'High Cooling TCR - Thrissur',
         phone: '+91-9001002000',
-        email: 'accounts@southline.example.com',
+        email: 'tcr@highcooling.example.com',
         gstin: '29ABCDE1234F1Z5',
-        address: '88 Peenya Industrial Area, Bengaluru',
+        address: 'Thrissur, Kerala',
         bankName: 'HDFC Bank',
         accountNumber: '50200011223344',
         ifscCode: 'HDFC0000123',
@@ -298,16 +298,51 @@ async function main() {
     }),
     prisma.supplier.create({
       data: {
-        supplierName: 'Metro Cooling Components',
+        supplierName: 'High Cooling PAL - Palakkad',
         phone: '+91-9887766554',
-        email: 'billing@metrocooling.example.com',
+        email: 'pal@highcooling.example.com',
         gstin: '29FGHIJ5678K2Z6',
-        address: '14 Service Road, Kochi',
+        address: 'Palakkad, Kerala',
         bankName: 'ICICI Bank',
         accountNumber: '003405678912',
         ifscCode: 'ICIC0000456',
         status: SupplierStatus.ACTIVE,
       },
+    }),
+  ]);
+
+  await Promise.all([
+    prisma.user.update({
+      where: { username: 'HighCoolingTCR' },
+      data: { role: Role.ADMIN, branchId: suppliers[0].id },
+    }),
+    prisma.user.update({
+      where: { username: 'HighCoolingPAL' },
+      data: { role: Role.ADMIN, branchId: suppliers[1].id },
+    }),
+    prisma.user.update({
+      where: { id: officeCoordinator.id },
+      data: { branchId: suppliers[0].id },
+    }),
+    prisma.user.update({
+      where: { id: technicianUsers[0].id },
+      data: { branchId: suppliers[1].id },
+    }),
+    prisma.user.update({
+      where: { id: technicianUsers[1].id },
+      data: { branchId: suppliers[0].id },
+    }),
+    prisma.job.update({
+      where: { id: jobs[0].id },
+      data: { branchId: suppliers[0].id },
+    }),
+    prisma.job.update({
+      where: { id: jobs[1].id },
+      data: { branchId: suppliers[1].id },
+    }),
+    prisma.job.update({
+      where: { id: jobs[2].id },
+      data: { branchId: suppliers[0].id },
     }),
   ]);
 
@@ -753,7 +788,8 @@ async function main() {
 
   console.log('Seed completed');
   console.log(`Admin dashboard sample user: ${adminUser.username}`);
-  console.log('Seeded admin owner usernames: HighCoolingTCR, HighCoolingPAL');
+  console.log('Super Admin username: systemadmin');
+  console.log('Branch Admin usernames: HighCoolingTCR, HighCoolingPAL');
   console.log('Sample employee and technician usernames: officecoord, techrahul, techanita');
 }
 

@@ -25,6 +25,10 @@ export class UpdateEmployeeDto {
   phone?: string;
 
   @IsOptional()
+  @IsString()
+  branchId?: string;
+
+  @IsOptional()
   @IsEnum(Role)
   role?: Role;
 

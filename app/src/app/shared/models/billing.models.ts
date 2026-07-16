@@ -113,6 +113,8 @@ export type EmployeeRecord = {
   email: string | null;
   phone: string;
   role: EmployeeRole;
+  branchId: string | null;
+  branchName: string | null;
   status: UserStatus;
   createdAt: string;
   updatedAt: string;
@@ -126,6 +128,7 @@ export type EmployeeUpsertPayload = {
   email?: string;
   phone: string;
   role: EmployeeRole;
+  branchId?: string | null;
   status: UserStatus;
   password?: string;
 };
@@ -873,6 +876,7 @@ export type EmployeeListFilters = {
   search?: string;
   role?: EmployeeRole;
   status?: UserStatus;
+  includeCrossBranchTechnicians?: boolean;
   page?: number;
   limit?: number;
 };

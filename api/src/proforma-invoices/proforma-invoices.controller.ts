@@ -13,9 +13,11 @@ import {
 } from '@nestjs/common';
 import { Role } from '@prisma/client';
 import type { Response } from 'express';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
 import { CreateInvoiceDto } from '../invoices/dto/create-invoice.dto';
 import { ListInvoicesQueryDto } from '../invoices/dto/list-invoices-query.dto';
 import { UpdateInvoiceDto } from '../invoices/dto/update-invoice.dto';
@@ -30,8 +32,11 @@ export class ProformaInvoicesController {
   ) {}
 
   @Get()
-  async listProformaInvoices(@Query() query: ListInvoicesQueryDto) {
-    return this.proformaInvoicesService.listProformaInvoices(query);
+  async listProformaInvoices(
+    @Query() query: ListInvoicesQueryDto,
+    @CurrentUser() currentUser: JwtPayload,
+  ) {
+    return this.proformaInvoicesService.listProformaInvoices(query, currentUser);
   }
 
   @Get('next-number')
@@ -40,18 +45,31 @@ export class ProformaInvoicesController {
   }
 
   @Get(':id')
-  async getProformaInvoice(@Param('id') invoiceId: string) {
-    return this.proformaInvoicesService.getProformaInvoice(invoiceId);
+  async getProformaInvoice(
+    @Param('id') invoiceId: string,
+    @CurrentUser() currentUser: JwtPayload,
+  ) {
+    return this.proformaInvoicesService.getProformaInvoice(
+      invoiceId,
+      currentUser,
+    );
   }
 
   @Get(':id/pdf')
   async downloadProformaInvoicePdf(
     @Param('id') invoiceId: string,
+    @CurrentUser() currentUser: JwtPayload,
     @Res({ passthrough: true }) response: Response,
   ) {
-    const invoice = await this.proformaInvoicesService.getProformaInvoice(invoiceId);
+    const invoice = await this.proformaInvoicesService.getProformaInvoice(
+      invoiceId,
+      currentUser,
+    );
     const pdfBuffer =
-      await this.proformaInvoicesService.getProformaInvoicePdf(invoiceId);
+      await this.proformaInvoicesService.getProformaInvoicePdf(
+        invoiceId,
+        currentUser,
+      );
     response.setHeader('Content-Type', 'application/pdf');
     response.setHeader(
       'Content-Disposition',
@@ -62,23 +80,37 @@ export class ProformaInvoicesController {
   }
 
   @Post()
-  async createProformaInvoice(@Body() createInvoiceDto: CreateInvoiceDto) {
-    return this.proformaInvoicesService.createProformaInvoice(createInvoiceDto);
+  async createProformaInvoice(
+    @Body() createInvoiceDto: CreateInvoiceDto,
+    @CurrentUser() currentUser: JwtPayload,
+  ) {
+    return this.proformaInvoicesService.createProformaInvoice(
+      createInvoiceDto,
+      currentUser,
+    );
   }
 
   @Patch(':id')
   async updateProformaInvoice(
     @Param('id') invoiceId: string,
     @Body() updateInvoiceDto: UpdateInvoiceDto,
+    @CurrentUser() currentUser: JwtPayload,
   ) {
     return this.proformaInvoicesService.updateProformaInvoice(
       invoiceId,
       updateInvoiceDto,
+      currentUser,
     );
   }
 
   @Delete(':id')
-  async deleteProformaInvoice(@Param('id') invoiceId: string) {
-    return this.proformaInvoicesService.deleteProformaInvoice(invoiceId);
+  async deleteProformaInvoice(
+    @Param('id') invoiceId: string,
+    @CurrentUser() currentUser: JwtPayload,
+  ) {
+    return this.proformaInvoicesService.deleteProformaInvoice(
+      invoiceId,
+      currentUser,
+    );
   }
 }

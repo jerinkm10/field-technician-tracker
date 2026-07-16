@@ -112,7 +112,7 @@
 }
 
 :host ::ng-deep .leaflet-control-attribution {
-  background: rgba(255, 255, 255, 0.84);
+  background: rgba(var(--ftt-card-rgb), 0.84);
   border-top-left-radius: 12px;
 }
 
@@ -161,7 +161,7 @@
   padding: 2rem;
   background:
     radial-gradient(circle at top, rgba(31, 122, 109, 0.18), transparent 34%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.82), rgba(246, 248, 249, 0.72));
+    linear-gradient(180deg, rgba(var(--ftt-card-rgb), 0.82), rgba(var(--ftt-card-alt-rgb), 0.72));
 }
 
 .map-sidebar {
@@ -208,7 +208,7 @@
   gap: 0.35rem;
   padding: 0.95rem 1rem;
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.52);
+  background: rgba(var(--ftt-card-rgb), 0.52);
 }
 
 .detail-row strong {
@@ -239,7 +239,7 @@
   padding: 0.95rem 1rem;
   border: 1px solid rgba(22, 45, 67, 0.08);
   border-radius: 20px;
-  background: rgba(255, 255, 255, 0.58);
+  background: rgba(var(--ftt-card-rgb), 0.58);
   text-align: left;
   cursor: pointer;
   transition:

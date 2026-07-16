@@ -20,8 +20,8 @@ export class DashboardController {
 
   @Get('business-summary')
   @Roles(Role.ADMIN, Role.ADMIN_OWNER)
-  async getBusinessSummary() {
-    return this.dashboardService.getBusinessSummary();
+  async getBusinessSummary(@CurrentUser() currentUser: JwtPayload) {
+    return this.dashboardService.getBusinessSummary(currentUser);
   }
 
   @Get('employee-summary')
@@ -34,7 +34,8 @@ export class DashboardController {
   @Roles(Role.ADMIN, Role.ADMIN_OWNER)
   async getPerformanceDashboard(
     @Query() query: PerformanceDashboardQueryDto,
+    @CurrentUser() currentUser: JwtPayload,
   ) {
-    return this.dashboardService.getPerformanceDashboard(query);
+    return this.dashboardService.getPerformanceDashboard(query, currentUser);
   }
 }

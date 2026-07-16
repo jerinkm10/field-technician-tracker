@@ -16,6 +16,11 @@
   --ftt-radius-lg: 28px;
   --ftt-radius-md: 20px;
   --ftt-radius-sm: 14px;
+  --ftt-card-rgb: 255, 255, 255;
+  --ftt-card-alt-rgb: 241, 247, 250;
+  --ftt-input-bg: rgba(255, 255, 255, 0.9);
+  --ftt-input-disabled: rgba(229, 236, 232, 0.9);
+  --ftt-focus-ring: rgba(31, 122, 109, 0.22);
 }
 
 *,
@@ -44,6 +49,194 @@ input,
 textarea,
 select {
   font: inherit;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --ftt-bg: #08141d;
+    --ftt-surface: rgba(13, 28, 39, 0.86);
+    --ftt-surface-strong: rgba(17, 35, 48, 0.96);
+    --ftt-border: rgba(157, 190, 207, 0.18);
+    --ftt-text: #e9f3f7;
+    --ftt-muted: #9db3c1;
+    --ftt-brand: #5bc7b3;
+    --ftt-brand-deep: #8fd4e7;
+    --ftt-accent: #f5c071;
+    --ftt-shadow: 0 22px 64px rgba(0, 0, 0, 0.34);
+    --ftt-card-rgb: 17, 35, 48;
+    --ftt-card-alt-rgb: 11, 27, 39;
+    --ftt-input-bg: #102532;
+    --ftt-input-disabled: #13212b;
+    --ftt-focus-ring: rgba(91, 199, 179, 0.28);
+  }
+
+  body {
+    background:
+      radial-gradient(circle at top left, rgba(31, 122, 109, 0.2), transparent 30%),
+      radial-gradient(circle at top right, rgba(24, 76, 105, 0.3), transparent 34%),
+      linear-gradient(180deg, #0b1c27 0%, var(--ftt-bg) 62%, #061018 100%);
+  }
+
+  input:not([type='checkbox']):not([type='radio']),
+  textarea,
+  select,
+  .p-inputtext,
+  .p-textarea,
+  .p-select,
+  .p-multiselect,
+  .p-autocomplete-input,
+  .p-inputnumber-input,
+  .p-datepicker-input,
+  .p-password-input {
+    border-color: var(--ftt-border) !important;
+    background: var(--ftt-input-bg) !important;
+    color: var(--ftt-text) !important;
+    caret-color: var(--ftt-brand);
+  }
+
+  input::placeholder,
+  textarea::placeholder,
+  .p-inputtext::placeholder,
+  .p-select-label.p-placeholder,
+  .p-multiselect-label.p-placeholder {
+    color: var(--ftt-muted) !important;
+    opacity: 0.78;
+  }
+
+  input:disabled,
+  textarea:disabled,
+  select:disabled,
+  .p-disabled,
+  .p-inputtext:disabled,
+  .p-select.p-disabled,
+  .p-multiselect.p-disabled {
+    border-color: rgba(157, 190, 207, 0.1) !important;
+    background: var(--ftt-input-disabled) !important;
+    color: rgba(233, 243, 247, 0.58) !important;
+    opacity: 1;
+  }
+
+  input:not([type='checkbox']):not([type='radio']):focus,
+  textarea:focus,
+  select:focus,
+  .p-inputtext:focus,
+  .p-select.p-focus,
+  .p-multiselect.p-focus {
+    border-color: var(--ftt-brand) !important;
+    box-shadow: 0 0 0 3px var(--ftt-focus-ring) !important;
+    outline: none;
+  }
+
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--ftt-text);
+    box-shadow: 0 0 0 1000px var(--ftt-input-bg) inset !important;
+    transition: background-color 9999s ease-out;
+  }
+
+  .p-select-label,
+  .p-multiselect-label,
+  .p-select-dropdown,
+  .p-multiselect-dropdown,
+  .p-datepicker-dropdown,
+  .p-inputicon {
+    color: var(--ftt-text) !important;
+  }
+
+  .p-dialog,
+  .p-dialog-header,
+  .p-dialog-content,
+  .p-dialog-footer,
+  .p-popover,
+  .p-overlaypanel,
+  .p-select-overlay,
+  .p-multiselect-overlay,
+  .p-autocomplete-overlay,
+  .p-datepicker,
+  .p-menu,
+  .p-tieredmenu,
+  .p-contextmenu,
+  .p-card,
+  .p-datatable,
+  .p-datatable-table,
+  .p-datatable-header,
+  .p-datatable-footer {
+    border-color: var(--ftt-border) !important;
+    background: var(--ftt-surface-strong) !important;
+    color: var(--ftt-text) !important;
+  }
+
+  .p-select-option,
+  .p-multiselect-option,
+  .p-autocomplete-option,
+  .p-datepicker-day,
+  .p-menu-item-content {
+    color: var(--ftt-text) !important;
+  }
+
+  .p-select-option:not(.p-disabled):hover,
+  .p-multiselect-option:not(.p-disabled):hover,
+  .p-autocomplete-option:not(.p-disabled):hover,
+  .p-menu-item-content:hover {
+    background: rgba(91, 199, 179, 0.12) !important;
+  }
+
+  .p-select-option.p-selected,
+  .p-multiselect-option.p-selected,
+  .p-autocomplete-option.p-selected,
+  .p-datepicker-day-selected {
+    background: rgba(91, 199, 179, 0.2) !important;
+    color: #baf3e8 !important;
+  }
+
+  .p-datatable-thead > tr > th {
+    border-color: var(--ftt-border) !important;
+    background: rgba(11, 27, 39, 0.96) !important;
+    color: var(--ftt-text) !important;
+  }
+
+  .p-datatable-tbody > tr {
+    background: transparent !important;
+    color: var(--ftt-text) !important;
+  }
+
+  .p-datatable-tbody > tr > td {
+    border-color: var(--ftt-border) !important;
+    color: inherit !important;
+  }
+
+  .p-datatable-tbody > tr:hover {
+    background: rgba(91, 199, 179, 0.07) !important;
+  }
+
+  .p-checkbox-box,
+  .p-radiobutton-box,
+  .p-toggleswitch-slider {
+    border-color: var(--ftt-border) !important;
+    background: var(--ftt-input-bg) !important;
+  }
+
+  .p-divider::before {
+    border-color: var(--ftt-border) !important;
+  }
+
+  .leaflet-bar a,
+  .leaflet-control-attribution {
+    border-color: var(--ftt-border);
+    background: rgba(17, 35, 48, 0.94);
+    color: var(--ftt-text);
+  }
+
+  .leaflet-bar a:hover {
+    background: #183141;
+  }
+
+  .invoice-preview,
+  .invoice-preview * {
+    color-scheme: light;
+  }
 }
 
 /* Leaflet needs a small base layer of positioning styles to render tiles and controls.

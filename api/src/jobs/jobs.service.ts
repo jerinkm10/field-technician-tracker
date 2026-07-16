@@ -15,6 +15,10 @@ import {
   UserStatus,
 } from '@prisma/client';
 import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
+import {
+  assertBranchAccess,
+  getScopedBranchId,
+} from '../auth/utils/branch-access.util';
 import { EmployeeTasksService } from '../employee-tasks/employee-tasks.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -225,12 +229,19 @@ export class JobsService {
       throw new NotFoundException('Job not found');
     }
 
+    if (currentUser.role !== Role.TECHNICIAN) {
+      assertBranchAccess(currentUser, job.branchId, 'Job not found');
+    }
+
     return job;
   }
 
-  async listAdminJobs(query: ListAdminJobsQueryDto = {}): Promise<JobDetails[]> {
+  async listAdminJobs(
+    query: ListAdminJobsQueryDto = {},
+    currentUser: JwtPayload,
+  ): Promise<JobDetails[]> {
     return this.prismaService.job.findMany({
-      where: this.buildAdminJobWhere(query),
+      where: this.buildAdminJobWhere(query, currentUser),
       orderBy: [{ scheduledDate: 'asc' }, { jobNumber: 'asc' }],
       select: jobSelect,
     });
@@ -238,12 +249,16 @@ export class JobsService {
 
   async createAdminJob(
     createAdminJobDto: CreateAdminJobDto,
+    currentUser: JwtPayload,
   ): Promise<JobDetails> {
-    const branchId = this.normalizeOptionalString(createAdminJobDto.branchId);
+    const scopedBranchId = getScopedBranchId(currentUser);
+    const requestedBranchId = this.normalizeOptionalString(createAdminJobDto.branchId);
+    const branchId = scopedBranchId ?? requestedBranchId;
     const productServiceId = this.normalizeOptionalString(
       createAdminJobDto.productServiceId,
     );
 
+    assertBranchAccess(currentUser, branchId);
     await this.ensureCustomerExists(createAdminJobDto.customerId);
     await this.ensureBranchExists(branchId);
     await this.ensureProductServiceExists(productServiceId);
@@ -292,8 +307,10 @@ export class JobsService {
   async updateAdminJob(
     jobId: string,
     updateAdminJobDto: UpdateAdminJobDto,
+    currentUser: JwtPayload,
   ): Promise<JobDetails> {
     const existingJob = await this.getJobDetailsOrThrow(jobId);
+    assertBranchAccess(currentUser, existingJob.branchId, 'Job not found');
 
     if (updateAdminJobDto.customerId) {
       await this.ensureCustomerExists(updateAdminJobDto.customerId);
@@ -303,11 +320,13 @@ export class JobsService {
       updateAdminJobDto,
       'branchId',
     );
+    const scopedBranchId = getScopedBranchId(currentUser);
     const branchId = hasBranchField
-      ? this.normalizeOptionalString(updateAdminJobDto.branchId)
+      ? scopedBranchId ?? this.normalizeOptionalString(updateAdminJobDto.branchId)
       : undefined;
 
     if (hasBranchField) {
+      assertBranchAccess(currentUser, branchId);
       await this.ensureBranchExists(branchId);
     }
 
@@ -463,8 +482,12 @@ export class JobsService {
     return updatedJob;
   }
 
-  async deleteAdminJob(jobId: string): Promise<JobDetails> {
-    await this.ensureJobExists(jobId);
+  async deleteAdminJob(
+    jobId: string,
+    currentUser: JwtPayload,
+  ): Promise<JobDetails> {
+    const existingJob = await this.getJobDetailsOrThrow(jobId);
+    assertBranchAccess(currentUser, existingJob.branchId, 'Job not found');
 
     await this.prismaService.employeeTask.deleteMany({
       where: {
@@ -699,14 +722,16 @@ export class JobsService {
 
   private buildAdminJobWhere(
     query: ListAdminJobsQueryDto,
+    currentUser: JwtPayload,
   ): Prisma.JobWhereInput {
     const search = query.search?.trim();
     const scheduledDate = this.buildDateRange(query.fromDate, query.toDate);
+    const scopedBranchId = getScopedBranchId(currentUser);
 
     return {
       ...(query.status ? { status: query.status } : {}),
       ...(query.customerId ? { customerId: query.customerId } : {}),
-      ...(query.branchId ? { branchId: query.branchId } : {}),
+      ...(scopedBranchId ? { branchId: scopedBranchId } : query.branchId ? { branchId: query.branchId } : {}),
       ...(query.priority ? { priority: query.priority } : {}),
       ...(query.assignedUserId
         ? {

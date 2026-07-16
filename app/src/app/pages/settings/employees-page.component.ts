@@ -8,7 +8,9 @@ import { InputTextModule } from 'primeng/inputtext';
 import { SelectModule } from 'primeng/select';
 import { TagModule } from 'primeng/tag';
 
+import { AuthService } from '../../core/services/auth.service';
 import { EmployeesApiService } from '../../core/services/employees-api.service';
+import { SuppliersApiService } from '../../core/services/suppliers-api.service';
 import { UiFeedbackService } from '../../core/services/ui-feedback.service';
 import {
   EmployeeListFilters,
@@ -16,6 +18,7 @@ import {
   EmployeeRole,
   EmployeeUpsertPayload,
   UserStatus,
+  SupplierRecord,
 } from '../../shared/models/billing.models';
 import { DataTableWithActionsComponent } from '../../invoice/components/data-table-with-actions.component';
 import { FilterDropdownComponent } from '../../invoice/components/filter-dropdown.component';
@@ -52,8 +55,11 @@ type TagSeverity = 'success' | 'info' | 'warn';
 })
 export class EmployeesPageComponent {
   private readonly uiFeedback = inject(UiFeedbackService);
+  private readonly suppliersApiService = inject(SuppliersApiService);
+  protected readonly authService = inject(AuthService);
 
   protected readonly employees = signal<EmployeeRecord[]>([]);
+  protected readonly branches = signal<{ label: string; value: string }[]>([]);
   protected readonly loading = signal(false);
   protected readonly saving = signal(false);
   protected readonly errorMessage = signal<string | null>(null);
@@ -95,8 +101,27 @@ export class EmployeesPageComponent {
         | 'create'
         | 'edit'
         | 'view') ?? 'list';
+    this.loadBranches();
     this.loadEmployees();
     this.handleRouteState();
+  }
+
+  private loadBranches(): void {
+    if (!this.authService.isSuperAdmin()) {
+      return;
+    }
+
+    this.suppliersApiService.getSuppliersPage({ status: 'ACTIVE', page: 1, limit: 200 }).subscribe({
+      next: (response) => {
+        this.branches.set(
+          response.data.map((branch: SupplierRecord) => ({
+            label: branch.supplierName,
+            value: branch.id,
+          })),
+        );
+      },
+      error: () => this.errorMessage.set('Unable to load branches for employee assignment.'),
+    });
   }
 
   protected loadEmployees(): void {

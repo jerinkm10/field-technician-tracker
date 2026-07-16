@@ -78,6 +78,7 @@
     <app-supplier-autocomplete
       [selectedSupplier]="selectedSupplier()"
       [disabled]="isReadOnly()"
+      [showCreateAction]="authService.canManageBranches()"
       (selectedSupplierChange)="applySupplierSelection($event); draft.supplierId = $event?.id || ''"
       (createRequested)="openSupplierDialog()">
     </app-supplier-autocomplete>

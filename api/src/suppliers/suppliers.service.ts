@@ -5,6 +5,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma, SupplierStatus } from '@prisma/client';
+import { JwtPayload } from '../auth/interfaces/jwt-payload.interface';
+import {
+  assertSuperAdmin,
+  getScopedBranchId,
+} from '../auth/utils/branch-access.util';
 import { createPaginationMeta, normalizePagination } from '../common/utils/pagination.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateSupplierDto } from './dto/create-supplier.dto';
@@ -36,10 +41,13 @@ export class SuppliersService {
 
   async listSuppliers(
     query: ListSuppliersQueryDto,
+    currentUser: JwtPayload,
   ) {
     const { page, limit, skip } = normalizePagination(query.page, query.limit);
     const search = query.search?.trim();
+    const scopedBranchId = getScopedBranchId(currentUser);
     const where: Prisma.SupplierWhereInput = {
+      ...(scopedBranchId ? { id: scopedBranchId } : {}),
       ...(query.status ? { status: query.status } : {}),
       ...(query.gstin?.trim()
         ? {
@@ -100,13 +108,25 @@ export class SuppliersService {
     };
   }
 
-  async getSupplierById(supplierId: string): Promise<SupplierRecord> {
+  async getSupplierById(
+    supplierId: string,
+    currentUser: JwtPayload,
+  ): Promise<SupplierRecord> {
+    const scopedBranchId = getScopedBranchId(currentUser);
+
+    if (scopedBranchId && scopedBranchId !== supplierId) {
+      throw new NotFoundException('Supplier not found');
+    }
+
     return this.getSupplierOrThrow(supplierId);
   }
 
   async createSupplier(
     createSupplierDto: CreateSupplierDto,
+    currentUser: JwtPayload,
   ): Promise<SupplierRecord> {
+    assertSuperAdmin(currentUser, 'Only the super admin can create branches');
+
     try {
       return await this.prismaService.supplier.create({
         data: {
@@ -130,7 +150,9 @@ export class SuppliersService {
   async updateSupplier(
     supplierId: string,
     updateSupplierDto: UpdateSupplierDto,
+    currentUser: JwtPayload,
   ): Promise<SupplierRecord> {
+    assertSuperAdmin(currentUser, 'Only the super admin can update branches');
     await this.getSupplierOrThrow(supplierId);
 
     try {
@@ -156,7 +178,11 @@ export class SuppliersService {
     }
   }
 
-  async deleteSupplier(supplierId: string): Promise<SupplierRecord> {
+  async deleteSupplier(
+    supplierId: string,
+    currentUser: JwtPayload,
+  ): Promise<SupplierRecord> {
+    assertSuperAdmin(currentUser, 'Only the super admin can delete branches');
     await this.getSupplierOrThrow(supplierId);
 
     const [linkedInvoiceCount, linkedQuotationCount, linkedAmcCount, linkedLeadCount] =

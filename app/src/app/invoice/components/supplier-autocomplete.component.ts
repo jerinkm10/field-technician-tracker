@@ -41,14 +41,16 @@ type SupplierSuggestion = SupplierRecord & {
         (onClear)="clearSelection()">
       </p-autoComplete>
 
-      <button
-        pButton
-        type="button"
-        label="+ Create Branch"
-        text
-        [disabled]="disabled"
-        (click)="createRequested.emit()">
-      </button>
+      @if (showCreateAction) {
+        <button
+          pButton
+          type="button"
+          label="+ Create Branch"
+          text
+          [disabled]="disabled"
+          (click)="createRequested.emit()">
+        </button>
+      }
     </div>
   `,
   styles: [
@@ -72,6 +74,7 @@ export class SupplierAutocompleteComponent implements OnChanges {
   @Input() selectedSupplier: SupplierRecord | null = null;
   @Input() placeholder = 'Search branch by name, phone, or GSTIN';
   @Input() disabled = false;
+  @Input() showCreateAction = true;
 
   @Output() readonly selectedSupplierChange = new EventEmitter<SupplierRecord | null>();
   @Output() readonly createRequested = new EventEmitter<void>();

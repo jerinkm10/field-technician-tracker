@@ -25,6 +25,10 @@ export class CreateEmployeeDto {
   @IsNotEmpty()
   phone!: string;
 
+  @IsOptional()
+  @IsString()
+  branchId?: string;
+
   @IsEnum(Role)
   role!: Role;
 
