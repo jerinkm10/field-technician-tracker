@@ -1,5 +1,6 @@
 <p-dialog
   [visible]="visible"
+  (visibleChange)="visible = $event; !$event && handleHide()"
   [modal]="true"
   [closable]="true"
   [dismissableMask]="false"
@@ -8,7 +9,7 @@
   [resizable]="false"
   [style]="{ width: 'min(94vw, 78rem)' }"
   header="AMC Preview"
-  (onHide)="handleHide()">
+  (onHide)="visible && handleHide()">
   @if (amc) {
     <div class="preview-sheet">
       <header class="preview-header">

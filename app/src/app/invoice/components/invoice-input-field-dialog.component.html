@@ -1,5 +1,6 @@
 <p-dialog
   [visible]="visible"
+  (visibleChange)="visible = $event; !$event && handleHide()"
   [modal]="true"
   [closable]="!saving"
   [dismissableMask]="false"
@@ -8,7 +9,7 @@
   [resizable]="false"
   [style]="{ width: 'min(92vw, 42rem)' }"
   [header]="dialogTitle()"
-  (onHide)="handleHide()">
+  (onHide)="visible && handleHide()">
   <div class="input-field-form">
     <div class="field-grid">
       <label class="field">

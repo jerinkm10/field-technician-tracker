@@ -1,5 +1,6 @@
 <p-dialog
   [visible]="visible"
+  (visibleChange)="visible = $event; !$event && handleHide()"
   [modal]="true"
   [closable]="!saving"
   [dismissableMask]="false"
@@ -8,7 +9,7 @@
   [resizable]="false"
   [style]="{ width: 'min(92vw, 34rem)' }"
   header="Update Lead Status"
-  (onHide)="handleHide()">
+  (onHide)="visible && handleHide()">
   <div class="status-dialog">
     @if (lead) {
       <div class="lead-summary">
