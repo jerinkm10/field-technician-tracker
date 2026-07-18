@@ -37,11 +37,24 @@
           </app-product-service-autocomplete>
         </td>
         <td>
-          <input
-            pInputText
-            [(ngModel)]="workingLineItems[rowIndex].description"
-            [disabled]="readonly"
-            (ngModelChange)="updateTextField(rowIndex, 'description', $event)" />
+          <div class="description-cell">
+            <button
+              type="button"
+              class="description-preview"
+              [class.description-placeholder]="!workingLineItems[rowIndex].description.trim()"
+              (click)="openDescriptionDialog(rowIndex)">
+              {{ descriptionPreview(workingLineItems[rowIndex].description) }}
+            </button>
+
+            <button
+              pButton
+              type="button"
+              [icon]="readonly ? 'pi pi-eye' : 'pi pi-pencil'"
+              text
+              [attr.aria-label]="readonly ? 'View description' : 'Edit description'"
+              (click)="openDescriptionDialog(rowIndex)">
+            </button>
+          </div>
         </td>
         <td>
           <input
@@ -111,4 +124,57 @@
       </tr>
     </ng-template>
   </p-table>
+
+  <p-dialog
+    [visible]="descriptionDialogVisible"
+    [modal]="true"
+    [closable]="true"
+    [dismissableMask]="false"
+    [closeOnEscape]="true"
+    [draggable]="false"
+    [resizable]="false"
+    [style]="{ width: 'min(94vw, 820px)' }"
+    [header]="readonly ? 'View Description' : 'Edit Description'"
+    (onHide)="closeDescriptionDialog()">
+    <div class="description-dialog">
+      <p>
+        {{ readonly ? 'Review the item or service description.' : 'Edit the item or service description.' }}
+      </p>
+
+      <textarea
+        [(ngModel)]="descriptionDraft"
+        rows="10"
+        [readonly]="readonly"
+        autofocus>
+      </textarea>
+
+      <small>Characters: {{ descriptionDraft.length }}</small>
+    </div>
+
+    <ng-template #footer>
+      <div class="dialog-actions">
+        <button
+          pButton
+          type="button"
+          [label]="readonly ? 'Close' : 'Cancel'"
+          text
+          (click)="closeDescriptionDialog()">
+        </button>
+
+        @if (!readonly) {
+          <button pButton type="button" label="Save" icon="pi pi-check" (click)="saveDescription()"></button>
+        }
+      </div>
+    </ng-template>
+  </p-dialog>
+
+  <app-product-service-form-dialog
+    [visible]="productServiceDialogVisible"
+    [saving]="savingProductService"
+    mode="create"
+    [productService]="null"
+    [initialDraft]="productServiceDialogSeed"
+    (cancel)="closeProductServiceDialog()"
+    (save)="createProductService($event)">
+  </app-product-service-form-dialog>
 </div>

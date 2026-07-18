@@ -15,6 +15,7 @@ import { ProductServiceAutocompleteComponent } from '../../business/components/p
 import { ProductServicesApiService } from '../../core/services/product-services-api.service';
 import { UiFeedbackService } from '../../core/services/ui-feedback.service';
 import { ButtonModule } from 'primeng/button';
+import { DialogModule } from 'primeng/dialog';
 import { InputNumberModule } from 'primeng/inputnumber';
 import { InputTextModule } from 'primeng/inputtext';
 import { TableModule } from 'primeng/table';
@@ -29,10 +30,12 @@ import {
   selector: 'app-invoice-line-items',
   imports: [
     ButtonModule,
+    DialogModule,
     FormsModule,
     InputNumberModule,
     InputTextModule,
     ProductServiceAutocompleteComponent,
+    ProductServiceFormDialogComponent,
     TableModule,
   ],
   templateUrl: './invoice-line-items.component.html',
@@ -53,8 +56,11 @@ export class InvoiceLineItemsComponent implements OnChanges {
   protected productServiceDialogVisible = false;
   protected savingProductService = false;
   protected productServiceDialogSeed: Partial<ProductServiceUpsertPayload> | null = null;
+  protected descriptionDialogVisible = false;
+  protected descriptionDraft = '';
 
   private pendingProductServiceRowIndex: number | null = null;
+  private pendingDescriptionRowIndex: number | null = null;
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['lineItems']) {
@@ -116,6 +122,46 @@ export class InvoiceLineItemsComponent implements OnChanges {
   ): void {
     this.workingLineItems[index][field] = value;
     this.emitChange();
+  }
+
+  protected openDescriptionDialog(index: number): void {
+    const lineItem = this.workingLineItems[index];
+    if (!lineItem) {
+      return;
+    }
+
+    this.pendingDescriptionRowIndex = index;
+    this.descriptionDraft = lineItem.description;
+    this.descriptionDialogVisible = true;
+    this.changeDetectorRef.markForCheck();
+  }
+
+  protected closeDescriptionDialog(): void {
+    this.descriptionDialogVisible = false;
+    this.descriptionDraft = '';
+    this.pendingDescriptionRowIndex = null;
+    this.changeDetectorRef.markForCheck();
+  }
+
+  protected saveDescription(): void {
+    if (this.readonly || this.pendingDescriptionRowIndex === null) {
+      return;
+    }
+
+    const rowIndex = this.pendingDescriptionRowIndex;
+    if (rowIndex >= this.workingLineItems.length) {
+      this.closeDescriptionDialog();
+      return;
+    }
+
+    this.workingLineItems[rowIndex].description = this.descriptionDraft;
+    this.emitChange();
+    this.closeDescriptionDialog();
+  }
+
+  protected descriptionPreview(description: string): string {
+    const normalizedDescription = description.replace(/\s+/g, ' ').trim();
+    return normalizedDescription || 'Click to add description';
   }
 
   protected applyProductServiceSelection(

@@ -6,6 +6,7 @@
 .pub/
 .pub-cache/
 build/
+release-artifacts/
 
 # IDE
 .idea/

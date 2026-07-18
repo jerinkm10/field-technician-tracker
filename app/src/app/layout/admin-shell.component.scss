@@ -314,6 +314,10 @@
   display: flex;
   flex-direction: column;
   gap: 0.85rem;
+  max-height: min(56vh, 34rem);
+  overflow-y: auto;
+  padding-right: 0.25rem;
+  scrollbar-gutter: stable;
 }
 
 .notification-card {

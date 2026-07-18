@@ -11,6 +11,13 @@ import { AdminShellComponent } from './layout/admin-shell.component';
 
 export const routes: Routes = [
   {
+    path: 'privacy-policy',
+    loadComponent: () =>
+      import('./pages/privacy-policy/privacy-policy-page.component').then(
+        (module) => module.PrivacyPolicyPageComponent
+      )
+  },
+  {
     path: 'login',
     canActivate: [loginPageGuard],
     loadComponent: () =>

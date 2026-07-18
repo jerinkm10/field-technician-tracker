@@ -305,9 +305,7 @@ export class AdminShellComponent {
     this.notificationsApiService.markAsRead(notification.id).subscribe({
       next: () => {
         this.notifications.update((items) =>
-          items.map((item) =>
-            item.id === notification.id ? { ...item, isRead: true } : item,
-          ),
+          items.filter((item) => item.id !== notification.id),
         );
         this.unreadNotifications.update((count) => Math.max(0, count - 1));
       },
@@ -317,9 +315,7 @@ export class AdminShellComponent {
   protected markAllNotificationsRead(): void {
     this.notificationsApiService.markAllAsRead().subscribe({
       next: () => {
-        this.notifications.update((items) =>
-          items.map((item) => ({ ...item, isRead: true })),
-        );
+        this.notifications.set([]);
         this.unreadNotifications.set(0);
       },
     });
@@ -335,14 +331,10 @@ export class AdminShellComponent {
     const unread = this.unreadNotifications();
 
     if (total === 0) {
-      return 'No recent updates are waiting in your inbox.';
+      return 'No unread updates are waiting in your inbox.';
     }
 
-    if (unread === 0) {
-      return `${total} update(s) available. Everything has already been reviewed.`;
-    }
-
-    return `${total} update(s) available with ${unread} unread item(s) needing attention.`;
+    return `${total} unread update(s) available with ${unread} unread item(s) needing attention.`;
   }
 
   protected notificationTypeLabel(referenceType: NotificationReferenceType): string {
@@ -464,7 +456,7 @@ export class AdminShellComponent {
     this.notificationsLoading.set(true);
 
     this.notificationsApiService
-      .getNotifications({ limit: 12, page: 1 })
+      .getNotifications({ unreadOnly: true, limit: 12, page: 1 })
       .subscribe({
         next: (response) => {
           this.notifications.set(response.data);

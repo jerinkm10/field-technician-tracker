@@ -7,7 +7,7 @@ class AppConfig {
   // Override with --dart-define for local emulator or staging builds.
   static const apiBaseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://13.126.89.105/api',
+    defaultValue: 'https://star.castorwheel.co/api',
   );
 
   static const defaultMapLatitude = 10.123456;
